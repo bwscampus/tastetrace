@@ -31,6 +31,9 @@ export interface IStorage {
   updateCorrelationConfidence(id: number, confidence: number): Promise<Correlation | undefined>;
   deleteCorrelation(id: number): Promise<boolean>;
   regenerateCorrelations(userId: string): Promise<void>;
+
+  // Waitlist operations
+  addWaitlistSignup(email: string): Promise<void>;
 }
 
 // Use DatabaseStorage instead of MemStorage

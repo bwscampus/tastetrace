@@ -46,7 +46,7 @@ export function setupAuth(app: Express) {
     store: sessionStore,
     cookie: {
       httpOnly: true,
-      secure: false, // Set to true in production with HTTPS
+      secure: "auto", // HTTPS-only cookie whenever the request came in over HTTPS
       maxAge: sessionTtl,
     },
   };

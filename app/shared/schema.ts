@@ -61,6 +61,13 @@ export const correlations = pgTable("correlations", {
   isIngredient: boolean("is_ingredient").default(false),
 });
 
+// Signups from the landing page (tastetrace.app)
+export const waitlistSignups = pgTable("waitlist_signups", {
+  id: serial("id").primaryKey(),
+  email: varchar("email").unique().notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,

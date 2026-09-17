@@ -3,13 +3,19 @@ import { randomUUID } from "crypto";
 import { db } from "./db";
 import { IStorage } from "./storage";
 import { 
-  users, meals, symptoms, correlations,
+  users, meals, symptoms, correlations, waitlistSignups,
   User, Meal, Symptom, Correlation,
   InsertUser, InsertMeal, InsertSymptom, InsertCorrelation,
   SymptomSeverity
 } from "@shared/schema";
 
 export class DatabaseStorage implements IStorage {
+  // Waitlist operations
+  async addWaitlistSignup(email: string): Promise<void> {
+    // Signing up twice is not an error
+    await db.insert(waitlistSignups).values({ email }).onConflictDoNothing();
+  }
+
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
