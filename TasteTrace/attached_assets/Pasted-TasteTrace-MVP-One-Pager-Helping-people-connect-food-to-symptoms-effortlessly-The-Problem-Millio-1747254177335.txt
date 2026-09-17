@@ -1,0 +1,45 @@
+TasteTrace - MVP One-Pager
+Helping people connect food to symptoms, effortlessly.
+The Problem
+Millions suffer from unexplained symptoms - bloating, headaches, fatigue, skin flare-ups - potentially
+caused by food sensitivities. But identifying which foods are the culprits is time-consuming,
+frustrating, and often inconclusive.
+- Manual food journals are tedious
+- Symptom onset is often delayed
+- Medical tests are expensive and imprecise
+Our Solution
+TasteTrace is a low-friction mobile app that helps users discover links between what they eat and
+how they feel - without complicated inputs or behavior change.
+Core MVP Features
+1. Quick-Tap Logging:
+Users log meals in seconds using pre-saved "meal tiles" (e.g., "Oatmeal," "Turkey Wrap,"
+"Smoothie") with auto-timestamping and optional notes/photos.
+2. Daily Smart Symptom Check-Ins:
+A single push notification asks users, "Did you feel any symptoms today?"
+- Tap "Yes" symptom picker (type + severity)
+- App links symptom to meals in the prior 6 12 hours
+Value Proposition
+"Feel better, faster - without complicated tests. TasteTrace helps you identify which foods may be
+triggering your symptoms, using just a few seconds a day."
+Target Audience
+- Health-conscious adults with chronic or unexplained symptoms
+- People with IBS, migraines, autoimmune flares, or fatigue
+- Parents of symptomatic children
+- Users trying elimination diets
+- Nutritionists and functional medicine providers (future B2B)
+Why This MVP Works
+Design Principle | Implementation | Impact
+------------------------|------------------------------------|------------------------------------
+Frictionless UX | 1-tap meal logs + smart reminders | High retention, low abandonment
+Pattern Engine | Correlates time-stamped data | Personalized insights over time
+Rapid Build Cycle | Lightweight frontend/backend | Ready for launch & user feedback
+MVP Metrics to Track
+- Daily Active Users (DAU)
+- Log Completion Rate (Meals + Symptoms)
+- Insight Trigger Rate (e.g., "X food linked to Y symptom")
+- User Retention (Day 1, 7, 30)
+Next Steps
+- Build v1 prototype (2 4 weeks)
+- Launch private beta with early adopters
+- Collect data for symptom-food correlation engine
+- Expand to AI-powered photo logging & healthcare provider exports
