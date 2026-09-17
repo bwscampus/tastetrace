@@ -1,11 +1,12 @@
 # tastetrace
 
-Two sites, deployed as two Vercel projects (team `bcil`):
+Two sites, deployed as two services in one Railway project. Each service
+builds from its own root directory and redeploys on pushes to `main`.
 
-| Folder | What it is | Vercel project | Domain |
+| Folder | What it is | Railway service | Domain |
 | --- | --- | --- | --- |
-| `landing/` | Static waitlist landing page (`index.html`, no build step) | `tastetrace-landing` | tastetrace.app, www.tastetrace.app |
-| `app/` | The TasteTrace application: React (Vite) client + Express API + Postgres (Drizzle) | `tastetrace-app` | app.tastetrace.app |
+| `landing/` | Static waitlist landing page (`index.html`, no build step) | `landing` | tastetrace.app |
+| `app/` | The TasteTrace application: React (Vite) client + Express API + Postgres (Drizzle) | `tastetrace` | app.tastetrace.app |
 
 The landing page's waitlist form posts to `https://app.tastetrace.app/api/waitlist`,
 which stores signups in the `waitlist_signups` table.
@@ -21,15 +22,13 @@ npm run db:push    # apply shared/schema.ts to the database
 
 Environment variables:
 
-- `DATABASE_URL` – Postgres connection string (Neon)
+- `DATABASE_URL` – Postgres connection string (on Railway: `${{Postgres.DATABASE_URL}}`)
 - `SESSION_SECRET` – secret for signing session cookies
 - `WAITLIST_ORIGINS` – optional, comma-separated origins allowed to post to
   `/api/waitlist` (defaults to the tastetrace.app landing origins)
 
-On Vercel the client is built into `public/` and served from the CDN, and
-`index.ts` exports the Express app, which runs as a single function handling
-`/api/*` (see `app/vercel.json`). `npm run build && npm start` still produces a
-self-contained Node server in `dist/` for any other host.
+Railway builds with `npm run build` and runs `npm start`: a single Node server
+that serves the API and the built client on `PORT`.
 
 ## landing/
 

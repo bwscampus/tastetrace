@@ -1,5 +1,5 @@
-import { InsertUser, User, InsertMeal, Meal, InsertSymptom, Symptom, InsertCorrelation, Correlation } from "../shared/schema.js";
-import { DatabaseStorage } from "./database-storage.js";
+import { InsertUser, User, InsertMeal, Meal, InsertSymptom, Symptom, InsertCorrelation, Correlation } from "@shared/schema";
+import { DatabaseStorage } from "./database-storage";
 
 export interface IStorage {
   // User operations

@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
-import { storage } from "./storage.js";
-import { setupAuth, isAuthenticated } from "./auth.js";
+import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./auth";
 import { 
   insertMealSchema, 
   insertSymptomSchema,
@@ -8,7 +8,7 @@ import {
   SymptomSeverity,
   Meal,
   Symptom 
-} from "../shared/schema.js";
+} from "@shared/schema";
 import { z } from "zod";
 import { startOfDay, endOfDay, parse } from "date-fns";
 

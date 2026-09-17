@@ -1,13 +1,13 @@
 import { and, eq, sql, gte, lte, desc, count } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { db } from "./db.js";
-import { IStorage } from "./storage.js";
+import { db } from "./db";
+import { IStorage } from "./storage";
 import { 
   users, meals, symptoms, correlations, waitlistSignups,
   User, Meal, Symptom, Correlation,
   InsertUser, InsertMeal, InsertSymptom, InsertCorrelation,
   SymptomSeverity
-} from "../shared/schema.js";
+} from "@shared/schema";
 
 export class DatabaseStorage implements IStorage {
   // Waitlist operations

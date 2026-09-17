@@ -1,10 +1,9 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes.js";
-import { log } from "./log.js";
+import { registerRoutes } from "./routes";
+import { log } from "./log";
 
-// The Express app without a listener or static file serving, so it can be
-// mounted both by server/index.ts (local / Node hosting) and by the Vercel
-// entrypoint (index.ts at the project root).
+// The Express app: middleware and API routes. server/index.ts adds the
+// client (Vite in dev, static files in production) and starts listening.
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
