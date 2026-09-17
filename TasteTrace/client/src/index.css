@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 100% 98%;
+  --foreground: 222 47% 11%;
+  --muted: 210 40% 93%;
+  --muted-foreground: 215 16% 47%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --primary: 217 91% 24%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222 47% 11%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 215 20.2% 65.1%;
+  --radius: 0.5rem;
+  --sidebar-background: 217 91% 24%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-primary: 210 40% 90%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 210 40% 80%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border: 217 60% 35%;
+  --sidebar-ring: 217 60% 35%;
+  --chart-1: 217 91% 60%;
+  --chart-2: 230 74% 59%;
+  --chart-3: 180 70% 45%;
+  --chart-4: 42 87% 55%;
+  --chart-5: 338 85% 53%;
+}
+
+.dark {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+  --card: 224 71% 4%;
+  --card-foreground: 210 40% 98%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 85.7% 97.3%;
+  --ring: 217 33% 17%;
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Custom utility classes */
+.bg-light-blue {
+  @apply bg-[#e6f0ff];
+}
+
+.bg-navy {
+  @apply bg-[#1a365d];
+}
+
+.text-navy {
+  @apply text-[#1a365d];
+}
+
+.border-navy {
+  @apply border-[#1a365d];
+}
+
+.hover-bg-navy:hover {
+  @apply bg-[#1a365d];
+}
+
+.hover-text-white:hover {
+  @apply text-white;
+}
