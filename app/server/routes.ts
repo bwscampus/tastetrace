@@ -1,7 +1,6 @@
 import type { Express, Request, Response } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./auth";
+import { storage } from "./storage.js";
+import { setupAuth, isAuthenticated } from "./auth.js";
 import { 
   insertMealSchema, 
   insertSymptomSchema,
@@ -9,7 +8,7 @@ import {
   SymptomSeverity,
   Meal,
   Symptom 
-} from "@shared/schema";
+} from "../shared/schema.js";
 import { z } from "zod";
 import { startOfDay, endOfDay, parse } from "date-fns";
 
@@ -18,7 +17,49 @@ function formatDateForQuery(date: Date | string): Date {
   return d;
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
+// Origins allowed to post to the waitlist endpoint (the landing site)
+const WAITLIST_ORIGINS = (process.env.WAITLIST_ORIGINS ||
+  "https://tastetrace.app,https://www.tastetrace.app")
+  .split(",")
+  .map((origin) => origin.trim());
+
+const waitlistSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  company: z.string().optional(), // honeypot, left empty by real visitors
+});
+
+export function registerRoutes(app: Express): void {
+  // Waitlist signups come cross-origin from the landing page, so this is
+  // registered before the session middleware and answers CORS itself.
+  app.use("/api/waitlist", (req: Request, res: Response, next) => {
+    const origin = req.headers.origin;
+    if (origin && WAITLIST_ORIGINS.includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+      res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    }
+    if (req.method === "OPTIONS") return res.sendStatus(204);
+    next();
+  });
+
+  app.post("/api/waitlist", async (req: Request, res: Response) => {
+    const parsed = waitlistSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Enter a valid email address" });
+    }
+
+    try {
+      if (!parsed.data.company) {
+        await storage.addWaitlistSignup(parsed.data.email);
+      }
+      res.status(201).json({ message: "You're on the list" });
+    } catch (error) {
+      console.error("Error adding waitlist signup:", error);
+      res.status(500).json({ message: "Could not join the waitlist" });
+    }
+  });
+
   // Setup authentication
   setupAuth(app);
 
@@ -524,6 +565,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
-  return httpServer;
 }

@@ -482,8 +482,7 @@
       <h1 class="reveal d2">Every meal<br>leaves a <em>clue</em>.</h1>
       <p class="hero-sub reveal d3">TasteTrace is the smart way to log your meals and identify food-related symptoms. Record what you eat and any discomfort that follows, and TasteTrace analyzes the pattern to find what's really triggering your reactions.</p>
 
-      <form class="waitlist-form reveal d4" id="join" name="waitlist" data-netlify="true" netlify-honeypot="company" novalidate>
-        <input type="hidden" name="form-name" value="waitlist">
+      <form class="waitlist-form reveal d4" id="join" name="waitlist" novalidate>
         <input type="text" name="company" style="position:absolute; left:-9999px;" tabindex="-1" autocomplete="off" aria-hidden="true">
         <input type="email" name="email" id="emailInput" placeholder="you@email.com" aria-label="Email address" required>
         <button type="submit" class="btn-submit" id="submitBtn">Join waitlist</button>
@@ -554,8 +553,7 @@
   <div class="wrap">
     <h2>Be first through the door.</h2>
     <p>Join the waitlist and we'll send you an invite as soon as TasteTrace opens up.</p>
-    <form class="waitlist-form" id="joinBottom" name="waitlist" data-netlify="true" netlify-honeypot="company" novalidate>
-      <input type="hidden" name="form-name" value="waitlist">
+    <form class="waitlist-form" id="joinBottom" name="waitlist" novalidate>
       <input type="text" name="company" style="position:absolute; left:-9999px;" tabindex="-1" autocomplete="off" aria-hidden="true">
       <input type="email" name="email" id="emailInputBottom" placeholder="you@email.com" aria-label="Email address" required>
       <button type="submit" class="btn-submit" id="submitBtnBottom">Join waitlist</button>
@@ -586,11 +584,7 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   }
 
-  function encodeForm(data){
-    return Object.keys(data)
-      .map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(data[k]); })
-      .join('&');
-  }
+  const WAITLIST_URL = 'https://app.tastetrace.app/api/waitlist';
 
   function wireForm(formId, inputId, btnId, errorId, confirmId, confirmEmailId, noteId){
     const form = document.getElementById(formId);
@@ -615,14 +609,14 @@
       btn.disabled = true;
       btn.textContent = 'Adding you…';
 
-      // Submits to Netlify's form backend so every signup is recorded
-      // in Site settings > Forms. Falls through to the success state
-      // either way so a slow network never blocks the user.
-      fetch('/', {
+      // Signups are stored by the app's API (app/server/routes.ts). Falls
+      // through to the success state either way so a slow network never
+      // blocks the user.
+      fetch(WAITLIST_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: encodeForm({ 'form-name': 'waitlist', email: value })
-      }).catch(function(){ /* still show success below; see note in chat */ })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: value, company: form.elements.company.value })
+      }).catch(function(){ /* still show success below */ })
         .finally(function(){
           confirmEmailEl.textContent = value;
           form.style.display = 'none';

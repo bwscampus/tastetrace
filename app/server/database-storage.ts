@@ -1,15 +1,21 @@
 import { and, eq, sql, gte, lte, desc, count } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { db } from "./db";
-import { IStorage } from "./storage";
+import { db } from "./db.js";
+import { IStorage } from "./storage.js";
 import { 
-  users, meals, symptoms, correlations,
+  users, meals, symptoms, correlations, waitlistSignups,
   User, Meal, Symptom, Correlation,
   InsertUser, InsertMeal, InsertSymptom, InsertCorrelation,
   SymptomSeverity
-} from "@shared/schema";
+} from "../shared/schema.js";
 
 export class DatabaseStorage implements IStorage {
+  // Waitlist operations
+  async addWaitlistSignup(email: string): Promise<void> {
+    // Signing up twice is not an error
+    await db.insert(waitlistSignups).values({ email }).onConflictDoNothing();
+  }
+
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));

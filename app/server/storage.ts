@@ -1,5 +1,5 @@
-import { InsertUser, User, InsertMeal, Meal, InsertSymptom, Symptom, InsertCorrelation, Correlation } from "@shared/schema";
-import { DatabaseStorage } from "./database-storage";
+import { InsertUser, User, InsertMeal, Meal, InsertSymptom, Symptom, InsertCorrelation, Correlation } from "../shared/schema.js";
+import { DatabaseStorage } from "./database-storage.js";
 
 export interface IStorage {
   // User operations
@@ -31,6 +31,9 @@ export interface IStorage {
   updateCorrelationConfidence(id: number, confidence: number): Promise<Correlation | undefined>;
   deleteCorrelation(id: number): Promise<boolean>;
   regenerateCorrelations(userId: string): Promise<void>;
+
+  // Waitlist operations
+  addWaitlistSignup(email: string): Promise<void>;
 }
 
 // Use DatabaseStorage instead of MemStorage
