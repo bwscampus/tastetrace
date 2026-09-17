@@ -19,7 +19,7 @@ function formatDateForQuery(date: Date | string): Date {
 
 // Origins allowed to post to the waitlist endpoint (the landing site)
 const WAITLIST_ORIGINS = (process.env.WAITLIST_ORIGINS ||
-  "https://tastetrace.app,https://www.tastetrace.app")
+  "https://tastetrace.up.railway.app,https://tastetrace.app,https://www.tastetrace.app")
   .split(",")
   .map((origin) => origin.trim());
 

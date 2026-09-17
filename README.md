@@ -5,11 +5,16 @@ builds from its own root directory and redeploys on pushes to `main`.
 
 | Folder | What it is | Railway service | Domain |
 | --- | --- | --- | --- |
-| `landing/` | Static waitlist landing page (`index.html`, no build step) | `landing` | tastetrace.app |
-| `app/` | The TasteTrace application: React (Vite) client + Express API + Postgres (Drizzle) | `tastetrace` | app.tastetrace.app |
+| `landing/` | Static waitlist landing page (`index.html`, no build step) | `landing` | https://tastetrace.up.railway.app (later tastetrace.app) |
+| `app/` | The TasteTrace application: React (Vite) client + Express API + Postgres (Drizzle) | `tastetrace` | https://tastetrace-app.up.railway.app (later app.tastetrace.app) |
 
-The landing page's waitlist form posts to `https://app.tastetrace.app/api/waitlist`,
-which stores signups in the `waitlist_signups` table.
+The sites run on their Railway domains for now. The custom domains are already
+attached to the services in Railway and start working once their DNS records
+are added; at that point change `WAITLIST_URL` in `landing/index.html` to
+`https://app.tastetrace.app/api/waitlist`.
+
+The landing page's waitlist form posts to the app's `/api/waitlist`, which
+stores signups in the `waitlist_signups` table.
 
 ## app/
 
@@ -25,7 +30,7 @@ Environment variables:
 - `DATABASE_URL` – Postgres connection string (on Railway: `${{Postgres.DATABASE_URL}}`)
 - `SESSION_SECRET` – secret for signing session cookies
 - `WAITLIST_ORIGINS` – optional, comma-separated origins allowed to post to
-  `/api/waitlist` (defaults to the tastetrace.app landing origins)
+  `/api/waitlist` (defaults to the landing page's Railway and tastetrace.app origins)
 
 Railway builds with `npm run build` and runs `npm start`: a single Node server
 that serves the API and the built client on `PORT`.

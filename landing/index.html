@@ -584,7 +584,8 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   }
 
-  const WAITLIST_URL = 'https://app.tastetrace.app/api/waitlist';
+  // Switch to https://app.tastetrace.app once DNS for the custom domains is set up
+  const WAITLIST_URL = 'https://tastetrace-app.up.railway.app/api/waitlist';
 
   function wireForm(formId, inputId, btnId, errorId, confirmId, confirmEmailId, noteId){
     const form = document.getElementById(formId);
