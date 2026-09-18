@@ -1,8 +1,6 @@
-node_modules
-dist
-.DS_Store
+# Web/API specifics; see the repository root .gitignore for the general rules
 server/public
 vite.config.ts.*
 *.tar.gz
+# Replit agent state (skills, scribe/log databases)
 .local
-.env*

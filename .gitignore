@@ -1,3 +1,53 @@
+# ── Secrets and local config ────────────────────────────────────────────────
+# Never commit credentials: DATABASE_URL, SESSION_SECRET, ANTHROPIC_API_KEY…
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+.npm/
+.pnpm-store/
+
+# ── Build output ────────────────────────────────────────────────────────────
+dist/
+build/
+*.tsbuildinfo
+
+# ── Swift / Xcode (ios/) ────────────────────────────────────────────────────
+# The Xcode project is generated from ios/project.yml with `xcodegen generate`
+*.xcodeproj/
+*.xcworkspace/
+!*.xcodeproj/project.pbxproj.example
+xcuserdata/
+DerivedData/
+*.xcresult
+.build/
+.swiftpm/
+Package.resolved
+
+# ── Tooling caches ──────────────────────────────────────────────────────────
+.vercel/
+.turbo/
+.vite/
+coverage/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# ── Editors ─────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*~
+
+# ── macOS ───────────────────────────────────────────────────────────────────
 .DS_Store
-node_modules
-.env*
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
