@@ -9,6 +9,7 @@ from app.auth.backend import bearer_backend, cookie_backend
 from app.auth.models import User
 from app.auth.schemas import UserCreate, UserRead, UserUpdate
 from app.auth.users import get_user_manager
+from app.config import settings
 
 # Both backends share one session table, so a token from either is revocable.
 fastapi_users = FastAPIUsers[User, uuid.UUID](
@@ -34,8 +35,11 @@ def install_auth_routes(app: FastAPI, prefix: str = "/api") -> None:
     auth_router.include_router(
         fastapi_users.get_register_router(UserRead, UserCreate)
     )
-    # POST /forgot-password, POST /reset-password
-    auth_router.include_router(fastapi_users.get_reset_password_router())
+    # POST /forgot-password, POST /reset-password. Mounted only when mail is
+    # configured: a reset route that cannot deliver is worse than no route,
+    # because it answers 202 and the user waits for an email that never comes.
+    if settings.PASSWORD_RESET_ENABLED:
+        auth_router.include_router(fastapi_users.get_reset_password_router())
 
     app.include_router(auth_router, prefix=f"{prefix}/auth", tags=["auth"])
     # GET/PATCH /me

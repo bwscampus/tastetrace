@@ -42,6 +42,14 @@ def test_production_requires_email_key():
         Settings(**{**PROD_ENV, "RESEND_API_KEY": ""})
 
 
+def test_production_boots_without_email_key_when_reset_disabled():
+    settings = Settings(
+        **{**PROD_ENV, "RESEND_API_KEY": "", "PASSWORD_RESET_ENABLED": False}
+    )
+    assert settings.is_production
+    assert not settings.PASSWORD_RESET_ENABLED
+
+
 def test_production_rejects_wildcard_hosts():
     import pytest
 

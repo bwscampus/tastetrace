@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str | None = None
     EMAIL_FROM: str = "onboarding@resend.dev"
 
+    # Password reset is the only thing that sends mail. Turning it off drops
+    # the two reset routes entirely (404 rather than a 202 that delivers
+    # nothing) and lets production boot without a Resend key. The iOS app has
+    # no reset screen yet; turn this back on with the key in the same deploy.
+    PASSWORD_RESET_ENABLED: bool = True
+
     SESSION_COOKIE_NAME: str = "session"
     SESSION_LIFETIME_SECONDS: int = 60 * 60 * 24 * 14  # 14 days
     RESET_TOKEN_LIFETIME_SECONDS: int = 60 * 60  # 1 hour
@@ -128,10 +134,11 @@ class Settings(BaseSettings):
                 "characters (try: python -c 'import secrets; "
                 "print(secrets.token_urlsafe(48))')"
             )
-        if not self.RESEND_API_KEY:
+        if self.PASSWORD_RESET_ENABLED and not self.RESEND_API_KEY:
             problems.append(
                 "RESEND_API_KEY is required: password reset cannot send mail "
-                "without it"
+                "without it (or set PASSWORD_RESET_ENABLED=false to drop the "
+                "reset routes)"
             )
         if self.ALLOWED_HOSTS == ["*"]:
             problems.append(
