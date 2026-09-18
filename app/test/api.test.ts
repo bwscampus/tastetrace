@@ -114,6 +114,38 @@ describe.skipIf(!hasDb)("mobile API", () => {
     expect(catalog.body.defaults).toHaveLength(6);
   });
 
+  it("saves dishes and logs meals from them", async () => {
+    const dish = await request(app).post("/api/dishes").set(auth(aliceToken)).send({
+      name: "Avocado Sourdough Toast", emoji: "🥑", containsGluten: true,
+      ingredients: [{ name: "sourdough bread", cookMethod: "toasted" }, { name: "avocado", cookMethod: "raw" }, { name: "salt" }],
+    });
+    expect(dish.status).toBe(201);
+    expect(dish.body.timesLogged).toBe(0);
+
+    const logged = await request(app).post(`/api/dishes/${dish.body.id}/log`).set(auth(aliceToken))
+      .send({ mealType: "Lunch", timestamp: "2026-09-11T19:45:00Z", tz: "America/Los_Angeles" });
+    expect(logged.status).toBe(201);
+    expect(logged.body.dishId).toBe(dish.body.id);
+    expect(logged.body.ingredients).toEqual(["sourdough bread", "avocado", "salt"]);
+    expect(logged.body.ingredientDetails[0].cookMethod).toBe("toasted");
+    expect(logged.body.containsGluten).toBe(true);
+    expect(logged.body.date).toBe("2026-09-11");
+
+    const list = await request(app).get("/api/dishes").set(auth(aliceToken));
+    expect(list.body[0].timesLogged).toBe(1);
+    expect(list.body[0].lastLoggedAt).toBe("2026-09-11T19:45:00.000Z");
+
+    expect((await request(app).post(`/api/dishes/${dish.body.id}/log`).set(auth(bobToken)).send({ mealType: "Lunch" })).status).toBe(404);
+    expect((await request(app).post(`/api/dishes/${dish.body.id}/log`).set(auth(aliceToken)).send({ mealType: "Brunch" })).status).toBe(400);
+
+    const renamed = await request(app).put(`/api/dishes/${dish.body.id}`).set(auth(aliceToken)).send({ emoji: "🍞" });
+    expect(renamed.body.emoji).toBe("🍞");
+    expect((await request(app).delete(`/api/dishes/${dish.body.id}`).set(auth(aliceToken))).status).toBe(204);
+    // The logged meal survives with its dish link cleared
+    const meal = await request(app).get(`/api/meals/${logged.body.id}`).set(auth(aliceToken));
+    expect(meal.body.dishId).toBeNull();
+  });
+
   it("revokes tokens", async () => {
     const list = await request(app).get("/api/auth/tokens").set(auth(aliceToken));
     expect(list.body.length).toBeGreaterThanOrEqual(2);

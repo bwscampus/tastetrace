@@ -90,24 +90,34 @@ struct SheetHost: View {
     let sheet: AppSheet
 
     var body: some View {
-        NavigationStack {
-            Group {
-                switch sheet {
-                case .logMeal:
-                    PlaceholderScreen(title: "Log a Meal", message: "The two-step meal flow arrives in the next milestone.")
-                case .quickLog:
-                    PlaceholderScreen(title: "Quick Log", message: "The symptom grid arrives in a later milestone.")
-                case .profile:
-                    ProfileStub()
-                case .notifications:
-                    PlaceholderScreen(title: "Notifications", message: "Reminders arrive in a later milestone.")
-                case .editMeal, .editSymptom:
-                    PlaceholderScreen(title: "Edit Entry", message: "Editing arrives with the meal flow.")
-                }
+        if case .logMeal(let date) = sheet {
+            // Owns its own NavigationStack (two steps) and Close button
+            LogMealFlow(env: env, date: date)
+        } else {
+            NavigationStack {
+                sheetContent
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("Close") { router.sheet = nil } }
+                    }
             }
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { router.sheet = nil } }
-            }
+        }
+    }
+
+    @ViewBuilder
+    private var sheetContent: some View {
+        switch sheet {
+        case .logMeal:
+            EmptyView()
+        case .quickLog:
+            PlaceholderScreen(title: "Quick Log", message: "The symptom grid arrives in a later milestone.")
+        case .profile:
+            ProfileStub()
+        case .notifications:
+            PlaceholderScreen(title: "Notifications", message: "Reminders arrive in a later milestone.")
+        case .editMeal(let id):
+            EditMealView(mealId: id)
+        case .editSymptom:
+            PlaceholderScreen(title: "Edit Symptom", message: "Symptom editing arrives with Quick Log.")
         }
     }
 }

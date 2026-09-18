@@ -47,3 +47,12 @@ final class JSONFileStoreTests: XCTestCase {
         XCTAssertNil(store.load())
     }
 }
+
+final class IngredientParsingTests: XCTestCase {
+    func testSplitsTrimsAndDedupes() {
+        XCTAssertEqual(parseIngredientInput(" avocado, Sourdough bread ,salt,, avocado"), ["avocado", "Sourdough bread", "salt"])
+        XCTAssertEqual(parseIngredientInput("salt", existing: ["Salt"]), [])
+        XCTAssertEqual(CookMethod.label(for: "deep_fried"), "Deep fried")
+        XCTAssertEqual(CookMethod.label(for: nil), nil)
+    }
+}

@@ -49,6 +49,14 @@ do {
     let markers = try await client.markers(from: Date().addingTimeInterval(-7 * 86400), to: Date().addingTimeInterval(86400), tz: tz)
     check("markers contain today", (markers[today]?.symptoms ?? 0) >= 2)
 
+    let dish = try await client.createDish(.init(name: "Spicy tuna roll", emoji: "🍣", ingredients: [.init(name: "tuna", cookMethod: "raw"), .init(name: "rice"), .init(name: "mayo")]))
+    let fromTile = try await client.logDish(id: dish.id, .init(mealType: .dinner, timestamp: Date(), tz: tz))
+    check("tile log carries ingredients + dishId", fromTile.dishId == dish.id && fromTile.ingredients == ["tuna", "rice", "mayo"])
+    let tiles = try await client.dishes()
+    check("dish list sorted by last logged", tiles.first?.id == dish.id && tiles.first?.timesLogged == 1)
+    try await client.deleteMeal(id: fromTile.id)
+    try await client.deleteDish(id: dish.id)
+
     let catalog = try await client.symptomCatalog()
     check("catalog has 6 defaults", catalog.defaults.count == 6)
 

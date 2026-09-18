@@ -3,10 +3,10 @@ import { randomUUID } from "crypto";
 import { db } from "./db";
 import { IStorage } from "./storage";
 import { 
-  users, apiTokens, userSettings, meals, symptoms, customSymptoms, correlations, waitlistSignups,
+  users, apiTokens, userSettings, meals, symptoms, customSymptoms, correlations, waitlistSignups, dishes,
   User, ProfilePatch, ApiToken, UserSettings, SettingsPatch,
-  Meal, Symptom, CustomSymptom, Correlation,
-  InsertUser, InsertMeal, UpdateMeal, InsertSymptom, UpdateSymptom, InsertCustomSymptom, InsertCorrelation,
+  Meal, Symptom, CustomSymptom, Correlation, Dish,
+  InsertUser, InsertMeal, UpdateMeal, InsertSymptom, UpdateSymptom, InsertCustomSymptom, InsertCorrelation, InsertDish,
   IngredientDetail, SymptomSeverity
 } from "@shared/schema";
 import { severityFromIntensity, intensityFromSeverity } from "@shared/severity";
@@ -187,6 +187,60 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(meals.id, id), eq(meals.userId, userId)))
       .returning({ id: meals.id });
     return deleted.length > 0;
+  }
+  
+  // Saved dish tiles
+  async getDishes(userId: string): Promise<Dish[]> {
+    return await db.select().from(dishes)
+      .where(eq(dishes.userId, userId))
+      .orderBy(sql`${dishes.lastLoggedAt} DESC NULLS LAST`, desc(dishes.timesLogged), asc(dishes.name));
+  }
+
+  async getDish(id: number, userId: string): Promise<Dish | undefined> {
+    const [dish] = await db.select().from(dishes).where(and(eq(dishes.id, id), eq(dishes.userId, userId)));
+    return dish;
+  }
+
+  async createDish(userId: string, dish: InsertDish): Promise<Dish> {
+    const [created] = await db.insert(dishes).values({ ...dish, userId }).returning();
+    return created;
+  }
+
+  async updateDish(id: number, userId: string, dish: Partial<InsertDish>): Promise<Dish | undefined> {
+    const [updated] = await db.update(dishes)
+      .set({ ...dish, updatedAt: new Date() })
+      .where(and(eq(dishes.id, id), eq(dishes.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteDish(id: number, userId: string): Promise<boolean> {
+    const deleted = await db.delete(dishes)
+      .where(and(eq(dishes.id, id), eq(dishes.userId, userId)))
+      .returning({ id: dishes.id });
+    return deleted.length > 0;
+  }
+
+  async logDish(dish: Dish, meal: { mealType: string; timestamp: Date; notes?: string | null; ingredientDetails?: IngredientDetail[] | null }, tz: string): Promise<Meal> {
+    const created = await this.createMeal({
+      userId: dish.userId,
+      name: dish.name,
+      mealType: meal.mealType,
+      timestamp: meal.timestamp,
+      notes: meal.notes ?? null,
+      isCustom: true,
+      ingredientDetails: meal.ingredientDetails ?? dish.ingredients,
+      dishId: dish.id,
+      containsGluten: dish.containsGluten,
+      containsDairy: dish.containsDairy,
+      containsGrains: dish.containsGrains,
+      containsSugar: dish.containsSugar,
+      containsNuts: dish.containsNuts,
+    }, tz);
+    await db.update(dishes)
+      .set({ timesLogged: sql`${dishes.timesLogged} + 1`, lastLoggedAt: meal.timestamp })
+      .where(eq(dishes.id, dish.id));
+    return created;
   }
   
   // Symptom operations

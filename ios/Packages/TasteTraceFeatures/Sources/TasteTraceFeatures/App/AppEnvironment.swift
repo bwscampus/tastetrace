@@ -10,6 +10,7 @@ import TasteTraceCore
 public final class AppEnvironment {
     public let session: AuthSession
     public let entries: EntriesRepository
+    public let dishes: DishRepository
     public var dateMath: DateMath
 
     public var api: APIClient { session.api }
@@ -17,6 +18,7 @@ public final class AppEnvironment {
     public init(session: AuthSession, dateMath: DateMath = DateMath()) {
         self.session = session
         self.entries = EntriesRepository(client: session.api)
+        self.dishes = DishRepository(client: session.api)
         self.dateMath = dateMath
     }
 

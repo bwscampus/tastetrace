@@ -7,6 +7,7 @@ import { registerMealRoutes } from "./meals";
 import { registerSymptomRoutes } from "./symptoms";
 import { registerEntryRoutes } from "./entries";
 import { registerProfileRoutes } from "./profile";
+import { registerDishRoutes } from "./dishes";
 
 // Origins allowed to post to the waitlist endpoint (the landing site)
 const WAITLIST_ORIGINS = (process.env.WAITLIST_ORIGINS ||
@@ -90,6 +91,7 @@ export function registerRoutes(app: Express): void {
 
   registerProfileRoutes(app);
   registerMealRoutes(app);
+  registerDishRoutes(app);
   registerSymptomRoutes(app);
   registerEntryRoutes(app);
 }

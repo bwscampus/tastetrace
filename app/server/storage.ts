@@ -1,7 +1,7 @@
 import {
   InsertUser, User, ProfilePatch, ApiToken, UserSettings, SettingsPatch,
-  InsertMeal, UpdateMeal, Meal, InsertSymptom, UpdateSymptom, Symptom,
-  CustomSymptom, InsertCustomSymptom, InsertCorrelation, Correlation,
+  InsertMeal, UpdateMeal, Meal, InsertSymptom, UpdateSymptom, Symptom, Dish, InsertDish,
+  CustomSymptom, InsertCustomSymptom, InsertCorrelation, Correlation, IngredientDetail,
 } from "@shared/schema";
 import { DatabaseStorage } from "./database-storage";
 
@@ -33,6 +33,15 @@ export interface IStorage {
   createMeal(meal: InsertMeal, tz: string): Promise<Meal>;
   updateMeal(id: number, userId: string, meal: UpdateMeal, tz: string): Promise<Meal | undefined>;
   deleteMeal(id: number, userId: string): Promise<boolean>;
+
+  // Saved dish tiles
+  getDishes(userId: string): Promise<Dish[]>;
+  getDish(id: number, userId: string): Promise<Dish | undefined>;
+  createDish(userId: string, dish: InsertDish): Promise<Dish>;
+  updateDish(id: number, userId: string, dish: Partial<InsertDish>): Promise<Dish | undefined>;
+  deleteDish(id: number, userId: string): Promise<boolean>;
+  /** Logs a meal from a dish and bumps its usage counters. */
+  logDish(dish: Dish, meal: { mealType: string; timestamp: Date; notes?: string | null; ingredientDetails?: IngredientDetail[] | null }, tz: string): Promise<Meal>;
 
   // Symptom operations
   getSymptom(id: number, userId: string): Promise<Symptom | undefined>;
