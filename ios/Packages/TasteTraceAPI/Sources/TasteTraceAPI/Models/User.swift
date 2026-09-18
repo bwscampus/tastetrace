@@ -22,9 +22,15 @@ public struct User: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-public struct AuthResponse: Codable, Equatable, Sendable {
+/// Assembled by the client: the API issues the token and the user separately.
+public struct AuthResponse: Equatable, Sendable {
     public let token: String
     public let user: User
+
+    public init(token: String, user: User) {
+        self.token = token
+        self.user = user
+    }
 }
 
 public struct Profile: Codable, Equatable, Sendable {
@@ -54,10 +60,3 @@ public struct ProfilePatch: Encodable, Sendable {
     }
 }
 
-public struct ApiTokenInfo: Codable, Equatable, Identifiable, Sendable {
-    public let id: Int
-    public let deviceName: String?
-    public let createdAt: Date?
-    public let lastUsedAt: Date?
-    public let current: Bool
-}

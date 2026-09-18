@@ -16,6 +16,9 @@ final class AuthViewModel {
     var isBusy = false
     var error: String?
 
+    /// Matches the server's policy; a shorter password is rejected there.
+    static let minimumPasswordLength = 8
+
     private let session: AuthSession
 
     init(session: AuthSession) {
@@ -24,7 +27,7 @@ final class AuthViewModel {
 
     var canSubmit: Bool {
         let emailOk = email.contains("@") && email.contains(".")
-        let passwordOk = password.count >= 6
+        let passwordOk = password.count >= Self.minimumPasswordLength
         let namesOk = mode == .signIn || (!firstName.trimmingCharacters(in: .whitespaces).isEmpty)
         return emailOk && passwordOk && namesOk && !isBusy
     }
