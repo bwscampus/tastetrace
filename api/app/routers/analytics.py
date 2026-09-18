@@ -1,6 +1,7 @@
 """The screens that interpret the log: coverage, digests, triggers."""
 
 from dataclasses import fields, is_dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -56,7 +57,7 @@ def camel(value: Any) -> Any:
 
 async def _week_start(session, user, week_start: str | None, tz: str) -> str:
     if week_start in (None, ""):
-        return add_days(local_date(__import__("datetime").datetime.now(), tz), -6)
+        return add_days(local_date(datetime.now(UTC), tz), -6)
     if not is_iso_day(week_start):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="weekStart must be YYYY-MM-DD")
     return week_start
@@ -69,10 +70,8 @@ async def coverage(
     date: str | None = Query(None, description="Local day, YYYY-MM-DD"),
     tz: TzQuery = None,
 ) -> dict:
-    from datetime import datetime
-
     zone = await resolve_timezone(session, user, tz)
-    day = date or local_date(datetime.now(), zone)
+    day = date or local_date(datetime.now(UTC), zone)
     if not is_iso_day(day):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Date must be YYYY-MM-DD")
 
@@ -91,15 +90,13 @@ async def weekly_digest(
     weekStart: str | None = Query(None),  # noqa: N803 - client sends camelCase
     tz: TzQuery = None,
 ) -> dict:
-    from datetime import datetime
-
     zone = await resolve_timezone(session, user, tz)
     start = await _week_start(session, user, weekStart, zone)
     settings = settings_row(await get_settings_row(session, user))
     meals, symptoms = await load_history(session, user.id)
     correlations = [correlation_row(c) for c in await load_correlations(session, user.id)]
     digest = compute_weekly_digest(
-        meals, symptoms, correlations, start, zone, settings, local_date(datetime.now(), zone)
+        meals, symptoms, correlations, start, zone, settings, local_date(datetime.now(UTC), zone)
     )
     return camel(digest)
 

@@ -40,7 +40,7 @@ struct AuthView: View {
                 }
             }
 
-            Text("Passwords need at least 6 characters.")
+            Text("Passwords need at least \(AuthViewModel.minimumPasswordLength) characters.")
                 .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
                 .frame(maxWidth: .infinity)
         }

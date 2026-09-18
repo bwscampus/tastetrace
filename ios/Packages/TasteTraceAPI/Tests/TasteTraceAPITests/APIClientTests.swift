@@ -28,15 +28,24 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(transport.requests[0].value(forHTTPHeaderField: "Authorization"), "Bearer tt_test")
     }
 
-    func testSignInPostsCredentialsAndDecodesToken() async throws {
-        try transport.stub("POST", "/api/auth/token", fixture: "auth")
-        let auth = try await client.signIn(.init(email: "taylor@example.com", password: "pw", deviceName: "iPhone"))
+    func testSignInSendsAFormAndDecodesTheBearerToken() async throws {
+        transport.stub("POST", "/api/auth/bearer/login", json: #"{"access_token":"abc123","token_type":"bearer"}"#)
+        try transport.stub("GET", "/api/users/me", fixture: "user")
 
-        XCTAssertEqual(auth.token, "tt_abc")
+        let auth = try await client.signIn(email: "taylor@example.com", password: "a pass phrase")
+
+        XCTAssertEqual(auth.token, "abc123")
         XCTAssertEqual(auth.user.shownName, "Taylor Josephson")
-        let body = try JSONSerialization.jsonObject(with: transport.requests[0].httpBody!) as! [String: Any]
-        XCTAssertEqual(body["email"] as? String, "taylor@example.com")
-        XCTAssertEqual(body["deviceName"] as? String, "iPhone")
+
+        // Sign-in is the one form-encoded call, per the OAuth2 password flow
+        let login = transport.requests[0]
+        XCTAssertEqual(login.value(forHTTPHeaderField: "Content-Type"), "application/x-www-form-urlencoded")
+        let body = String(decoding: login.httpBody!, as: UTF8.self)
+        XCTAssertTrue(body.contains("username=taylor%40example.com"), body)
+        XCTAssertTrue(body.contains("password=a%20pass%20phrase"), body)
+
+        // The token is then used to read the account
+        XCTAssertEqual(transport.requests[1].value(forHTTPHeaderField: "Authorization"), "Bearer abc123")
     }
 
     func testMarkersAndCatalog() async throws {
@@ -61,7 +70,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testErrorsMapToAPIError() async throws {
-        transport.stub("GET", "/api/user", status: 401, json: "Unauthorized")
+        transport.stub("GET", "/api/users/me", status: 401, json: "Unauthorized")
         do { _ = try await client.currentUser(); XCTFail("expected throw") }
         catch let error as APIError { XCTAssertEqual(error, .unauthorized) }
 

@@ -54,12 +54,13 @@ public final class AuthSession {
     }
 
     public func signIn(email: String, password: String) async throws {
-        let auth = try await client.signIn(.init(email: email, password: password, deviceName: Self.deviceName))
-        try adopt(auth)
+        try adopt(try await client.signIn(email: email, password: password))
     }
 
     public func register(email: String, password: String, firstName: String?, lastName: String?) async throws {
-        let auth = try await client.register(.init(email: email, password: password, deviceName: Self.deviceName, firstName: firstName, lastName: lastName))
+        let auth = try await client.register(
+            .init(email: email, password: password, firstName: firstName, lastName: lastName)
+        )
         try adopt(auth)
     }
 
@@ -95,13 +96,6 @@ public final class AuthSession {
         CachedUser.clear()
     }
 
-    static var deviceName: String {
-        #if os(iOS)
-        return "iPhone"
-        #else
-        return ProcessInfo.processInfo.hostName
-        #endif
-    }
 }
 
 /// Mutable token handed to the API client.
