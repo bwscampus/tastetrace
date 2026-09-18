@@ -5,11 +5,36 @@ Every response the iOS app decodes is camelCase, so project schemas inherit
 (JSON). `populate_by_name` means requests may send either spelling.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    StringConstraints,
+    model_validator,
+)
 from pydantic.alias_generators import to_camel
+
+
+def _iso_millis_z(value: datetime) -> str:
+    """ISO-8601 with exactly three fractional digits and a Z suffix.
+
+    The iOS client decodes dates with ISO8601DateFormatter, whose
+    .withFractionalSeconds option accepts three digits and nothing else.
+    Pydantic's default emits six (or "+00:00"), which fails to decode, so
+    every timestamp on the wire goes through this.
+    """
+    utc = value.astimezone(UTC) if value.tzinfo else value.replace(tzinfo=UTC)
+    return f"{utc:%Y-%m-%dT%H:%M:%S}.{utc.microsecond // 1000:03d}Z"
+
+
+# Use for every datetime the API returns.
+UtcDatetime = Annotated[
+    datetime, PlainSerializer(_iso_millis_z, return_type=str, when_used="json")
+]
 
 MealTypeName = Literal["Breakfast", "Lunch", "Dinner", "Snack"]
 Trimmed = Annotated[str, StringConstraints(strip_whitespace=True)]
@@ -42,9 +67,9 @@ class ProfileRead(CamelModel):
     avatar_emoji: str | None = None
     discovery_purpose: str | None = None
     sensitivity_tags: list[str] = Field(default_factory=list)
-    created_at: datetime | None = None
+    created_at: UtcDatetime | None = None
     journaler_days: int
-    first_log_at: datetime | None = None
+    first_log_at: UtcDatetime | None = None
 
 
 class ProfilePatch(CamelModel):
@@ -65,7 +90,7 @@ class SettingsRead(CamelModel):
     nudge_time: str
     nudges_enabled: bool
     meal_check_ins_enabled: bool
-    updated_at: datetime | None = None
+    updated_at: UtcDatetime | None = None
 
 
 class SettingsPatch(CamelModel):
@@ -87,7 +112,7 @@ class MealRead(CamelModel):
     user_id: str | None = None
     name: str
     meal_type: str
-    timestamp: datetime
+    timestamp: UtcDatetime
     notes: str | None = None
     is_custom: bool | None = None
     ingredients: list[str] = Field(default_factory=list)
@@ -107,7 +132,7 @@ class MealRead(CamelModel):
 class MealCreate(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
     meal_type: MealTypeName
-    timestamp: datetime | None = None
+    timestamp: UtcDatetime | None = None
     tz: str | None = None
     notes: str | None = None
     is_custom: bool | None = True
@@ -124,7 +149,7 @@ class MealCreate(CamelModel):
 class MealPatch(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)] | None = None
     meal_type: MealTypeName | None = None
-    timestamp: datetime | None = None
+    timestamp: UtcDatetime | None = None
     tz: str | None = None
     notes: str | None = None
     ingredients: list[str] | None = None
@@ -147,7 +172,7 @@ class SymptomRead(CamelModel):
     intensity: int | None = None
     duration_minutes: int | None = None
     catalog_key: str | None = None
-    timestamp: datetime
+    timestamp: UtcDatetime
     notes: str | None = None
     date: str
     emoji: str | None = None
@@ -160,7 +185,7 @@ class SymptomCreate(CamelModel):
     severity: str | None = None
     intensity: Annotated[int, Field(ge=1, le=5)] | None = None
     duration_minutes: Annotated[int, Field(ge=0, le=60 * 24 * 7)] | None = None
-    timestamp: datetime | None = None
+    timestamp: UtcDatetime | None = None
     tz: str | None = None
     notes: str | None = None
 
@@ -177,7 +202,7 @@ class SymptomPatch(CamelModel):
     intensity: Annotated[int, Field(ge=1, le=5)] | None = None
     duration_minutes: Annotated[int, Field(ge=0, le=60 * 24 * 7)] | None = None
     catalog_key: Annotated[str, StringConstraints(max_length=80)] | None = None
-    timestamp: datetime | None = None
+    timestamp: UtcDatetime | None = None
     tz: str | None = None
     notes: str | None = None
 
@@ -189,7 +214,7 @@ class SymptomBatchItem(CamelModel):
 
 
 class SymptomBatch(CamelModel):
-    timestamp: datetime | None = None
+    timestamp: UtcDatetime | None = None
     tz: str | None = None
     duration_minutes: Annotated[int, Field(ge=0, le=60 * 24 * 7)] | None = None
     notes: Annotated[str, StringConstraints(max_length=2000)] | None = None
@@ -237,9 +262,9 @@ class DishRead(CamelModel):
     contains_sugar: bool | None = None
     contains_nuts: bool | None = None
     times_logged: int
-    last_logged_at: datetime | None = None
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
+    last_logged_at: UtcDatetime | None = None
+    created_at: UtcDatetime | None = None
+    updated_at: UtcDatetime | None = None
 
 
 class DishCreate(CamelModel):
@@ -270,7 +295,7 @@ class DishLogOverrides(CamelModel):
 
 class DishLog(CamelModel):
     meal_type: MealTypeName
-    timestamp: datetime | None = None
+    timestamp: UtcDatetime | None = None
     tz: str | None = None
     notes: Annotated[str, StringConstraints(max_length=2000)] | None = None
     overrides: DishLogOverrides | None = None
@@ -283,7 +308,7 @@ class WatchlistRead(CamelModel):
     id: int
     ingredient: str
     source: str
-    created_at: datetime | None = None
+    created_at: UtcDatetime | None = None
     confidence_max: int = 0
 
 
@@ -324,5 +349,5 @@ class SynthesisRead(CamelModel):
     source: Literal["claude", "rules"]
     model: str | None = None
     cached: bool
-    generated_at: datetime
+    generated_at: UtcDatetime
     suggested_watchlist: list[str] = Field(default_factory=list)

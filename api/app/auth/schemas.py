@@ -6,11 +6,12 @@ snake_case, since `populate_by_name` accepts both.
 """
 
 import uuid
-from datetime import datetime
 
 from fastapi_users import schemas
 from pydantic import ConfigDict, Field
 from pydantic.alias_generators import to_camel
+
+from app.schemas import UtcDatetime
 
 _camel = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
 
@@ -24,7 +25,7 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
     avatar_emoji: str | None = None
     discovery_purpose: str | None = None
     sensitivity_tags: list[str] = Field(default_factory=list)
-    created_at: datetime | None = None
+    created_at: UtcDatetime | None = None
 
 
 class UserCreate(schemas.BaseUserCreate):

@@ -76,7 +76,9 @@ def register_project_routes(app: FastAPI) -> None:
     template updates without a merge conflict in create_app().
     """
     from app.routers import profile
+    from app.routers.errors import install_error_shapes
 
+    install_error_shapes(app)
     app.include_router(profile.router, prefix="/api")
 
 
