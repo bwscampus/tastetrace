@@ -11,6 +11,8 @@ public final class AppEnvironment {
     public let session: AuthSession
     public let entries: EntriesRepository
     public let dishes: DishRepository
+    public let watchlist: WatchlistStore
+    public let reminders: ReminderScheduler
     public var dateMath: DateMath
 
     public var api: APIClient { session.api }
@@ -19,6 +21,8 @@ public final class AppEnvironment {
         self.session = session
         self.entries = EntriesRepository(client: session.api)
         self.dishes = DishRepository(client: session.api)
+        self.watchlist = WatchlistStore()
+        self.reminders = ReminderScheduler()
         self.dateMath = dateMath
     }
 
@@ -46,5 +50,11 @@ public final class AppEnvironment {
     /// bucketing matches what the user sees.
     public func syncTimezone() async {
         _ = try? await api.updateSettings(.init(timezone: dateMath.tzIdentifier))
+    }
+
+    /// Refreshes the cached watchlist and re-schedules reminders from saved settings.
+    public func syncPreferences() async {
+        if let items = try? await api.watchlist() { await watchlist.replace(items) }
+        if let settings = try? await api.settings() { await reminders.sync(settings: settings, math: dateMath) }
     }
 }

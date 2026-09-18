@@ -75,12 +75,10 @@ final class LogMealViewModel {
     var math: DateMath { env.dateMath }
     var timestamp: Date { math.combine(day: day, time: time) }
     var canConfigure: Bool { !recipeName.trimmingCharacters(in: .whitespaces).isEmpty }
-    var watchlistHits: [String] {
-        let names = ingredients.map { $0.name.lowercased() }
-        return watchlist.filter { item in names.contains { $0.contains(item.lowercased()) } }
-    }
+    var watchlistHits: [String] { watchlistMatches(watchlist: watchlist, ingredients: ingredients.map(\.name)) }
 
     func loadDishes() async {
+        watchlist = await env.watchlist.ingredients()
         dishes = await env.dishes.cached()
         if let fresh = try? await env.run({ try await env.dishes.refresh() }) { dishes = fresh }
     }

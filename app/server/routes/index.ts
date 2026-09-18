@@ -12,6 +12,7 @@ import { registerCoverageRoutes } from "./coverage";
 import { registerDigestRoutes } from "./digest";
 import { registerInsightRoutes } from "./insights";
 import { registerWatchlistRoutes } from "./watchlist";
+import { registerAiRoutes } from "./ai";
 
 // Origins allowed to post to the waitlist endpoint (the landing site)
 const WAITLIST_ORIGINS = (process.env.WAITLIST_ORIGINS ||
@@ -102,4 +103,5 @@ export function registerRoutes(app: Express): void {
   registerDigestRoutes(app);
   registerInsightRoutes(app);
   registerWatchlistRoutes(app);
+  registerAiRoutes(app);
 }

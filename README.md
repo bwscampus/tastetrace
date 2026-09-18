@@ -33,6 +33,8 @@ Environment variables:
 - `SESSION_SECRET` – secret for signing session cookies
 - `WAITLIST_ORIGINS` – optional, comma-separated origins allowed to post to
   `/api/waitlist` (defaults to the landing page's Railway and tastetrace.app origins)
+- `ANTHROPIC_API_KEY` – optional; enables the Claude-written "AI Pattern
+  Synthesis" in the Food Suspect Digest. Without it a rule-based summary is used.
 
 Railway builds with `npm run build` and runs `npm start`: a single Node server
 that serves the API and the built client on `PORT`. `npm run db:push` runs as

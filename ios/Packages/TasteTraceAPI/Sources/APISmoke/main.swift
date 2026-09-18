@@ -74,6 +74,11 @@ do {
     let flagged = try await client.entries(on: today, tz: tz)
     check("meal is flagged suspicious", flagged.meals.first?.suspiciousFor?.isEmpty == false)
 
+    let synthesis = try await client.synthesis(weekStart: weekStart, symptom: nil, tz: tz)
+    check("synthesis returns text (\(synthesis.source))", synthesis.text.count > 20 && ["claude", "rules"].contains(synthesis.source))
+    let again = try await client.synthesis(weekStart: weekStart, symptom: nil, tz: tz)
+    check("synthesis is cached on repeat", again.cached && again.text == synthesis.text)
+
     let catalog = try await client.symptomCatalog()
     check("catalog has 6 defaults", catalog.defaults.count == 6)
 

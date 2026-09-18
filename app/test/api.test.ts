@@ -206,6 +206,18 @@ describe.skipIf(!hasDb)("mobile API", () => {
     expect(day.body.symptoms).toHaveLength(1);
   });
 
+  it("synthesises a pattern summary, cached until the data changes", async () => {
+    const first = await request(app).post("/api/ai/synthesis").set(auth(aliceToken)).send({ weekStart: "2026-09-11", tz: "America/Los_Angeles" });
+    expect(first.status).toBe(200);
+    expect(first.body.source).toBe(process.env.ANTHROPIC_API_KEY ? "claude" : "rules");
+    expect(first.body.cached).toBe(false);
+    expect(first.body.text.length).toBeGreaterThan(20);
+    const second = await request(app).post("/api/ai/synthesis").set(auth(aliceToken)).send({ weekStart: "2026-09-11", tz: "America/Los_Angeles" });
+    expect(second.body.cached).toBe(true);
+    expect(second.body.text).toBe(first.body.text);
+    expect((await request(app).post("/api/ai/synthesis").set(auth(aliceToken)).send({ weekStart: "nope" })).status).toBe(400);
+  });
+
   it("revokes tokens", async () => {
     const list = await request(app).get("/api/auth/tokens").set(auth(aliceToken));
     expect(list.body.length).toBeGreaterThanOrEqual(2);

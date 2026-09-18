@@ -13,6 +13,7 @@ final class DigestViewModel {
     var segment: DigestSegment = .trends
     var digest: WeeklyDigest?
     var suspects: SuspectsDigest?
+    var synthesis: Synthesis?
     var symptomFilter: String?
     var isLoading = false
     var error: String?
@@ -50,6 +51,7 @@ final class DigestViewModel {
             digest = try await digestTask
             suspects = try await suspectsTask
             error = nil
+            await loadSynthesis()
         } catch let apiError as APIError { error = apiError.message } catch { self.error = error.localizedDescription }
     }
 
@@ -65,6 +67,13 @@ final class DigestViewModel {
         if let fresh = try? await env.run({ try await env.api.suspects(weekStart: weekStartString, symptom: symptom, tz: math.tzIdentifier) }) {
             suspects = fresh
         }
+        await loadSynthesis()
+    }
+
+    /// The AI summary is fetched after the suspects so the card never blocks the digest.
+    func loadSynthesis() async {
+        synthesis = nil
+        synthesis = try? await env.run { try await env.api.synthesis(weekStart: weekStartString, symptom: symptomFilter, tz: math.tzIdentifier) }
     }
 
     func toggleWatchlist(_ suspect: SuspectsDigest.Suspect) async {

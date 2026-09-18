@@ -3,9 +3,9 @@ import { randomUUID } from "crypto";
 import { db } from "./db";
 import { IStorage } from "./storage";
 import { 
-  users, apiTokens, userSettings, meals, symptoms, customSymptoms, correlations, waitlistSignups, dishes, watchlist,
+  users, apiTokens, userSettings, meals, symptoms, customSymptoms, correlations, waitlistSignups, dishes, watchlist, aiSyntheses,
   User, ProfilePatch, ApiToken, UserSettings, SettingsPatch,
-  Meal, Symptom, CustomSymptom, Correlation, Dish, WatchlistItem,
+  Meal, Symptom, CustomSymptom, Correlation, Dish, WatchlistItem, AiSynthesis,
   InsertUser, InsertMeal, UpdateMeal, InsertSymptom, UpdateSymptom, InsertCustomSymptom, InsertDish,
   IngredientDetail, SymptomSeverity
 } from "@shared/schema";
@@ -366,6 +366,25 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(watchlist.id, id), eq(watchlist.userId, userId)))
       .returning({ id: watchlist.id });
     return deleted.length > 0;
+  }
+
+  // Cached AI syntheses
+  async getSynthesis(userId: string, kind: string, weekStart: string, symptomFilter: string): Promise<AiSynthesis | undefined> {
+    const [row] = await db.select().from(aiSyntheses).where(and(
+      eq(aiSyntheses.userId, userId), eq(aiSyntheses.kind, kind), eq(aiSyntheses.weekStart, weekStart), eq(aiSyntheses.symptomFilter, symptomFilter),
+    ));
+    return row;
+  }
+
+  async upsertSynthesis(row: { userId: string; kind: string; weekStart: string; symptomFilter: string; inputHash: string; source: string; model: string | null; text: string }): Promise<AiSynthesis> {
+    const [saved] = await db.insert(aiSyntheses)
+      .values({ ...row, createdAt: new Date() })
+      .onConflictDoUpdate({
+        target: [aiSyntheses.userId, aiSyntheses.kind, aiSyntheses.weekStart, aiSyntheses.symptomFilter],
+        set: { inputHash: row.inputHash, source: row.source, model: row.model, text: row.text, createdAt: new Date() },
+      })
+      .returning();
+    return saved;
   }
 
   // Correlation operations

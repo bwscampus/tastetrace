@@ -125,19 +125,10 @@ struct TimingWindowsCard: View {
     }
 }
 
-/// AI Pattern Synthesis card. Until the synthesis endpoint lands (M5) it
-/// summarises the suspects payload locally.
+/// AI Pattern Synthesis card, backed by POST /api/ai/synthesis.
 struct SynthesisCard: View {
     let suspects: SuspectsDigest
     let model: DigestViewModel
-
-    private var text: String {
-        guard let lead = suspects.ingredients.first, suspects.flares > 0 else {
-            return "Not enough flares this week to synthesise a pattern. Keep logging meals and symptoms and this card will summarise what tends to come before your flare-ups."
-        }
-        let onset = lead.avgOnsetHours.map { String(format: "%.1f hours", $0) } ?? "an unknown delay"
-        return "In the \(suspects.windowHours)-hour lookback before flares, \(lead.name) appeared in \(lead.flaresWithIngredient) of \(lead.flaresTotal) flare windows (\(Int((lead.share * 100).rounded()))%), with an average meal-to-flare delay of \(onset). These are only observed associations rather than proof of a trigger, and the small number of windows means there is still considerable uncertainty."
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -145,15 +136,19 @@ struct SynthesisCard: View {
                 Image(systemName: "wand.and.stars").foregroundStyle(.white).frame(width: 36, height: 36).background(TTColor.primary, in: RoundedRectangle(cornerRadius: 10))
                 Text("AI Pattern Synthesis").font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
                 Spacer()
-                StatusBadge("AI", tone: .primary)
+                StatusBadge(model.synthesis?.source == "claude" ? "Claude" : "AI", tone: .primary)
             }
-            Text("“\(text)”").font(TTFont.body).foregroundStyle(TTColor.navy)
+            if let synthesis = model.synthesis {
+                Text("“\(synthesis.text)”").font(TTFont.body).foregroundStyle(TTColor.navy)
+            } else {
+                HStack(spacing: 8) { ProgressView(); Text("Summarising this week…").font(TTFont.body).foregroundStyle(TTColor.textSecondary) }
+            }
             if let lead = suspects.ingredients.first {
                 HStack(spacing: 10) {
                     Button { Task { await model.toggleWatchlist(lead) } } label: {
                         Label(lead.onWatchlist ? "On Watchlist" : "Add \(lead.name.capitalizedFirst) to Watchlist", systemImage: "eye")
                             .font(TTFont.bodySemibold).frame(maxWidth: .infinity).padding(.vertical, 12)
-                            .foregroundStyle(.white).background(TTColor.primary, in: RoundedRectangle(cornerRadius: TTRadius.tile))
+                            .foregroundStyle(.white).background(lead.onWatchlist ? TTColor.success : TTColor.primary, in: RoundedRectangle(cornerRadius: TTRadius.tile))
                     }
                     .buttonStyle(.plain)
                     Button { model.segment = .symptoms } label: {

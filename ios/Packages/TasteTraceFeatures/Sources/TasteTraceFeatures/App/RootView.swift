@@ -27,7 +27,7 @@ public struct RootView: View {
         .tint(TTColor.primary)
         .task {
             await env.session.restore()
-            if env.session.user != nil { await env.syncTimezone() }
+            if env.session.user != nil { await env.syncTimezone(); await env.syncPreferences() }
         }
         .onChange(of: env.session.state) { _, state in
             if case .signedIn = state { Task { await env.syncTimezone() } }
@@ -117,37 +117,14 @@ struct SheetHost: View {
         case .quickLog(let date):
             QuickLogView(env: env, date: date)
         case .profile:
-            ProfileStub()
+            ProfileView(env: env)
         case .notifications:
-            PlaceholderScreen(title: "Notifications", message: "Reminders arrive in a later milestone.")
+            NotificationsView()
         case .editMeal(let id):
             EditMealView(mealId: id)
         case .editSymptom(let id):
             EditSymptomView(symptomId: id)
         }
-    }
-}
-
-/// Minimal profile until the full screen lands: shows the user and signs out.
-struct ProfileStub: View {
-    @Environment(AppEnvironment.self) private var env
-    @Environment(Router.self) private var router
-
-    var body: some View {
-        TTScreen {
-            if let user = env.session.user {
-                TTCard {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(user.shownName).font(TTFont.screenTitle).foregroundStyle(TTColor.navy)
-                        Text(user.email).font(TTFont.body).foregroundStyle(TTColor.textSecondary)
-                    }
-                }
-            }
-            SecondaryButton("Sign Out of Account", systemImage: "rectangle.portrait.and.arrow.right") {
-                Task { await env.session.signOut(); router.sheet = nil }
-            }
-        }
-        .navigationTitle("User Profile")
     }
 }
 

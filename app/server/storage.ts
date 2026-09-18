@@ -1,7 +1,7 @@
 import {
   InsertUser, User, ProfilePatch, ApiToken, UserSettings, SettingsPatch,
   InsertMeal, UpdateMeal, Meal, InsertSymptom, UpdateSymptom, Symptom, Dish, InsertDish,
-  CustomSymptom, InsertCustomSymptom, Correlation, IngredientDetail, WatchlistItem,
+  CustomSymptom, InsertCustomSymptom, Correlation, IngredientDetail, WatchlistItem, AiSynthesis,
 } from "@shared/schema";
 import { DatabaseStorage } from "./database-storage";
 
@@ -71,6 +71,10 @@ export interface IStorage {
   getWatchlist(userId: string): Promise<WatchlistItem[]>;
   addWatchlistItem(userId: string, ingredient: string, source: string): Promise<WatchlistItem>;
   removeWatchlistItem(id: number, userId: string): Promise<boolean>;
+
+  // Cached AI syntheses
+  getSynthesis(userId: string, kind: string, weekStart: string, symptomFilter: string): Promise<AiSynthesis | undefined>;
+  upsertSynthesis(row: { userId: string; kind: string; weekStart: string; symptomFilter: string; inputHash: string; source: string; model: string | null; text: string }): Promise<AiSynthesis>;
 
   // Waitlist operations
   addWaitlistSignup(email: string): Promise<void>;

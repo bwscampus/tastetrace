@@ -39,9 +39,9 @@ final class SeverityMappingTests: XCTestCase {
 final class JSONFileStoreTests: XCTestCase {
     func testSaveLoadClear() throws {
         let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        let store = JSONFileStore<Settings>(name: "settings", directory: dir)
+        let store = JSONFileStore<UserSettings>(name: "settings", directory: dir)
         XCTAssertNil(store.load())
-        try store.save(Settings(timezone: "America/Los_Angeles"))
+        try store.save(UserSettings(timezone: "America/Los_Angeles"))
         XCTAssertEqual(store.load()?.timezone, "America/Los_Angeles")
         store.clear()
         XCTAssertNil(store.load())
@@ -54,5 +54,13 @@ final class IngredientParsingTests: XCTestCase {
         XCTAssertEqual(parseIngredientInput("salt", existing: ["Salt"]), [])
         XCTAssertEqual(CookMethod.label(for: "deep_fried"), "Deep fried")
         XCTAssertEqual(CookMethod.label(for: nil), nil)
+    }
+}
+
+final class WatchlistMatchTests: XCTestCase {
+    func testSubstringCaseInsensitiveMatch() {
+        XCTAssertEqual(watchlistMatches(watchlist: ["sourdough bread", "dairy"], ingredients: ["Sourdough Bread", "avocado"]), ["sourdough bread"])
+        XCTAssertEqual(watchlistMatches(watchlist: ["milk"], ingredients: ["oat milk"]), ["milk"])
+        XCTAssertEqual(watchlistMatches(watchlist: [], ingredients: ["salt"]), [])
     }
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Settings: Codable, Equatable, Sendable {
+public struct UserSettings: Codable, Equatable, Sendable {
     public var timezone: String
     public var correlationWindowHours: Int
     public var minTriggerCount: Int

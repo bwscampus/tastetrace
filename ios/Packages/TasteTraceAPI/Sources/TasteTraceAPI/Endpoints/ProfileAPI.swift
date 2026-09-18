@@ -9,11 +9,11 @@ public extension APIClient {
         try await request(.patch, "/api/profile", body: patch)
     }
 
-    func settings() async throws -> Settings {
+    func settings() async throws -> UserSettings {
         try await request(.get, "/api/settings")
     }
 
-    func updateSettings(_ patch: SettingsPatch) async throws -> Settings {
+    func updateSettings(_ patch: SettingsPatch) async throws -> UserSettings {
         try await request(.patch, "/api/settings", body: patch)
     }
 }
