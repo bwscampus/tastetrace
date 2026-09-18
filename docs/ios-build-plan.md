@@ -1,5 +1,7 @@
 # TasteTrace iOS App — Build Plan
 
+> **Status (2026-09-18):** M0–M6 are implemented on the `ios-m0-backend` branch. The backend has 36 vitest tests (unit + integration against a scratch Postgres) and the Swift packages build with the command-line toolchain; `apismoke` runs 30 end-to-end checks against a live backend. Not yet done: running the app in the simulator and the XCTest suites (needs Xcode), the optional TestFlight step, and `DELETE /api/account` (required before App Store submission).
+
 ## Context
 
 TasteTrace has a working web app (`app/`: React + Vite client, Express API, Postgres via Drizzle, deployed on Railway) and a static landing page (`landing/`). `PRODUCT.md` and the 16 mockups in `assets/` describe a native iOS app that goes well beyond the web app: daily coverage and streaks, saved dish tiles, ingredient + cook-method capture, a 1–5 intensity symptom grid, weekly digests (trends / symptoms / suspects), AI pattern synthesis, a watchlist, trigger insights with confidence tiers, PDF/CSV exports, a profile, and logging reminders. Barcode scanning, substitutes and restaurant recommendations from PRODUCT.md are out of scope for this plan.

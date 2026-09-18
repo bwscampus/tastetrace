@@ -50,6 +50,16 @@ cd Packages/TasteTraceAPI && swift run apismoke http://localhost:5000
 It registers a throwaway user, logs entries, reads them back and revokes its
 token. XCTest and the simulator need Xcode.
 
+## What's built
+
+Sign in / sign up · Today (7-day hero, coverage ring, timeline) · Daily
+Logging Coverage · Log a Meal (tiles, ingredients + cook methods, save dish)
+· Quick Log symptoms · History (week strip, edit/delete) · Weekly Digest
+(Trends, Symptoms, Suspects with AI synthesis and watchlist) · Trigger
+Insights · Profile (tracking rules, reminders, watchlist) · Exports (CSV,
+three PDF reports). Every screen calls the real API; see
+`../docs/ios-build-plan.md` for the endpoint map.
+
 ## Conventions
 
 - Timestamps are ISO-8601 UTC; calendar days are computed in the device
