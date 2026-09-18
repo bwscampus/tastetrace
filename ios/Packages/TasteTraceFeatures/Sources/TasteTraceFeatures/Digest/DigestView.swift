@@ -33,7 +33,9 @@ struct DigestView: View {
         } bottom: {
             if model.segment != .trends, model.digest != nil {
                 PinnedBottomBar {
-                    SecondaryButton(model.segment == .symptoms ? "Export Weekly Digest Report (PDF)" : "Export Suspect Digest (PDF)", systemImage: "square.and.arrow.up") {}
+                    SecondaryButton("Export Weekly Digest Report (PDF)", systemImage: "square.and.arrow.up") {
+                        router.sheet = .export(kind: ReportKind.weeklyDigest.rawValue, weekStart: model.weekStart)
+                    }
                 }
             }
         }
@@ -52,7 +54,7 @@ struct DigestView: View {
             case .suspects: ScreenHeading("Food Suspect Digest", subtitle: "24h Window Roundup", subtitleUppercased: true)
             }
             Spacer()
-            IconCircleButton(systemImage: "doc.richtext") {}
+            IconCircleButton(systemImage: "doc.richtext") { router.sheet = .export(kind: ReportKind.weeklyDigest.rawValue, weekStart: model.weekStart) }
         }
     }
 

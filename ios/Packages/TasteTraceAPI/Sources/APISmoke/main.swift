@@ -79,6 +79,11 @@ do {
     let again = try await client.synthesis(weekStart: weekStart, symptom: nil, tz: tz)
     check("synthesis is cached on repeat", again.cached && again.text == synthesis.text)
 
+    let csv = String(decoding: try await client.csvExport(from: weekStart, to: today, tz: tz), as: UTF8.self)
+    check("csv export has header and rows", csv.hasPrefix("entry_type,id,date,time,name") && csv.contains("Avocado Sourdough Toast"))
+    let ledger = try await client.ledger(from: weekStart, to: today, tz: tz)
+    check("ledger bundle decodes", ledger.range.tz == tz && ledger.days.count >= 1 && ledger.digestWeeks.count >= 1 && ledger.shownName == "Smoke Tester" || ledger.shownName == "Smoke")
+
     let catalog = try await client.symptomCatalog()
     check("catalog has 6 defaults", catalog.defaults.count == 6)
 

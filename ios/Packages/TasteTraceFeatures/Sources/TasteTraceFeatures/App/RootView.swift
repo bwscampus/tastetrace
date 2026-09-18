@@ -124,6 +124,8 @@ struct SheetHost: View {
             EditMealView(mealId: id)
         case .editSymptom(let id):
             EditSymptomView(symptomId: id)
+        case .export(let kind, let weekStart):
+            ExportView(env: env, kind: kind.flatMap(ReportKind.init(rawValue:)), weekStart: weekStart)
         }
     }
 }

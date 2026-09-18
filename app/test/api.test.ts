@@ -218,6 +218,27 @@ describe.skipIf(!hasDb)("mobile API", () => {
     expect((await request(app).post("/api/ai/synthesis").set(auth(aliceToken)).send({ weekStart: "nope" })).status).toBe(400);
   });
 
+  it("exports CSV and a ledger bundle", async () => {
+    const csv = await request(app).get("/api/export/csv?from=2026-09-01&to=2026-09-30&tz=America/Los_Angeles").set(auth(aliceToken));
+    expect(csv.status).toBe(200);
+    expect(csv.headers["content-type"]).toContain("text/csv");
+    expect(csv.headers["content-disposition"]).toContain("tastetrace-2026-09-01-2026-09-30.csv");
+    const lines = csv.text.trim().split("\n");
+    expect(lines[0]).toBe("entry_type,id,date,time,name,meal_type,ingredients,cook_methods,dish,intensity,severity,duration_minutes,notes,timestamp_utc");
+    expect(lines.some((l) => l.startsWith("meal,") && l.includes("Avocado Sourdough Toast") && l.includes("sourdough bread; avocado"))).toBe(true);
+    expect(lines.some((l) => l.startsWith("symptom,") && l.includes("Acid Reflux"))).toBe(true);
+    expect((await request(app).get("/api/export/csv?from=2026-09-30&to=2026-09-01").set(auth(aliceToken))).status).toBe(400);
+
+    const ledger = await request(app).get("/api/export/ledger?from=2026-09-01&to=2026-09-30&tz=America/Los_Angeles").set(auth(aliceToken));
+    expect(ledger.status).toBe(200);
+    expect(ledger.body.range).toEqual({ from: "2026-09-01", to: "2026-09-30", tz: "America/Los_Angeles" });
+    expect(ledger.body.profile.email).toBe(alice.email);
+    expect(ledger.body.days.length).toBeGreaterThan(0);
+    expect(ledger.body.days[0].meals[0] ?? ledger.body.days[0].symptoms[0]).toBeDefined();
+    expect(ledger.body.digestWeeks.length).toBeGreaterThan(0);
+    expect(Array.isArray(ledger.body.triggers)).toBe(true);
+  });
+
   it("revokes tokens", async () => {
     const list = await request(app).get("/api/auth/tokens").set(auth(aliceToken));
     expect(list.body.length).toBeGreaterThanOrEqual(2);

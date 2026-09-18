@@ -130,8 +130,8 @@ struct ProfileView: View {
                         }
                         Text("Export your complete food, symptom, and preparation history for review with a dietitian or gastroenterologist.")
                             .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
-                        NavigationLink { ExportPlaceholder(title: "Practitioner Report (PDF)") } label: { exportRow("Practitioner Report (PDF)", icon: "doc.richtext", primary: true) }
-                        NavigationLink { ExportPlaceholder(title: "Export Raw Data (CSV)") } label: { exportRow("Export Raw Data (CSV)", icon: "tablecells", primary: false) }
+                        NavigationLink { ExportView(env: env, kind: .practitioner) } label: { exportRow("Practitioner Report (PDF)", icon: "doc.richtext", primary: true) }
+                        NavigationLink { ExportView(env: env, kind: nil) } label: { exportRow("Export Raw Data (CSV)", icon: "tablecells", primary: false) }
                     }
                 }
 
@@ -225,13 +225,6 @@ struct ProfileView: View {
         .padding(14)
         .background(TTColor.dangerTint, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(TTColor.danger.opacity(0.4), lineWidth: 1))
-    }
-}
-
-struct ExportPlaceholder: View {
-    let title: String
-    var body: some View {
-        EmptyStateView(emoji: "📄", title: title, message: "Exports arrive in the final milestone.").background(TTColor.background)
     }
 }
 
