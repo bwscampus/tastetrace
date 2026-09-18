@@ -69,6 +69,39 @@ product was designed around.
 
 Railpack builds from `pyproject.toml` and `.python-version`; the `Procfile`
 runs `alembic upgrade head` before the server starts, so migrations must stay
-backward compatible with the running version. See the skill's
-`references/railway.md`. Production refuses to boot without `SECRET_KEY`,
-`RESEND_API_KEY`, real `ALLOWED_HOSTS` and an https `PUBLIC_BASE_URL`.
+backward compatible with the running version (add a nullable column, deploy,
+then stop writing the old one). See the skill's `references/railway.md`.
+
+This service is deployed alongside the Express one in the existing Railway
+project, with its own Postgres, so the two never share data.
+
+```bash
+railway add --database postgres                      # its own database
+railway add --service tastetrace-api --repo bwscampus/tastetrace
+# root directory must be /api — set it on the service, then:
+railway variables --service tastetrace-api \
+  --set ENVIRONMENT=production \
+  --set APP_NAME="TasteTrace API" \
+  --set PUBLIC_BASE_URL=https://<host> \
+  --set ALLOWED_HOSTS=<host> \
+  --set SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')" \
+  --set RESEND_API_KEY=re_xxx \
+  --set ANTHROPIC_API_KEY=sk-ant-xxx        # optional; without it the digest
+                                            # summary uses the written template
+```
+
+`DATABASE_URL` comes from the Postgres service; `config.py` rewrites its
+`postgresql://` scheme for asyncpg. Afterwards run `railway config pull` so
+`.railway/railway.ts` matches what is running.
+
+**Production refuses to boot** without `SECRET_KEY` (32+ characters), a real
+`ALLOWED_HOSTS`, an https `PUBLIC_BASE_URL`, and `RESEND_API_KEY` — the last
+guards password reset, which the app has no screen for yet, so it is currently
+only there to satisfy the check. Verify a deploy with:
+
+```bash
+curl https://<host>/api/health
+cd ../ios/Packages/TasteTraceAPI && swift run apismoke https://<host>
+```
+
+Then point `ios/Config/Debug.xcconfig` at the host and rebuild.
