@@ -1,7 +1,4 @@
-*.xcodeproj
-*.xcworkspace
-xcuserdata/
-.build/
-.swiftpm/
-DerivedData/
-*.xcresult
+# iOS specifics; see the repository root .gitignore for the general rules
+# (the Xcode project, DerivedData and SwiftPM caches are ignored there)
+*.ipa
+*.dSYM.zip
