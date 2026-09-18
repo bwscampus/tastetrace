@@ -23,6 +23,8 @@ cd app
 npm install
 npm run dev        # http://localhost:5000 (set PORT to change)
 npm run db:push    # apply shared/schema.ts to the database
+npm run check      # type-check
+npm test           # unit tests; the API integration tests also run when DATABASE_URL points at a scratch Postgres
 ```
 
 Environment variables:
@@ -31,9 +33,16 @@ Environment variables:
 - `SESSION_SECRET` – secret for signing session cookies
 - `WAITLIST_ORIGINS` – optional, comma-separated origins allowed to post to
   `/api/waitlist` (defaults to the landing page's Railway and tastetrace.app origins)
+- `ANTHROPIC_API_KEY` – optional; enables the Claude-written "AI Pattern
+  Synthesis" in the Food Suspect Digest. Without it a rule-based summary is used.
 
 Railway builds with `npm run build` and runs `npm start`: a single Node server
-that serves the API and the built client on `PORT`.
+that serves the API and the built client on `PORT`. `npm run db:push` runs as
+a pre-deploy step, so schema changes in `shared/schema.ts` must stay additive.
+
+The API serves the web client (cookie session) and the iOS app (Bearer tokens
+from `POST /api/auth/token`); both authenticate to the same routes. See
+`docs/ios-build-plan.md` for the mobile API and the iOS app plan.
 
 ## landing/
 

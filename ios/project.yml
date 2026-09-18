@@ -1,0 +1,74 @@
+# XcodeGen spec. Generate the project with `xcodegen generate` (the
+# .xcodeproj is not committed).
+name: TasteTrace
+options:
+  bundleIdPrefix: app.tastetrace
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+configs:
+  Debug: debug
+  Release: release
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+packages:
+  TasteTraceAPI:
+    path: Packages/TasteTraceAPI
+  TasteTraceCore:
+    path: Packages/TasteTraceCore
+  TasteTraceUI:
+    path: Packages/TasteTraceUI
+  TasteTraceFeatures:
+    path: Packages/TasteTraceFeatures
+targets:
+  TasteTrace:
+    type: application
+    platform: iOS
+    sources:
+      - path: TasteTrace
+    configFiles:
+      Debug: Config/Debug.xcconfig
+      Release: Config/Release.xcconfig
+    dependencies:
+      - package: TasteTraceAPI
+      - package: TasteTraceCore
+      - package: TasteTraceUI
+      - package: TasteTraceFeatures
+    info:
+      path: TasteTrace/Info.plist
+      properties:
+        CFBundleDisplayName: TasteTrace
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        API_BASE_URL: $(API_BASE_URL)
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.tastetrace.ios
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+  TasteTraceTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: TasteTraceTests
+    dependencies:
+      - target: TasteTrace
+schemes:
+  TasteTrace:
+    build:
+      targets:
+        TasteTrace: all
+        TasteTraceTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [TasteTraceTests]
