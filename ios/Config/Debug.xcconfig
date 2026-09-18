@@ -1,0 +1,2 @@
+// Local backend: `cd app && npm run dev` (the simulator can reach localhost)
+API_BASE_URL = http:/$()/localhost:5000

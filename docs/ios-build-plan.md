@@ -351,7 +351,9 @@ ios/
                      Charts/ DiscomfortBarChart (Swift Charts), SparklineView, DistributionBar, FrequencyBar
 ```
 
-Stack: iOS 17+, SwiftUI, `@Observable` view models, async/await, `URLSession`, `Codable` mirrors of the API, Keychain token, SwiftData read cache synced on launch (writes online-only through M5; an offline write queue is a stretch), Swift Charts, UserNotifications, `UIGraphicsPDFRenderer` + `ShareLink`. Barcode scanning (AVFoundation) is a stretch after M6.
+Stack: iOS 17+, SwiftUI, `@Observable` view models, async/await, `URLSession`, `Codable` mirrors of the API, Keychain token, a JSON-file read cache (`JSONFileStore`) synced on load (writes online-only through M5; an offline write queue is a stretch), Swift Charts, UserNotifications, `UIGraphicsPDFRenderer` + `ShareLink`. Barcode scanning (AVFoundation) is a stretch after M6.
+
+Implementation notes (M1): SwiftData's `@Model` macro and XCTest are not available in the command-line toolchain, so the cache uses plain JSON files and package tests are XCTest files that run once Xcode is installed. All screens live in `Packages/TasteTraceFeatures` (UIKit-free) so `swift build` validates them here; the app target is a thin `@main` shell. `Packages/TasteTraceAPI` also has an `apismoke` executable that exercises the real client against a running backend.
 
 ### 2.3 Design tokens (from the mockups)
 

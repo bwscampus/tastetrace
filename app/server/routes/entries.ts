@@ -1,7 +1,26 @@
 import type { Express, Request, Response } from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
-import { startOfDay, endOfDay, parse } from "date-fns";
+import { parse } from "date-fns";
+import { dayBounds, isIsoDate, localDate, parseInstant } from "../analytics/time";
+import { resolveTimezone } from "./context";
+import { presentSymptom } from "./symptoms";
+import { Symptom } from "@shared/schema";
+
+// Symptoms within 30 minutes of each other count as one flare
+const FLARE_CLUSTER_MS = 30 * 60 * 1000;
+export function countFlares(symptoms: Symptom[]): number {
+  const times = symptoms.map((s) => s.timestamp.getTime()).sort((a, b) => a - b);
+  let flares = 0;
+  let clusterStart = -Infinity;
+  for (const t of times) {
+    if (t - clusterStart > FLARE_CLUSTER_MS) {
+      flares++;
+      clusterStart = t;
+    }
+  }
+  return flares;
+}
 
 // Correlations, dashboard/calendar entry views and monthly stats. These keep
 // the shapes the web client expects.
@@ -110,7 +129,7 @@ export function registerEntryRoutes(app: Express) {
     }
   });
 
-  // Get all entries for a specific date
+  // Get all entries for a specific local date
   app.get("/api/entries/date", isAuthenticated, async (req: any, res: Response) => {
     try {
       const userId = req.user.id;
@@ -119,20 +138,25 @@ export function registerEntryRoutes(app: Express) {
       if (!dateStr) {
         return res.status(400).json({ message: "Date parameter is required" });
       }
-      
-      // Parse date and create start/end of day timestamps
-      const date = parse(dateStr, "yyyy-MM-dd", new Date());
-      const start = startOfDay(date);
-      const end = endOfDay(date);
+      if (!isIsoDate(dateStr)) {
+        return res.status(400).json({ message: "Date must be YYYY-MM-DD" });
+      }
+
+      const tz = await resolveTimezone(req);
+      const { start, end } = dayBounds(dateStr, tz);
+      end.setMilliseconds(end.getMilliseconds() - 1);
       
       // Get meals and symptoms for the specified date
       const meals = await storage.getMealsByUserAndTimeRange(userId, start, end);
       const symptoms = await storage.getSymptomsByUserAndTimeRange(userId, start, end);
+      const custom = await storage.getCustomSymptoms(userId);
       
       res.json({
         date: dateStr,
         meals,
-        symptoms
+        symptoms: symptoms.map((s) => presentSymptom(s, custom)),
+        flares: countFlares(symptoms),
+        entries: meals.length + symptoms.length,
       });
     } catch (error) {
       console.error("Error getting entries for date:", error);
@@ -140,48 +164,38 @@ export function registerEntryRoutes(app: Express) {
     }
   });
   
-  // Get markers for dates with entries (for calendar highlighting)
+  // Get markers for dates with entries (calendar / week strip decoration)
   app.get("/api/entries/markers", isAuthenticated, async (req: any, res: Response) => {
     try {
       const userId = req.user.id;
-      const startDateStr = req.query.start as string;
-      const endDateStr = req.query.end as string;
+      const startDate = parseInstant(req.query.start);
+      const endDate = parseInstant(req.query.end);
       
-      if (!startDateStr || !endDateStr) {
+      if (!req.query.start || !req.query.end) {
         return res.status(400).json({ message: "Start and end date parameters are required" });
       }
-      
-      const startDate = new Date(startDateStr);
-      const endDate = new Date(endDateStr);
-      
-      // Get all meals and symptoms for the date range
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: "Start and end must be ISO dates" });
+      }
+
+      const tz = await resolveTimezone(req);
       const meals = await storage.getMealsByUserAndTimeRange(userId, startDate, endDate);
       const symptoms = await storage.getSymptomsByUserAndTimeRange(userId, startDate, endDate);
       
-      // Create markers for days with entries
-      const markers: Record<string, { meals: number; symptoms: number }> = {};
-      
-      // Process meals
-      meals.forEach(meal => {
-        const date = new Date(meal.timestamp).toISOString().split('T')[0];
-        
-        if (!markers[date]) {
-          markers[date] = { meals: 0, symptoms: 0 };
-        }
-        
-        markers[date].meals++;
+      const markers: Record<string, { meals: number; symptoms: number; maxIntensity: number; status: "ok" | "meal" | "symptom" }> = {};
+      const marker = (date: string) => (markers[date] ??= { meals: 0, symptoms: 0, maxIntensity: 0, status: "ok" });
+
+      meals.forEach((meal) => {
+        marker(localDate(meal.timestamp, tz)).meals++;
       });
-      
-      // Process symptoms
-      symptoms.forEach(symptom => {
-        const date = new Date(symptom.timestamp).toISOString().split('T')[0];
-        
-        if (!markers[date]) {
-          markers[date] = { meals: 0, symptoms: 0 };
-        }
-        
-        markers[date].symptoms++;
+      symptoms.forEach((symptom) => {
+        const m = marker(localDate(symptom.timestamp, tz));
+        m.symptoms++;
+        m.maxIntensity = Math.max(m.maxIntensity, symptom.intensity ?? 0);
       });
+      for (const m of Object.values(markers)) {
+        m.status = m.symptoms > 0 ? "symptom" : m.meals > 0 ? "meal" : "ok";
+      }
       
       res.json(markers);
     } catch (error) {
