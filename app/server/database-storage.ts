@@ -3,15 +3,16 @@ import { randomUUID } from "crypto";
 import { db } from "./db";
 import { IStorage } from "./storage";
 import { 
-  users, apiTokens, userSettings, meals, symptoms, customSymptoms, correlations, waitlistSignups, dishes,
+  users, apiTokens, userSettings, meals, symptoms, customSymptoms, correlations, waitlistSignups, dishes, watchlist,
   User, ProfilePatch, ApiToken, UserSettings, SettingsPatch,
-  Meal, Symptom, CustomSymptom, Correlation, Dish,
-  InsertUser, InsertMeal, UpdateMeal, InsertSymptom, UpdateSymptom, InsertCustomSymptom, InsertCorrelation, InsertDish,
+  Meal, Symptom, CustomSymptom, Correlation, Dish, WatchlistItem,
+  InsertUser, InsertMeal, UpdateMeal, InsertSymptom, UpdateSymptom, InsertCustomSymptom, InsertDish,
   IngredientDetail, SymptomSeverity
 } from "@shared/schema";
 import { severityFromIntensity, intensityFromSeverity } from "@shared/severity";
 import { customSymptomKey, catalogItemByName } from "@shared/symptomCatalog";
 import { localDate } from "./analytics/time";
+import { computeCorrelations } from "./analytics/correlations";
 
 // Splits free-text notes into ingredient names (legacy web behaviour)
 function ingredientsFromNotes(notes: string): string[] {
@@ -284,8 +285,8 @@ export class DatabaseStorage implements IStorage {
   async createSymptom(symptom: InsertSymptom, tz: string): Promise<Symptom> {
     const [createdSymptom] = await db.insert(symptoms).values(this.symptomRow(symptom, tz)).returning();
     
-    // Analyze correlations when a new symptom is added
-    await this.analyzeCorrelations(createdSymptom);
+    // Keep correlations current so the web app's next fetch already sees them
+    await this.regenerateCorrelations(createdSymptom.userId!);
     
     return createdSymptom;
   }
@@ -293,9 +294,7 @@ export class DatabaseStorage implements IStorage {
   async createSymptoms(list: InsertSymptom[], tz: string): Promise<Symptom[]> {
     if (list.length === 0) return [];
     const created = await db.insert(symptoms).values(list.map((s) => this.symptomRow(s, tz))).returning();
-    for (const symptom of created) {
-      await this.analyzeCorrelations(symptom);
-    }
+    await this.regenerateCorrelations(created[0].userId!);
     return created;
   }
   
@@ -348,6 +347,27 @@ export class DatabaseStorage implements IStorage {
     return deleted.length > 0;
   }
   
+  // Watchlist
+  async getWatchlist(userId: string): Promise<WatchlistItem[]> {
+    return await db.select().from(watchlist).where(eq(watchlist.userId, userId)).orderBy(desc(watchlist.createdAt));
+  }
+
+  async addWatchlistItem(userId: string, ingredient: string, source: string): Promise<WatchlistItem> {
+    const normalized = ingredient.trim().toLowerCase().replace(/\s+/g, " ");
+    const [item] = await db.insert(watchlist)
+      .values({ userId, ingredient: normalized, source })
+      .onConflictDoUpdate({ target: [watchlist.userId, watchlist.ingredient], set: { source } })
+      .returning();
+    return item;
+  }
+
+  async removeWatchlistItem(id: number, userId: string): Promise<boolean> {
+    const deleted = await db.delete(watchlist)
+      .where(and(eq(watchlist.id, id), eq(watchlist.userId, userId)))
+      .returning({ id: watchlist.id });
+    return deleted.length > 0;
+  }
+
   // Correlation operations
   async getCorrelation(id: number): Promise<Correlation | undefined> {
     const [correlation] = await db.select().from(correlations).where(eq(correlations.id, id));
@@ -365,59 +385,11 @@ export class DatabaseStorage implements IStorage {
         )
       );
   }
-  
-  async getCorrelationByFoodAndSymptom(userId: string, foodName: string, symptomName: string, isIngredient: boolean = false): Promise<Correlation | undefined> {
-    const [correlation] = await db.select()
-      .from(correlations)
-      .where(
-        and(
-          eq(correlations.userId, userId),
-          eq(correlations.foodName, foodName),
-          eq(correlations.symptomName, symptomName),
-          eq(correlations.isIngredient, isIngredient)
-        )
-      );
-      
-    return correlation;
-  }
-  
-  async createOrUpdateCorrelation(correlation: InsertCorrelation): Promise<Correlation> {
-    // Check if correlation already exists
-    const existing = await this.getCorrelationByFoodAndSymptom(
-      correlation.userId!, 
-      correlation.foodName,
-      correlation.symptomName,
-      correlation.isIngredient || false
-    );
-    
-    if (existing) {
-      // Update existing correlation
-      const [updated] = await db.update(correlations)
-        .set({ 
-          occurrences: existing.occurrences + 1,
-          confidence: correlation.confidence || existing.confidence 
-        })
-        .where(eq(correlations.id, existing.id))
-        .returning();
-        
-      return updated;
-    } else {
-      // Create new correlation
-      const [newCorrelation] = await db.insert(correlations)
-        .values(correlation)
-        .returning();
-        
-      return newCorrelation;
-    }
-  }
-  
-  async updateCorrelationConfidence(id: number, confidence: number): Promise<Correlation | undefined> {
-    const [updated] = await db.update(correlations)
-      .set({ confidence })
-      .where(eq(correlations.id, id))
-      .returning();
-      
-    return updated;
+
+  async getAllCorrelationsByUser(userId: string): Promise<Correlation[]> {
+    return await db.select().from(correlations)
+      .where(eq(correlations.userId, userId))
+      .orderBy(desc(correlations.confidence), desc(correlations.flareExposures));
   }
   
   async deleteCorrelation(id: number): Promise<boolean> {
@@ -429,205 +401,24 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
-  
-  // Helper method to parse meal names into individual foods
-  private parseMealIntoFoods(mealName: string): string[] {
-    // Common separators that indicate multiple foods
-    const separators = [',', '&', ' and ', ' with ', '+', '/'];
-    
-    // Single food combinations that should NOT be split (common compound foods)
-    const compoundFoods = [
-      'avocado toast', 'peanut butter', 'ice cream', 'fried rice', 'chicken sandwich',
-      'tuna salad', 'caesar salad', 'grilled cheese', 'mac and cheese', 'fish and chips',
-      'bread and butter', 'cookies and cream', 'salt and pepper', 'ham and cheese',
-      'tomato soup', 'chicken soup', 'vegetable soup', 'apple pie', 'chocolate cake'
-    ];
-    
-    // Check if this is a compound food that should stay together
-    const lowerMealName = mealName.toLowerCase().trim();
-    if (compoundFoods.some(compound => lowerMealName === compound)) {
-      return [mealName.trim()];
-    }
-    
-    // Check if meal name contains multiple foods (but not compound foods)
-    const containsMultipleFoods = separators.some(sep => {
-      const index = mealName.toLowerCase().indexOf(sep.toLowerCase());
-      if (index === -1) return false;
-      
-      // Check if this separator is part of a compound food
-      const beforeSep = mealName.substring(0, index + sep.length).toLowerCase();
-      const afterSep = mealName.substring(index).toLowerCase();
-      
-      return !compoundFoods.some(compound => 
-        beforeSep.includes(compound) || afterSep.includes(compound)
-      );
-    });
-    
-    if (!containsMultipleFoods) {
-      return [mealName.trim()];
-    }
-    
-    // Split by separators, being careful about compound foods
-    let foods: string[] = [mealName];
-    
-    for (const separator of separators) {
-      const temp: string[] = [];
-      for (const food of foods) {
-        // Only split if this separator isn't part of a compound food
-        const lowerFood = food.toLowerCase();
-        if (!compoundFoods.some(compound => lowerFood.includes(compound))) {
-          const escapedSeparator = separator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const parts = food.split(new RegExp(escapedSeparator, 'gi'));
-          temp.push(...parts);
-        } else {
-          temp.push(food);
-        }
-      }
-      foods = temp;
-    }
-    
-    // Clean up and filter the results
-    return foods
-      .map(food => food.trim())
-      .filter(food => food.length > 0)
-      .map(food => {
-        // Remove common prefixes/suffixes
-        food = food.replace(/^(a |an |some |the )/i, '');
-        food = food.replace(/\s*\(.*?\)\s*/g, ''); // Remove parentheses content
-        return food.trim();
-      })
-      .filter(food => food.length > 2); // Remove very short items
-  }
 
-  // Helper methods
-  private async analyzeCorrelations(symptom: Symptom): Promise<void> {
-    const userId = symptom.userId;
-    if (!userId) return;
-    
-    // Look for meals in the past 48 hours
-    const now = new Date(symptom.timestamp);
-    const twoDaysAgo = new Date(now);
-    twoDaysAgo.setHours(twoDaysAgo.getHours() - 48);
-    
-    const recentMeals = await this.getMealsByUserAndTimeRange(userId, twoDaysAgo, now);
-    
-    // List of dietary tags to ignore for correlation generation
-    const dietaryTags = ["gluten-free", "dairy-free", "grain-free", "sugar-free", 
-                        "glutenfree", "dairyfree", "grainfree", "sugarfree"];
-    
-    // Update correlations for each meal
-    for (const meal of recentMeals) {
-      // Skip correlations with dietary restriction tags - don't create correlations for these
-      const mealNameLower = meal.name.toLowerCase();
-      if (dietaryTags.some(tag => mealNameLower.includes(tag))) {
-        continue;
-      }
-      
-      // Parse meal name into individual foods
-      const individualFoods = this.parseMealIntoFoods(meal.name);
-      
-      // If it's a single food, create correlation as before
-      if (individualFoods.length === 1) {
-        await this.createOrUpdateCorrelation({
-          userId,
-          foodName: meal.name,
-          symptomName: symptom.name,
-          occurrences: 1,
-          confidence: 50, // Initial confidence
-          isIngredient: false
-        });
-      } else {
-        // If multiple foods detected, create correlations for each individual food
-        for (const food of individualFoods) {
-          if (food.trim()) {
-            const foodLower = food.toLowerCase();
-            
-            // Skip correlations for dietary tags
-            if (dietaryTags.some(tag => foodLower.includes(tag))) {
-              continue;
-            }
-            
-            await this.createOrUpdateCorrelation({
-              userId,
-              foodName: food.trim(),
-              symptomName: symptom.name,
-              occurrences: 1,
-              confidence: 50, // Same confidence as individual foods
-              isIngredient: false
-            });
-          }
-        }
-      }
-      
-      // Also create correlations for explicit ingredients if available
-      if (meal.ingredients && Array.isArray(meal.ingredients)) {
-        for (const ingredient of meal.ingredients) {
-          if (ingredient && ingredient.trim()) {
-            const ingredientName = ingredient.trim();
-            const ingredientLower = ingredientName.toLowerCase();
-            
-            // Skip correlations for dietary tags
-            if (dietaryTags.some(tag => ingredientLower.includes(tag))) {
-              continue;
-            }
-            
-            await this.createOrUpdateCorrelation({
-              userId,
-              foodName: ingredientName,
-              symptomName: symptom.name,
-              occurrences: 1,
-              confidence: 40, // Lower initial confidence for explicit ingredients
-              isIngredient: true
-            });
-          }
-        }
-      }
-    }
-    
-    // Update all correlation confidence scores
-    await this.updateCorrelationConfidenceScores(userId);
-  }
-
-  // Method to regenerate all correlations for a user with improved parsing
+  /**
+   * Recomputes every correlation for a user from their full history with
+   * the v2 engine (server/analytics/correlations.ts) and replaces the rows.
+   */
   async regenerateCorrelations(userId: string): Promise<void> {
-    // Delete all existing correlations for this user
-    await db.delete(correlations).where(eq(correlations.userId, userId));
-    
-    // Get all symptoms for this user
-    const userSymptoms = await this.getSymptomsByUser(userId);
-    
-    // Regenerate correlations for each symptom
-    for (const symptom of userSymptoms) {
-      await this.analyzeCorrelations(symptom);
-    }
-  }
-  
-  private async updateCorrelationConfidenceScores(userId: string): Promise<void> {
-    // Get all correlations for this user
-    const userCorrelations = await this.getCorrelationsByUser(userId);
-    
-    // Adjust confidence based on occurrence count
-    for (const correlation of userCorrelations) {
-      let adjustedConfidence = 50; // Base confidence
-      
-      // Increase confidence with more occurrences
-      if (correlation.occurrences >= 5) {
-        adjustedConfidence = 90; // High confidence
-      } else if (correlation.occurrences >= 3) {
-        adjustedConfidence = 75; // Moderate confidence
-      } else if (correlation.occurrences === 2) {
-        adjustedConfidence = 60; // Low-moderate confidence
+    const [userMeals, userSymptoms, settings] = await Promise.all([
+      this.getMealsByUser(userId),
+      this.getSymptomsByUser(userId),
+      this.getSettings(userId),
+    ]);
+    const rows = computeCorrelations(userMeals, userSymptoms, settings);
+
+    await db.transaction(async (tx) => {
+      await tx.delete(correlations).where(eq(correlations.userId, userId));
+      for (let i = 0; i < rows.length; i += 200) {
+        await tx.insert(correlations).values(rows.slice(i, i + 200).map((row) => ({ ...row, userId, updatedAt: new Date() })));
       }
-      
-      // Lower confidence for ingredients slightly
-      if (correlation.isIngredient) {
-        adjustedConfidence = Math.max(adjustedConfidence - 10, 0);
-      }
-      
-      // Update confidence if changed
-      if (adjustedConfidence !== correlation.confidence) {
-        await this.updateCorrelationConfidence(correlation.id, adjustedConfidence);
-      }
-    }
+    });
   }
 }

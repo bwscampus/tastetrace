@@ -55,14 +55,14 @@ struct MainTabView: View {
             .tag(AppTab.history)
 
             NavigationStack(path: $router.digestPath) {
-                PlaceholderScreen(title: "Weekly Health Digest", message: "Trends, symptoms and food suspects arrive in the next milestone.")
+                DigestView(env: env)
                     .navigationDestination(for: Route.self) { destination(for: $0) }
             }
             .tabItem { Label(AppTab.digest.title, systemImage: AppTab.digest.systemImage) }
             .tag(AppTab.digest)
 
             NavigationStack(path: $router.triggersPath) {
-                PlaceholderScreen(title: "Trigger Insights", message: "Symptom-specific confidence tiers arrive in the next milestone.")
+                TriggerInsightsView(env: env)
             }
             .tabItem { Label(AppTab.triggers.title, systemImage: AppTab.triggers.systemImage) }
             .tag(AppTab.triggers)
@@ -77,8 +77,12 @@ struct MainTabView: View {
         switch route {
         case .coverage(let date):
             CoverageView(date: date)
-        case .digest, .suspects, .symptomDigest:
-            PlaceholderScreen(title: "Weekly Health Digest", message: "Coming in the digest milestone.")
+        case .digest(let weekStart):
+            DigestView(env: env, weekStart: weekStart)
+        case .suspects(let weekStart):
+            DigestView(env: env, weekStart: weekStart, segment: .suspects)
+        case .symptomDigest(let weekStart):
+            DigestView(env: env, weekStart: weekStart, segment: .symptoms)
         }
     }
 }

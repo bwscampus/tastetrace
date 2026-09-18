@@ -1,7 +1,7 @@
 import {
   InsertUser, User, ProfilePatch, ApiToken, UserSettings, SettingsPatch,
   InsertMeal, UpdateMeal, Meal, InsertSymptom, UpdateSymptom, Symptom, Dish, InsertDish,
-  CustomSymptom, InsertCustomSymptom, InsertCorrelation, Correlation, IngredientDetail,
+  CustomSymptom, InsertCustomSymptom, Correlation, IngredientDetail, WatchlistItem,
 } from "@shared/schema";
 import { DatabaseStorage } from "./database-storage";
 
@@ -59,12 +59,18 @@ export interface IStorage {
 
   // Correlation operations
   getCorrelation(id: number): Promise<Correlation | undefined>;
+  /** Rows with at least two flare exposures (what the web app lists). */
   getCorrelationsByUser(userId: string): Promise<Correlation[]>;
-  getCorrelationByFoodAndSymptom(userId: string, foodName: string, symptomName: string, isIngredient?: boolean): Promise<Correlation | undefined>;
-  createOrUpdateCorrelation(correlation: InsertCorrelation): Promise<Correlation>;
-  updateCorrelationConfidence(id: number, confidence: number): Promise<Correlation | undefined>;
+  /** Every row, strongest first. */
+  getAllCorrelationsByUser(userId: string): Promise<Correlation[]>;
   deleteCorrelation(id: number): Promise<boolean>;
+  /** Recomputes all rows from the user's history. */
   regenerateCorrelations(userId: string): Promise<void>;
+
+  // Watchlist (ingredients the user is monitoring)
+  getWatchlist(userId: string): Promise<WatchlistItem[]>;
+  addWatchlistItem(userId: string, ingredient: string, source: string): Promise<WatchlistItem>;
+  removeWatchlistItem(id: number, userId: string): Promise<boolean>;
 
   // Waitlist operations
   addWaitlistSignup(email: string): Promise<void>;

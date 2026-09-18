@@ -157,6 +157,55 @@ describe.skipIf(!hasDb)("mobile API", () => {
     expect((await request(app).get("/api/coverage?date=nope").set(auth(aliceToken))).status).toBe(400);
   });
 
+  it("serves digests, suspects, trigger insights and the watchlist", async () => {
+    // Alice already has: meals on Sep 11 (from dish) + Sep 17 breakfast, symptoms on Sep 11/12 and a batch on Sep 11
+    await request(app).post("/api/watchlist").set(auth(aliceToken)).send({ ingredient: "Sourdough Bread", source: "suspect" });
+    const watch = await request(app).get("/api/watchlist").set(auth(aliceToken));
+    expect(watch.status).toBe(200);
+    expect(watch.body[0]).toMatchObject({ ingredient: "sourdough bread", source: "suspect" });
+    expect(watch.body[0]).toHaveProperty("confidenceMax");
+
+    const digest = await request(app).get("/api/digest/weekly?weekStart=2026-09-11&tz=America/Los_Angeles").set(auth(aliceToken));
+    expect(digest.status).toBe(200);
+    expect(digest.body.weekEnd).toBe("2026-09-17");
+    expect(digest.body.trends.days).toHaveLength(7);
+    expect(digest.body.trends.days[0].date).toBe("2026-09-11");
+    expect(digest.body.symptoms.cards.length).toBeGreaterThan(0);
+    expect((await request(app).get("/api/digest/weekly?weekStart=bad").set(auth(aliceToken))).status).toBe(400);
+    expect((await request(app).get("/api/digest/weekly").set(auth(aliceToken))).status).toBe(200);
+
+    const suspects = await request(app).get("/api/digest/suspects?weekStart=2026-09-11&tz=America/Los_Angeles").set(auth(aliceToken));
+    expect(suspects.status).toBe(200);
+    expect(suspects.body.windowHours).toBe(24);
+    expect(suspects.body.symptomFilters[0].name).toBe("All Symptoms");
+    expect(Array.isArray(suspects.body.ingredients)).toBe(true);
+
+    const insights = await request(app).get("/api/insights/triggers?dimension=ingredient&minConfidence=0").set(auth(aliceToken));
+    expect(insights.status).toBe(200);
+    expect(insights.body).toMatchObject({ dimension: "ingredient", minConfidence: 0 });
+    expect(insights.body.symptoms.length).toBeGreaterThan(0);
+    expect((await request(app).get("/api/insights/triggers?minConfidence=200").set(auth(aliceToken))).status).toBe(400);
+
+    // Web-shaped correlations still work and never expose cook methods
+    const web = await request(app).get("/api/correlations").set(auth(aliceToken));
+    expect(web.status).toBe(200);
+    expect(web.body.every((c: any) => c.dimension !== "cook_method")).toBe(true);
+
+    expect((await request(app).delete(`/api/watchlist/${watch.body[0].id}`).set(auth(aliceToken))).status).toBe(204);
+  });
+
+  it("flags meals followed by symptoms as suspicious", async () => {
+    const meal = await request(app).post("/api/meals").set(auth(aliceToken))
+      .send({ name: "Late pizza", mealType: "Dinner", timestamp: "2026-09-20T02:00:00Z", tz: "America/Los_Angeles", ingredientDetails: [{ name: "cheese" }] });
+    await request(app).post("/api/symptoms").set(auth(aliceToken)).send({ name: "Bloating", intensity: 2, timestamp: "2026-09-20T04:00:00Z", tz: "America/Los_Angeles" });
+    const day = await request(app).get("/api/entries/date?date=2026-09-19&tz=America/Los_Angeles").set(auth(aliceToken));
+    const flagged = day.body.meals.find((m: any) => m.id === meal.body.id);
+    expect(flagged.suspiciousFor).toEqual(["Bloating"]);
+    expect(["window", "correlated"]).toContain(flagged.suspicion);
+    expect(day.body.flares).toBe(1); // 04:00Z on the 20th is 9 PM on the 19th in Los Angeles
+    expect(day.body.symptoms).toHaveLength(1);
+  });
+
   it("revokes tokens", async () => {
     const list = await request(app).get("/api/auth/tokens").set(auth(aliceToken));
     expect(list.body.length).toBeGreaterThanOrEqual(2);

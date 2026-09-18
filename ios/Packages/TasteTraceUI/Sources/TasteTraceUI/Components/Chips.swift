@@ -3,7 +3,7 @@ import SwiftUI
 public enum BadgeTone {
     case neutral, info, success, warning, danger, primary
 
-    var foreground: Color {
+    public var foreground: Color {
         switch self {
         case .neutral: return TTColor.textSecondary
         case .info: return TTColor.primary
@@ -14,7 +14,7 @@ public enum BadgeTone {
         }
     }
 
-    var background: Color {
+    public var background: Color {
         switch self {
         case .neutral: return TTColor.neutralTint
         case .info: return TTColor.infoTint

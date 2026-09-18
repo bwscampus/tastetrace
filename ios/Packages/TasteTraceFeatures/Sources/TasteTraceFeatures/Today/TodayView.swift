@@ -16,7 +16,9 @@ struct TodayView: View {
     var body: some View {
         TTScreen {
             header
-            DigestHeroCard(onViewReport: { router.showDigest(weekStart: model.math.addingDays(-6, to: model.today)) })
+            DigestHeroCard(index: model.digest?.trends.index, changePercent: model.digest?.trends.changeVsPreviousPercent,
+                           occurrences: model.digest?.trends.occurrences, days: model.digest?.trends.days ?? [],
+                           onViewReport: { router.showDigest(weekStart: model.math.addingDays(-6, to: model.today)) })
             CoverageCard(logged: model.loggedSlots, fraction: model.coverageFraction,
                          streakDays: model.coverage?.streak.days,
                          nudge: model.coverage.map { $0.nudge.enabled ? Formatting.clock($0.nudge.time) : nil } ?? nil) {
@@ -77,6 +79,7 @@ struct DigestHeroCard: View {
     var index: Double? = nil
     var changePercent: Int? = nil
     var occurrences: Int? = nil
+    var days: [WeeklyDigest.DayTrend] = []
     let onViewReport: () -> Void
 
     var body: some View {
@@ -96,11 +99,17 @@ struct DigestHeroCard: View {
                     .buttonStyle(.plain)
                 }
                 if let index {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(String(format: "%.1f", index)).font(TTFont.heroNumber)
-                        Text("/ 10").font(TTFont.cardTitle).opacity(0.8)
+                    HStack(alignment: .bottom) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text(String(format: "%.1f", index)).font(TTFont.heroNumber)
+                                Text("/ 10").font(TTFont.cardTitle).opacity(0.8)
+                            }
+                            Text("Weekly Discomfort Index • \(occurrences ?? 0) Occurrences").font(TTFont.body).opacity(0.9)
+                        }
+                        Spacer()
+                        SparklineView(values: days.map(\.index), levels: days.map(\.level))
                     }
-                    Text("Weekly Discomfort Index • \(occurrences ?? 0) Occurrences").font(TTFont.body).opacity(0.9)
                 } else {
                     Text("—").font(TTFont.heroNumber)
                     Text("Log meals and symptoms this week to see your discomfort index.").font(TTFont.body).opacity(0.9)

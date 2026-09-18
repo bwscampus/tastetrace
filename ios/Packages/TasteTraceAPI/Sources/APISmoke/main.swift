@@ -60,6 +60,20 @@ do {
     let coverage = try await client.coverage(on: today, tz: tz)
     check("coverage counts today's lunch", coverage.slots["Lunch"]?.logged == true && coverage.week.count == 7 && coverage.slotTotal == 3)
 
+    let weekStart = DayFormatter.string(from: Date().addingTimeInterval(-6 * 86400), tz: tz)
+    let digest = try await client.weeklyDigest(weekStart: weekStart, tz: tz)
+    check("weekly digest covers 7 days with today's symptoms", digest.trends.days.count == 7 && digest.symptoms.total >= 2 && digest.symptoms.cards.first?.emoji != nil)
+    let suspectsDigest = try await client.suspects(weekStart: weekStart, symptom: nil, tz: tz)
+    check("suspects sees the flare and the toast", suspectsDigest.flares >= 1 && suspectsDigest.leadSuspect != nil && suspectsDigest.symptomFilters.first?.name == "All Symptoms")
+    let insights = try await client.triggerInsights(dimension: "ingredient", symptom: nil, minConfidence: 0)
+    check("trigger insights list symptoms and cards", insights.symptoms.count >= 2 && insights.cards.contains { $0.item == "sourdough bread" })
+    let watched = try await client.addToWatchlist("Sourdough Bread", source: "suspect")
+    let watchlist = try await client.watchlist()
+    check("watchlist normalises and reports confidence", watched.ingredient == "sourdough bread" && watchlist.first?.confidenceMax != nil)
+    try await client.removeFromWatchlist(id: watched.id)
+    let flagged = try await client.entries(on: today, tz: tz)
+    check("meal is flagged suspicious", flagged.meals.first?.suspiciousFor?.isEmpty == false)
+
     let catalog = try await client.symptomCatalog()
     check("catalog has 6 defaults", catalog.defaults.count == 6)
 

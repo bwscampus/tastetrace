@@ -8,6 +8,7 @@ import TasteTraceCore
 final class TodayViewModel {
     var day: DayEntries?
     var coverage: Coverage?
+    var digest: WeeklyDigest?
     var isLoading = false
     var fromCache = false
     var error: String?
@@ -42,6 +43,7 @@ final class TodayViewModel {
         isLoading = day == nil
         defer { isLoading = false }
         async let coverageTask = try? env.run { try await env.api.coverage(on: todayString, tz: math.tzIdentifier) }
+        async let digestTask = try? env.run { try await env.api.weeklyDigest(weekStart: math.dayString(math.addingDays(-6, to: today)), tz: math.tzIdentifier) }
         do {
             let loaded = try await env.run { try await env.entries.day(todayString, tz: math.tzIdentifier) }
             day = loaded.value
@@ -49,6 +51,7 @@ final class TodayViewModel {
             error = nil
             toast = loaded.fromCache ? "Showing cached entries (offline)." : "Daily hub ready."
             if let fresh = await coverageTask { coverage = fresh }
+            if let fresh = await digestTask { digest = fresh }
         } catch let apiError as APIError {
             error = apiError.message
         } catch {

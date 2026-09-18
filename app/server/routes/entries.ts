@@ -6,6 +6,7 @@ import { dayBounds, isIsoDate, localDate, parseInstant } from "../analytics/time
 import { resolveTimezone } from "./context";
 import { presentSymptom } from "./symptoms";
 import { Symptom } from "@shared/schema";
+import { suspicionFor } from "../analytics/correlations";
 
 // Symptoms within 30 minutes of each other count as one flare
 const FLARE_CLUSTER_MS = 30 * 60 * 1000;
@@ -30,7 +31,7 @@ export function registerEntryRoutes(app: Express) {
     const userId = req.user.id;
     
     try {
-      const correlations = await storage.getCorrelationsByUser(userId);
+      const correlations = (await storage.getCorrelationsByUser(userId)).filter((c) => c.dimension !== "cook_method");
       
       // Filter out correlations with full meal names (containing separators) to show only individual ingredients
       const filteredCorrelations = correlations.filter(correlation => {
@@ -147,13 +148,20 @@ export function registerEntryRoutes(app: Express) {
       end.setMilliseconds(end.getMilliseconds() - 1);
       
       // Get meals and symptoms for the specified date
+      const settings = await storage.getSettings(userId);
       const meals = await storage.getMealsByUserAndTimeRange(userId, start, end);
       const symptoms = await storage.getSymptomsByUserAndTimeRange(userId, start, end);
       const custom = await storage.getCustomSymptoms(userId);
+      // Symptoms up to a window after the day, so late meals can be flagged
+      const followUp = new Date(end.getTime() + settings.correlationWindowHours * 3_600_000);
+      const [laterSymptoms, correlations] = await Promise.all([
+        storage.getSymptomsByUserAndTimeRange(userId, start, followUp),
+        storage.getAllCorrelationsByUser(userId),
+      ]);
       
       res.json({
         date: dateStr,
-        meals,
+        meals: meals.map((meal) => ({ ...meal, ...suspicionFor(meal, laterSymptoms, correlations, settings) })),
         symptoms: symptoms.map((s) => presentSymptom(s, custom)),
         flares: countFlares(symptoms),
         entries: meals.length + symptoms.length,
