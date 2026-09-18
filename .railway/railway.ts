@@ -11,7 +11,7 @@ export default defineRailway(() => {
     domains: ["tastetrace.app", "www.tastetrace.app"],
   });
   const tastetraceApi = service("tastetrace-api", {
-    source: github("bwscampus/tastetrace", { branch: "fastapi-backend", checkSuites: false, rootDirectory: "/api" }),
+    source: github("bwscampus/tastetrace", { branch: "main", checkSuites: false, rootDirectory: "/api" }),
     build: { buildEnvironment: "V3", builder: "RAILPACK", watchPatterns: ["/api/**"] },
     healthcheck: "/api/health",
     replicas: { "us-west2": 1 },
