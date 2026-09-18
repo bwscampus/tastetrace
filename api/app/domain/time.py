@@ -54,6 +54,18 @@ def is_iso_day(value: object) -> bool:
     return len(value) == 10
 
 
+def parse_instant_or_none(value: object) -> datetime | None:
+    """Parses an ISO-8601 instant, tolerating a trailing Z; None if it isn't one."""
+    if isinstance(value, datetime):
+        return as_utc(value)
+    if not isinstance(value, str):
+        return None
+    try:
+        return as_utc(datetime.fromisoformat(value.replace("Z", "+00:00")))
+    except ValueError:
+        return None
+
+
 def weekday_label(day: str) -> str:
     """Short weekday name ("Fri") for a YYYY-MM-DD."""
     return date_cls.fromisoformat(day).strftime("%a")

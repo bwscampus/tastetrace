@@ -31,14 +31,18 @@ def is_valid_timezone(name: str | None) -> bool:
     return True
 
 
-async def get_settings_row(session: AsyncSession, user: User) -> UserSettings:
+async def get_settings_row_by_id(session: AsyncSession, user_id) -> UserSettings:
     """The user's settings, created with defaults on first use."""
-    row = await session.get(UserSettings, user.id)
+    row = await session.get(UserSettings, user_id)
     if row is None:
-        row = UserSettings(user_id=user.id)
+        row = UserSettings(user_id=user_id)
         session.add(row)
         await session.flush()
     return row
+
+
+async def get_settings_row(session: AsyncSession, user: User) -> UserSettings:
+    return await get_settings_row_by_id(session, user.id)
 
 
 async def resolve_timezone(

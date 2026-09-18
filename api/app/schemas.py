@@ -10,6 +10,7 @@ from typing import Annotated, Literal
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     PlainSerializer,
@@ -36,6 +37,9 @@ UtcDatetime = Annotated[
     datetime, PlainSerializer(_iso_millis_z, return_type=str, when_used="json")
 ]
 
+# The client reads ids as strings; SQLAlchemy hands back UUID objects.
+UuidStr = Annotated[str, BeforeValidator(lambda v: str(v) if v is not None else v)]
+
 MealTypeName = Literal["Breakfast", "Lunch", "Dinner", "Snack"]
 Trimmed = Annotated[str, StringConstraints(strip_whitespace=True)]
 
@@ -59,7 +63,7 @@ class IngredientDetail(CamelModel):
 
 
 class ProfileRead(CamelModel):
-    id: str
+    id: UuidStr
     email: str
     first_name: str | None = None
     last_name: str | None = None
@@ -109,7 +113,7 @@ class SettingsPatch(CamelModel):
 
 class MealRead(CamelModel):
     id: int
-    user_id: str | None = None
+    user_id: UuidStr | None = None
     name: str
     meal_type: str
     timestamp: UtcDatetime
@@ -166,7 +170,7 @@ class MealPatch(CamelModel):
 
 class SymptomRead(CamelModel):
     id: int
-    user_id: str | None = None
+    user_id: UuidStr | None = None
     name: str
     severity: str
     intensity: int | None = None
@@ -252,7 +256,7 @@ class SymptomCatalogRead(CamelModel):
 
 class DishRead(CamelModel):
     id: int
-    user_id: str | None = None
+    user_id: UuidStr | None = None
     name: str
     emoji: str
     ingredients: list[IngredientDetail] = Field(default_factory=list)
