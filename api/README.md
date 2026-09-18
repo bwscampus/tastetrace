@@ -1,8 +1,12 @@
-# app
+# TasteTrace API
 
-FastAPI backend: email/password accounts, cookie sessions, password reset,
-Postgres, and a Railway deploy that migrates on release. Optionally serves a
-static frontend from `public/`.
+The backend for the TasteTrace iOS app: accounts, the food and symptom log,
+and the analytics behind the digests. Built from the `fastapi-backend` skill
+template (fastapi-users, async SQLAlchemy, Alembic, Railway).
+
+The Express app in `../app` is untouched and still serves the web client and
+the landing page's waitlist. This service owns the mobile API only, with its
+own database.
 
 ## Local development
 
@@ -10,65 +14,61 @@ static frontend from `public/`.
 uv sync
 cp .env.example .env
 
-# Postgres in a container (any local Postgres works too)
-docker run -d --name app-pg \
-  -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=app \
-  -p 5432:5432 postgres:17-alpine
+docker run -d --name tt-pg-py -e POSTGRES_PASSWORD=test -p 55435:5432 postgres:18-alpine
+# then set DATABASE_URL in .env to
+#   postgresql+asyncpg://postgres:test@localhost:55435/postgres
 
 uv run alembic upgrade head
-uv run uvicorn app.main:app --reload
-```
-
-- App: http://localhost:8000
-- API docs: http://localhost:8000/docs (disabled in production)
-- Health: http://localhost:8000/api/health
-
-## Tests
-
-```bash
+uv run uvicorn app.main:app --reload --port 8000
 uv run pytest
 ```
 
-They run on in-memory SQLite, so no database server is needed. They assert the
-security properties — an XSS-proof session cookie, revocation on password
-reset, no account enumeration, working rate limits — so a failure means a
-property is gone, not that a test is stale.
+With the server running, the Swift client's end-to-end checker exercises every
+endpoint the app uses:
+
+```bash
+cd ../ios/Packages/TasteTraceAPI && swift run apismoke http://localhost:8000
+```
 
 ## Layout
 
 ```
 app/
-  main.py       app factory; middleware order; register_project_routes()
-  config.py     settings, validated at import
-  db.py         async engine + session dependency
-  security.py   CSP and security headers, CORS, TrustedHost
-  logging.py    request ids, generic 500s
-  rate_limit.py per-IP limits on auth routes
-  auth/         users, sessions, password reset
-  email/        Resend client + templates
-  routers/      health, plus your routes
-  models.py     your tables (create this)
-public/         static frontend, mounted at / when present
-migrations/     alembic
-Procfile        start command (migrate, then serve)
+  auth/        fastapi-users: users, sessions, cookie + bearer transports
+  domain/      pure logic — the analytics and the shared constants
+  services/    everything that touches the database
+  routers/     one module per resource
+  models.py    project tables (auth tables live in auth/models.py)
+  schemas.py   camelCase wire models
 ```
 
-## Adding to it
+`app/domain` holds no I/O, so the rules that decide what the app shows are
+testable on their own; `tests/test_domain_*.py` pins them to the numbers the
+product was designed around.
 
-Put new routers inside `register_project_routes()` in `app/main.py` and new
-tables in `app/models.py`, then
-`uv run alembic revision --autogenerate -m "..."`. Keeping project code out of
-`create_app()` and out of `app/auth/` is what makes template updates painless.
+## Conventions worth knowing
+
+- **Auth.** The app signs in at `POST /api/auth/bearer/login` — form-encoded,
+  following the OAuth2 password flow — and sends the token as
+  `Authorization: Bearer`. Browsers can use the cookie routes instead; both
+  mint the same revocable session rows, so a logout or password reset ends
+  either. Passwords need 8 characters.
+- **camelCase.** Responses are camelCase so the Swift models decode directly.
+  Dictionary *keys* are data and are never renamed: the coverage slots
+  (`Breakfast`), the timing windows (`0to4h`), the day-keyed markers.
+- **Dates.** Timestamps are ISO-8601 UTC with exactly three fractional digits,
+  which is what the client's decoder accepts. A `date` column holds the local
+  calendar day an entry belongs to, derived server-side from the timestamp and
+  the request's `tz`; the analytics bucket by it.
+- **Ownership.** Every query filters on the user; someone else's row is a 404.
+- **AI.** `ANTHROPIC_API_KEY` is optional. Without it — or on a timeout, error
+  or refusal — the Food Suspect Digest summary is written from a template
+  instead, and the endpoint still succeeds.
 
 ## Deploying
 
-See `references/railway.md` in the skill. Short version: `railway init`,
-`railway add --database postgres`, `railway add --service <name>`,
-`railway domain`, set `SECRET_KEY` / `RESEND_API_KEY` / `EMAIL_FROM` /
-`PUBLIC_BASE_URL` / `ALLOWED_HOSTS` / `ENVIRONMENT=production` and
-`DATABASE_URL=${{Postgres.DATABASE_URL}}`, then `railway up`.
-
-The start command lives in `Procfile`.
-
-The app refuses to start in production with placeholder or missing secrets.
-That's intentional: a failed deploy leaves the previous version serving.
+Railpack builds from `pyproject.toml` and `.python-version`; the `Procfile`
+runs `alembic upgrade head` before the server starts, so migrations must stay
+backward compatible with the running version. See the skill's
+`references/railway.md`. Production refuses to boot without `SECRET_KEY`,
+`RESEND_API_KEY`, real `ALLOWED_HOSTS` and an https `PUBLIC_BASE_URL`.
