@@ -25,7 +25,11 @@ ios/
    xcodebuild -downloadPlatform iOS
    brew install xcodegen
    ```
-2. Start the backend: `cd ../app && npm run dev` (Debug builds talk to `http://localhost:5000`).
+2. Debug and Release builds both talk to the deployed backend
+   (`https://tastetrace-app.up.railway.app`), so a phone works out of the box.
+   To develop against a local server, edit `Config/Debug.xcconfig`: use
+   `http://localhost:5000` for the simulator, or your Mac's LAN address for a
+   phone on the same Wi-Fi, then `cd ../app && npm run dev`.
 3. Generate and open the project:
    ```sh
    xcodegen generate && open TasteTrace.xcodeproj
