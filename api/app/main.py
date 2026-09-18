@@ -75,11 +75,21 @@ def register_project_routes(app: FastAPI) -> None:
     Keeping project routes behind one function is what lets a project pull
     template updates without a merge conflict in create_app().
     """
-    from app.routers import analytics, dishes, entries, meals, profile, symptoms, watchlist
+    from app.routers import (
+        ai,
+        analytics,
+        dishes,
+        entries,
+        export,
+        meals,
+        profile,
+        symptoms,
+        watchlist,
+    )
     from app.routers.errors import install_error_shapes
 
     install_error_shapes(app)
-    for module in (profile, meals, dishes, symptoms, entries, analytics, watchlist):
+    for module in (profile, meals, dishes, symptoms, entries, analytics, watchlist, ai, export):
         app.include_router(module.router, prefix="/api")
 
 

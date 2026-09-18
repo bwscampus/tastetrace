@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     SESSION_LIFETIME_SECONDS: int = 60 * 60 * 24 * 14  # 14 days
     RESET_TOKEN_LIFETIME_SECONDS: int = 60 * 60  # 1 hour
 
+    # Optional: without it the AI summary falls back to a written template.
+    ANTHROPIC_API_KEY: str | None = None
+    SYNTHESIS_MODEL: str = "claude-opus-5"
+    SYNTHESIS_TIMEOUT_SECONDS: float = 8.0
+    SYNTHESIS_RATE_LIMIT_SECONDS: int = 30
+
     RATE_LIMIT_LOGIN: str = "10/minute"
     RATE_LIMIT_FORGOT_PASSWORD: str = "5/hour"
     RATE_LIMIT_REGISTER: str = "10/hour"
