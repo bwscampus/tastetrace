@@ -11,9 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.rows import IngredientRow, MealRow, SettingsRow, SymptomRow
 from app.domain.rows import CorrelationRow as DomainCorrelation
+from app.domain.time import as_utc
 from app.models import Correlation, Meal, Symptom, UserSettings
 
 
+# SQLite hands back naive datetimes while Postgres returns aware ones; the
+# analytics compare and sort timestamps, so they are normalised to UTC here,
+# at the one boundary where database rows become domain objects.
 def ingredient_rows(details: list[dict] | None) -> list[IngredientRow] | None:
     if details is None:
         return None
@@ -28,7 +32,7 @@ def meal_row(meal: Meal) -> MealRow:
         id=meal.id,
         name=meal.name,
         meal_type=meal.meal_type,
-        timestamp=meal.timestamp,
+        timestamp=as_utc(meal.timestamp),
         ingredients=list(meal.ingredients or []),
         ingredient_details=ingredient_rows(meal.ingredient_details),
         notes=meal.notes,
@@ -41,7 +45,7 @@ def symptom_row(symptom: Symptom) -> SymptomRow:
         id=symptom.id,
         name=symptom.name,
         severity=symptom.severity,
-        timestamp=symptom.timestamp,
+        timestamp=as_utc(symptom.timestamp),
         intensity=symptom.intensity,
         duration_minutes=symptom.duration_minutes,
         catalog_key=symptom.catalog_key,
@@ -63,7 +67,7 @@ def correlation_row(row: Correlation) -> DomainCorrelation:
         lift=row.lift,
         avg_onset_hours=row.avg_onset_hours,
         window_hours=row.window_hours,
-        last_flare_at=row.last_flare_at,
+        last_flare_at=as_utc(row.last_flare_at) if row.last_flare_at else None,
     )
 
 

@@ -273,8 +273,9 @@ def compute_weekly_digest(
             distinct=len(by_name),
             distribution=[
                 {
+                    # Hand-built payload, so the client's spelling is used directly
                     "name": card.name,
-                    "catalog_key": card.catalog_key,
+                    "catalogKey": card.catalog_key,
                     "count": card.occurrences,
                     "share": card.share_of_week,
                 }
