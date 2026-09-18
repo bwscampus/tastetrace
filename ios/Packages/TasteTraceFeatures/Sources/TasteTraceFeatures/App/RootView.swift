@@ -75,8 +75,8 @@ struct MainTabView: View {
     @ViewBuilder
     private func destination(for route: Route) -> some View {
         switch route {
-        case .coverage:
-            PlaceholderScreen(title: "Daily Logging Coverage", message: "Streaks and the coverage wheel arrive with Quick Log.")
+        case .coverage(let date):
+            CoverageView(date: date)
         case .digest, .suspects, .symptomDigest:
             PlaceholderScreen(title: "Weekly Health Digest", message: "Coming in the digest milestone.")
         }
@@ -93,6 +93,8 @@ struct SheetHost: View {
         if case .logMeal(let date) = sheet {
             // Owns its own NavigationStack (two steps) and Close button
             LogMealFlow(env: env, date: date)
+        } else if case .quickLog(let date) = sheet {
+            NavigationStack { QuickLogView(env: env, date: date) }
         } else {
             NavigationStack {
                 sheetContent
@@ -108,16 +110,16 @@ struct SheetHost: View {
         switch sheet {
         case .logMeal:
             EmptyView()
-        case .quickLog:
-            PlaceholderScreen(title: "Quick Log", message: "The symptom grid arrives in a later milestone.")
+        case .quickLog(let date):
+            QuickLogView(env: env, date: date)
         case .profile:
             ProfileStub()
         case .notifications:
             PlaceholderScreen(title: "Notifications", message: "Reminders arrive in a later milestone.")
         case .editMeal(let id):
             EditMealView(mealId: id)
-        case .editSymptom:
-            PlaceholderScreen(title: "Edit Symptom", message: "Symptom editing arrives with Quick Log.")
+        case .editSymptom(let id):
+            EditSymptomView(symptomId: id)
         }
     }
 }

@@ -57,6 +57,9 @@ do {
     try await client.deleteMeal(id: fromTile.id)
     try await client.deleteDish(id: dish.id)
 
+    let coverage = try await client.coverage(on: today, tz: tz)
+    check("coverage counts today's lunch", coverage.slots["Lunch"]?.logged == true && coverage.week.count == 7 && coverage.slotTotal == 3)
+
     let catalog = try await client.symptomCatalog()
     check("catalog has 6 defaults", catalog.defaults.count == 6)
 

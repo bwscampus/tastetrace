@@ -28,6 +28,7 @@ struct HistoryView: View {
                                   onDelete: { pendingDelete = item })
                 case .symptom(let symptom):
                     SymptomEntryCard(symptom: symptom, math: model.math, onDelete: { pendingDelete = item })
+                        .onTapGesture { router.sheet = .editSymptom(id: symptom.id) }
                 }
             }
             if let day = model.day, day.timeline.isEmpty, !model.isLoading {

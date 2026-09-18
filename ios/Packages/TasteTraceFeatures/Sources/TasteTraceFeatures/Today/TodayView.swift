@@ -17,7 +17,9 @@ struct TodayView: View {
         TTScreen {
             header
             DigestHeroCard(onViewReport: { router.showDigest(weekStart: model.math.addingDays(-6, to: model.today)) })
-            CoverageCard(logged: model.loggedSlots, fraction: model.coverageFraction) {
+            CoverageCard(logged: model.loggedSlots, fraction: model.coverageFraction,
+                         streakDays: model.coverage?.streak.days,
+                         nudge: model.coverage.map { $0.nudge.enabled ? Formatting.clock($0.nudge.time) : nil } ?? nil) {
                 router.todayPath.append(.coverage(date: model.today))
             }
             HStack(spacing: 12) {

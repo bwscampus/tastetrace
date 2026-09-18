@@ -7,6 +7,7 @@ import TasteTraceCore
 @MainActor
 final class TodayViewModel {
     var day: DayEntries?
+    var coverage: Coverage?
     var isLoading = false
     var fromCache = false
     var error: String?
@@ -22,9 +23,12 @@ final class TodayViewModel {
     var today: Date { Date() }
     var todayString: String { math.dayString(today) }
 
-    /// Which coverage slots have a meal logged today (server coverage arrives in M3).
+    /// Coverage slots logged today: from the server when available, else derived from the timeline.
     var loggedSlots: Set<MealSlot> {
-        Set((day?.meals ?? []).compactMap { MealSlot.slot(for: $0.mealType) })
+        if let coverage {
+            return Set(MealSlot.allCases.filter { coverage.slots[$0.rawValue]?.logged == true })
+        }
+        return Set((day?.meals ?? []).compactMap { MealSlot.slot(for: $0.mealType) })
     }
 
     var coverageFraction: Double { Double(loggedSlots.count) / Double(MealSlot.allCases.count) }
@@ -37,12 +41,14 @@ final class TodayViewModel {
     func load() async {
         isLoading = day == nil
         defer { isLoading = false }
+        async let coverageTask = try? env.run { try await env.api.coverage(on: todayString, tz: math.tzIdentifier) }
         do {
             let loaded = try await env.run { try await env.entries.day(todayString, tz: math.tzIdentifier) }
             day = loaded.value
             fromCache = loaded.fromCache
             error = nil
             toast = loaded.fromCache ? "Showing cached entries (offline)." : "Daily hub ready."
+            if let fresh = await coverageTask { coverage = fresh }
         } catch let apiError as APIError {
             error = apiError.message
         } catch {

@@ -146,6 +146,17 @@ describe.skipIf(!hasDb)("mobile API", () => {
     expect(meal.body.dishId).toBeNull();
   });
 
+  it("reports daily coverage", async () => {
+    await request(app).post("/api/meals").set(auth(aliceToken)).send({ name: "Oats", mealType: "Breakfast", timestamp: "2026-09-17T15:15:00Z", tz: "America/Los_Angeles" });
+    const coverage = await request(app).get("/api/coverage?date=2026-09-17&tz=America/Los_Angeles").set(auth(aliceToken));
+    expect(coverage.status).toBe(200);
+    expect(coverage.body.slots.Breakfast).toMatchObject({ logged: true, time: "08:15" });
+    expect(coverage.body.slotTotal).toBe(3);
+    expect(coverage.body.week).toHaveLength(7);
+    expect(coverage.body.streak.threshold).toBe(3); // patched in the settings test
+    expect((await request(app).get("/api/coverage?date=nope").set(auth(aliceToken))).status).toBe(400);
+  });
+
   it("revokes tokens", async () => {
     const list = await request(app).get("/api/auth/tokens").set(auth(aliceToken));
     expect(list.body.length).toBeGreaterThanOrEqual(2);

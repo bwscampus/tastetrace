@@ -50,6 +50,16 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(catalog.all.map(\.key), ["acid_reflux", "custom:brain-fog"])
     }
 
+    func testCoverageDecodes() async throws {
+        try transport.stub("GET", "/api/coverage", fixture: "coverage")
+        let coverage = try await client.coverage(on: "2026-09-17", tz: "America/Los_Angeles")
+        XCTAssertEqual(coverage.slots["Breakfast"]?.time, "08:15")
+        XCTAssertEqual(coverage.slots["Dinner"]?.logged, false)
+        XCTAssertEqual(coverage.fraction, 2.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(coverage.streak.days, 5)
+        XCTAssertEqual(coverage.weekSlots.bySlot["Lunch"]?.logged, 3)
+    }
+
     func testErrorsMapToAPIError() async throws {
         transport.stub("GET", "/api/user", status: 401, json: "Unauthorized")
         do { _ = try await client.currentUser(); XCTFail("expected throw") }
