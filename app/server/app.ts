@@ -1,5 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./routes/index";
 import { log } from "./log";
 
 // The Express app: middleware and API routes. server/index.ts adds the
