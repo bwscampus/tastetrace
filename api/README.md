@@ -83,9 +83,9 @@ railway variables --service tastetrace-api \
   --set ENVIRONMENT=production \
   --set APP_NAME="TasteTrace API" \
   --set PUBLIC_BASE_URL=https://<host> \
-  --set ALLOWED_HOSTS=<host> \
+  --set ALLOWED_HOSTS=<host>,healthcheck.railway.app,<service>.railway.internal \
   --set SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')" \
-  --set RESEND_API_KEY=re_xxx \
+  --set PASSWORD_RESET_ENABLED=false \
   --set ANTHROPIC_API_KEY=sk-ant-xxx        # optional; without it the digest
                                             # summary uses the written template
 ```
@@ -94,10 +94,20 @@ railway variables --service tastetrace-api \
 `postgresql://` scheme for asyncpg. Afterwards run `railway config pull` so
 `.railway/railway.ts` matches what is running.
 
+`ALLOWED_HOSTS` must include **`healthcheck.railway.app`**. Railway probes the
+health endpoint with that `Host` header, and `TrustedHostMiddleware` answers an
+unlisted host with 400 before the route runs — the deploy then sits in
+`DEPLOYING`, retrying, until the health-check timeout, which reads like a slow
+build. A 400 on `/api/health` in the deploy logs, answered in well under a
+millisecond, is the signature.
+
 **Production refuses to boot** without `SECRET_KEY` (32+ characters), a real
-`ALLOWED_HOSTS`, an https `PUBLIC_BASE_URL`, and `RESEND_API_KEY` — the last
-guards password reset, which the app has no screen for yet, so it is currently
-only there to satisfy the check. Verify a deploy with:
+`ALLOWED_HOSTS`, and an https `PUBLIC_BASE_URL`. It also requires
+`RESEND_API_KEY` unless `PASSWORD_RESET_ENABLED=false`, which drops the two
+password-reset routes so they 404 rather than answering 202 and delivering
+nothing. The iOS app has no reset screen, so the deployed service currently
+runs with reset off; set the key and flip the flag on in one deploy to enable
+it. Verify a deploy with:
 
 ```bash
 curl https://<host>/api/health

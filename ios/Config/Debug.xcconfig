@@ -1,5 +1,9 @@
-// Debug builds talk to the Python API running locally
-// (cd api && uv run uvicorn app.main:app --port 8000).
-// On a phone, replace localhost with your Mac's LAN address, or point this at
-// the deployed service.
-API_BASE_URL = http:/$()/localhost:8000
+// Debug builds talk to the deployed Python API, so a build on a phone works
+// without any further setup.
+//
+// To develop against the API running on this Mac instead
+// (cd api && uv run uvicorn app.main:app --port 8000):
+//   simulator — http:/$()/localhost:8000
+//   phone     — http:/$()/<your Mac's LAN address>:8000, served with
+//               --host 0.0.0.0, and add an ATS exception for cleartext HTTP
+API_BASE_URL = https:/$()/tastetrace-api-production.up.railway.app
