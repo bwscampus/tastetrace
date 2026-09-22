@@ -21,6 +21,10 @@ build/
 *.xcodeproj/
 *.xcworkspace/
 !*.xcodeproj/project.pbxproj.example
+# ios/TasteTrace.xcworkspace is hand-written, not generated: it is what you
+# open in Xcode, and it references the generated .xcodeproj alongside the four
+# local packages.
+!ios/TasteTrace.xcworkspace/
 xcuserdata/
 DerivedData/
 *.xcresult

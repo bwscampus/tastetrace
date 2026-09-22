@@ -1,12 +1,14 @@
 # tastetrace
 
-Two sites, deployed as two services in one Railway project. Each service
+Three services in one Railway project, plus the iOS client. Each service
 builds from its own root directory and redeploys on pushes to `main`.
 
 | Folder | What it is | Railway service | Domain |
 | --- | --- | --- | --- |
 | `landing/` | Static waitlist landing page (`index.html`, no build step) | `landing` | https://tastetrace.up.railway.app (later tastetrace.app) |
-| `app/` | The TasteTrace application: React (Vite) client + Express API + Postgres (Drizzle) | `tastetrace` | https://tastetrace-app.up.railway.app (later app.tastetrace.app) |
+| `app/` | The TasteTrace web application: React (Vite) client + Express API + Postgres (Drizzle) | `tastetrace` | https://tastetrace-app.up.railway.app (later app.tastetrace.app) |
+| `api/` | The mobile API: FastAPI + Postgres (SQLAlchemy/Alembic), its own database | `tastetrace-api` | https://tastetrace-api-production.up.railway.app |
+| `ios/` | Native SwiftUI app; open `ios/TasteTrace.xcworkspace` | — | — |
 
 The sites run on their Railway domains for now. The custom domains are already
 attached to the services in Railway and start working once their DNS records
@@ -40,9 +42,31 @@ Railway builds with `npm run build` and runs `npm start`: a single Node server
 that serves the API and the built client on `PORT`. `npm run db:push` runs as
 a pre-deploy step, so schema changes in `shared/schema.ts` must stay additive.
 
-The API serves the web client (cookie session) and the iOS app (Bearer tokens
-from `POST /api/auth/token`); both authenticate to the same routes. See
-`docs/ios-build-plan.md` for the mobile API and the iOS app plan.
+This Express API serves the web client only. The iOS app talks to the FastAPI
+service in `api/`, which has its own database, so the same email on the web and
+in the app is two unrelated accounts. See `docs/ios-build-plan.md` for the
+mobile API and the iOS app plan.
+
+## api/
+
+See `api/README.md`. The mobile backend: fastapi-users auth (form-encoded
+bearer login), async SQLAlchemy, Alembic migrations run on deploy.
+
+```sh
+cd api
+uv sync
+uv run pytest
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+## ios/
+
+See `ios/README.md`. Generate the project, then open the workspace:
+
+```sh
+cd ios
+xcodegen generate && open TasteTrace.xcworkspace
+```
 
 ## landing/
 
