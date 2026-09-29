@@ -18,6 +18,8 @@ public struct RootView: View {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity).background(TTColor.background)
             case .signedOut:
                 AuthView(model: AuthViewModel(session: env.session))
+            case .signedIn(let user) where user.needsOnboarding:
+                OnboardingView(model: OnboardingViewModel(env: env))
             case .signedIn:
                 MainTabView()
             }

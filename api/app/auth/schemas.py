@@ -25,6 +25,8 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
     avatar_emoji: str | None = None
     discovery_purpose: str | None = None
     sensitivity_tags: list[str] = Field(default_factory=list)
+    data_sharing: str | None = None
+    onboarding_completed_at: UtcDatetime | None = None
     created_at: UtcDatetime | None = None
 
 

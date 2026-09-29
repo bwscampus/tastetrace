@@ -53,6 +53,10 @@ class UserSettings(Base):
     nudge_time: Mapped[str] = mapped_column(Text, nullable=False, default="20:30")
     nudges_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     meal_check_ins_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # When the user usually eats; meal check-ins fire half an hour after each
+    breakfast_time: Mapped[str] = mapped_column(Text, nullable=False, default="09:00")
+    lunch_time: Mapped[str] = mapped_column(Text, nullable=False, default="13:00")
+    dinner_time: Mapped[str] = mapped_column(Text, nullable=False, default="19:00")
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=_now
     )

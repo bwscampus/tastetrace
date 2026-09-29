@@ -32,3 +32,19 @@ final class StubTransport: Transport, @unchecked Sendable {
         return (Data(body.utf8), HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!)
     }
 }
+
+final class ReminderSchedulerTests: XCTestCase {
+    func testCheckInsFollowTheSavedMealTimes() {
+        let settings = UserSettings(breakfastTime: "07:45", lunchTime: "12:00", dinnerTime: "23:40")
+        let times = ReminderScheduler.checkInTimes(for: settings)
+        XCTAssertEqual(times.map { "\($0.slot) \($0.hour):\($0.minute)" }, ["breakfast 8:15", "lunch 12:30", "dinner 0:10"])
+        // The defaults keep the check-in times the app used before meal times existed
+        XCTAssertEqual(ReminderScheduler.checkInSummary(for: UserSettings()), "9:30 • 13:30 • 19:30")
+    }
+
+    func testSettingsSavedBeforeMealTimesStillDecode() throws {
+        let json = #"{"timezone":"UTC","correlationWindowHours":24,"minTriggerCount":2,"minConfidence":50,"streakMealsPerDay":2,"nudgeTime":"20:30","nudgesEnabled":true,"mealCheckInsEnabled":false}"#
+        let settings = try JSONCoding.decoder.decode(UserSettings.self, from: Data(json.utf8))
+        XCTAssertEqual([settings.breakfastTime, settings.lunchTime, settings.dinnerTime], ["09:00", "13:00", "19:00"])
+    }
+}
