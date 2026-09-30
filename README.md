@@ -61,12 +61,15 @@ uv run uvicorn app.main:app --reload --port 8000
 
 ## ios/
 
-See `ios/README.md`. Generate the project, then open the workspace:
+See `ios/README.md`. The Xcode project is committed, so just open the
+workspace:
 
 ```sh
-cd ios
-xcodegen generate && open TasteTrace.xcworkspace
+open ios/TasteTrace.xcworkspace
 ```
+
+It is generated from `ios/project.yml` by XcodeGen. Change the spec, run
+`xcodegen generate`, and commit both together.
 
 ## landing/
 

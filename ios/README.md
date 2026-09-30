@@ -1,13 +1,15 @@
 # TasteTrace iOS
 
 Native SwiftUI app (iOS 17+) for the TasteTrace API in `../api`. The Xcode
-project is generated from `project.yml`; the screens, models and logic live in
-local Swift packages so most of the code builds and tests without Xcode.
+project is generated from `project.yml` by XcodeGen and committed, so a clone
+opens and builds with no setup. The screens, models and logic live in local
+Swift packages, so most of the code builds and tests without Xcode.
 
 ```
 ios/
   TasteTrace.xcworkspace      # open this — the app project plus the packages
-  project.yml                 # XcodeGen spec (the .xcodeproj is not committed)
+  TasteTrace.xcodeproj        # generated from project.yml, committed
+  project.yml                 # XcodeGen spec — the source of truth for the project
   Config/*.xcconfig           # API_BASE_URL per configuration
   TasteTrace/                 # thin app target: @main, assets, privacy manifest
   Packages/
@@ -27,16 +29,12 @@ independent packages, each with its own `Package.swift` under `Packages/`.
    sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
    xcodebuild -runFirstLaunch
    xcodebuild -downloadPlatform iOS
-   brew install xcodegen
    ```
-2. Generate the project, then open the workspace:
+   XcodeGen is not needed to build, only to change the project; see below.
+2. Open the workspace:
    ```sh
-   xcodegen generate && open TasteTrace.xcworkspace
+   open TasteTrace.xcworkspace
    ```
-   The workspace is committed; the `.xcodeproj` it references is not, so
-   `xcodegen generate` has to run once after a fresh clone or the project
-   reference shows up missing. Regenerating it does not disturb the workspace.
-
    From the command line, build against the workspace rather than the project:
    ```sh
    xcodebuild -workspace TasteTrace.xcworkspace -scheme TasteTrace \
@@ -52,6 +50,24 @@ independent packages, each with its own `Package.swift` under `Packages/`.
    ```
    A phone also needs the server bound with `--host 0.0.0.0`.
 
+### Changing the project
+
+`project.yml` is the source of truth. The `.xcodeproj` is committed for
+convenience, not edited by hand, so anything structural — a new target, a
+source folder, a build setting, a package — goes in the spec:
+
+```sh
+brew install xcodegen      # once
+xcodegen generate          # rewrites TasteTrace.xcodeproj
+```
+
+Commit the spec and the regenerated project together, or the two drift apart.
+Per-user state inside the project (window layout, scheme ordering, the nested
+`project.xcworkspace`) is ignored, so it never shows up in a diff.
+
+`DEVELOPMENT_TEAM` is empty in the spec. Simulator builds do not care; setting
+a team for device signing in Xcode writes into the project file, so either put
+your team ID in `project.yml` and regenerate, or leave that change uncommitted.
 ## TestFlight from GitHub (no Mac needed)
 
 `.github/workflows/ios-testflight.yml` builds the app on GitHub's Macs on every
