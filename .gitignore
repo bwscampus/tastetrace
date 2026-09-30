@@ -17,14 +17,21 @@ build/
 *.tsbuildinfo
 
 # ── Swift / Xcode (ios/) ────────────────────────────────────────────────────
-# The Xcode project is generated from ios/project.yml with `xcodegen generate`
 *.xcodeproj/
 *.xcworkspace/
 !*.xcodeproj/project.pbxproj.example
 # ios/TasteTrace.xcworkspace is hand-written, not generated: it is what you
-# open in Xcode, and it references the generated .xcodeproj alongside the four
-# local packages.
+# open in Xcode, and it references the .xcodeproj alongside the four local
+# packages.
 !ios/TasteTrace.xcworkspace/
+# ios/TasteTrace.xcodeproj IS generated, from ios/project.yml, but it is
+# committed anyway so a clone can open the workspace without installing
+# XcodeGen. project.yml stays the source of truth: change the spec, run
+# `xcodegen generate`, and commit both together.
+!ios/TasteTrace.xcodeproj/
+# Everything per-user inside it stays out: the xcuserdata/ rule below covers
+# the window state and scheme ordering, and *.xcworkspace/ above keeps the
+# nested project.xcworkspace out (Xcode recreates it on open).
 xcuserdata/
 DerivedData/
 *.xcresult

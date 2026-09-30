@@ -1,0 +1,529 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		3AC459C98D1114DB90E913DE /* TasteTraceFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = F721F6143A88A4F6112B8828 /* TasteTraceFeatures */; };
+		4A90731CAB1775762A147B3B /* TasteTraceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0BEC2256A4C49F807E56AD /* TasteTraceApp.swift */; };
+		598C288B323C917E35703004 /* TasteTraceAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 382CA2B1A80E69B3155F56BB /* TasteTraceAPI */; };
+		5D4C7844D6F62509D42427D4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ED1C0469399118963C4E73D9 /* PrivacyInfo.xcprivacy */; };
+		B1E6D43571DBD3C8CE9EE752 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B2C8AC71E2E7006834CC9AAD /* Assets.xcassets */; };
+		B663B89936870C7B41F67A69 /* TasteTraceCore in Frameworks */ = {isa = PBXBuildFile; productRef = CDAC692E6007BCFEAB99A36C /* TasteTraceCore */; };
+		BCCEBE2389C914B43E502E97 /* TasteTraceAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121ABF25B0FD2236EA6EFF7D /* TasteTraceAppTests.swift */; };
+		FF723CBB37127788194079FE /* TasteTraceUI in Frameworks */ = {isa = PBXBuildFile; productRef = 1A49A26727CFF50F90E7FEA0 /* TasteTraceUI */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		9D94C15C66DCB9F2896DFD27 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E53DEE1206339CD9BC09B323 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E6893098E3A42E4A651DA572;
+			remoteInfo = TasteTrace;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		121ABF25B0FD2236EA6EFF7D /* TasteTraceAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasteTraceAppTests.swift; sourceTree = "<group>"; };
+		2749FDB3575032B720DCC515 /* TasteTraceTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TasteTraceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2B157E6CCE99B90BB38BBB1B /* TasteTraceCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TasteTraceCore; path = Packages/TasteTraceCore; sourceTree = SOURCE_ROOT; };
+		3DB4399B850335760DB08192 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		6A0BEC2256A4C49F807E56AD /* TasteTraceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasteTraceApp.swift; sourceTree = "<group>"; };
+		9B56FD69E5510900C29B1020 /* TasteTraceUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TasteTraceUI; path = Packages/TasteTraceUI; sourceTree = SOURCE_ROOT; };
+		9BE34D85C93A26E61D103172 /* TasteTraceAPI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TasteTraceAPI; path = Packages/TasteTraceAPI; sourceTree = SOURCE_ROOT; };
+		9E186592434EACC18D7966C0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		B2C8AC71E2E7006834CC9AAD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		DD97B866CACFE2BE5C88899B /* TasteTraceFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TasteTraceFeatures; path = Packages/TasteTraceFeatures; sourceTree = SOURCE_ROOT; };
+		E093F83137138CC5BA758CBC /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		ED1C0469399118963C4E73D9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		F0A397F5DDDBFD7DE37EFDA1 /* TasteTrace.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TasteTrace.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		535AAFE8A868A2121CB14591 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				598C288B323C917E35703004 /* TasteTraceAPI in Frameworks */,
+				B663B89936870C7B41F67A69 /* TasteTraceCore in Frameworks */,
+				FF723CBB37127788194079FE /* TasteTraceUI in Frameworks */,
+				3AC459C98D1114DB90E913DE /* TasteTraceFeatures in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1951F41435C448E34E532CB4 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				6A0BEC2256A4C49F807E56AD /* TasteTraceApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		7253951CD452E85FC16388E3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F0A397F5DDDBFD7DE37EFDA1 /* TasteTrace.app */,
+				2749FDB3575032B720DCC515 /* TasteTraceTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		76E30C40FDD372D12FAD44E2 = {
+			isa = PBXGroup;
+			children = (
+				A0E5FE53ECD237B8A29A854C /* Config */,
+				E7935406D65C9C9D1008DD03 /* Packages */,
+				A1090E9A3229AB69F278FA89 /* TasteTrace */,
+				EA1331E2EBB177840B4662E2 /* TasteTraceTests */,
+				7253951CD452E85FC16388E3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A0E5FE53ECD237B8A29A854C /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				3DB4399B850335760DB08192 /* Debug.xcconfig */,
+				E093F83137138CC5BA758CBC /* Release.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		A1090E9A3229AB69F278FA89 /* TasteTrace */ = {
+			isa = PBXGroup;
+			children = (
+				9E186592434EACC18D7966C0 /* Info.plist */,
+				1951F41435C448E34E532CB4 /* App */,
+				F71FBB9122E1F1DCFC0A8ED6 /* Resources */,
+			);
+			path = TasteTrace;
+			sourceTree = "<group>";
+		};
+		E7935406D65C9C9D1008DD03 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				9BE34D85C93A26E61D103172 /* TasteTraceAPI */,
+				2B157E6CCE99B90BB38BBB1B /* TasteTraceCore */,
+				DD97B866CACFE2BE5C88899B /* TasteTraceFeatures */,
+				9B56FD69E5510900C29B1020 /* TasteTraceUI */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		EA1331E2EBB177840B4662E2 /* TasteTraceTests */ = {
+			isa = PBXGroup;
+			children = (
+				121ABF25B0FD2236EA6EFF7D /* TasteTraceAppTests.swift */,
+			);
+			path = TasteTraceTests;
+			sourceTree = "<group>";
+		};
+		F71FBB9122E1F1DCFC0A8ED6 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B2C8AC71E2E7006834CC9AAD /* Assets.xcassets */,
+				ED1C0469399118963C4E73D9 /* PrivacyInfo.xcprivacy */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		429A84843F93C6B3F7DD80EF /* TasteTraceTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 26650B3322CA824F6B348014 /* Build configuration list for PBXNativeTarget "TasteTraceTests" */;
+			buildPhases = (
+				D03628EBDC14F456519CACB7 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9CE889958437F961F0D0C3E8 /* PBXTargetDependency */,
+			);
+			name = TasteTraceTests;
+			packageProductDependencies = (
+			);
+			productName = TasteTraceTests;
+			productReference = 2749FDB3575032B720DCC515 /* TasteTraceTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E6893098E3A42E4A651DA572 /* TasteTrace */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0686EB980FB1A0DE7A0885E5 /* Build configuration list for PBXNativeTarget "TasteTrace" */;
+			buildPhases = (
+				0F59490EEDAD9D8B33110762 /* Sources */,
+				D0156EE9897C4D6489A62701 /* Resources */,
+				535AAFE8A868A2121CB14591 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TasteTrace;
+			packageProductDependencies = (
+				382CA2B1A80E69B3155F56BB /* TasteTraceAPI */,
+				CDAC692E6007BCFEAB99A36C /* TasteTraceCore */,
+				1A49A26727CFF50F90E7FEA0 /* TasteTraceUI */,
+				F721F6143A88A4F6112B8828 /* TasteTraceFeatures */,
+			);
+			productName = TasteTrace;
+			productReference = F0A397F5DDDBFD7DE37EFDA1 /* TasteTrace.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E53DEE1206339CD9BC09B323 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					429A84843F93C6B3F7DD80EF = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					E6893098E3A42E4A651DA572 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 30342CE13158022AA804CE30 /* Build configuration list for PBXProject "TasteTrace" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 76E30C40FDD372D12FAD44E2;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				DC640C0B5D876465C6E578AF /* XCLocalSwiftPackageReference "Packages/TasteTraceAPI" */,
+				BAF72A848BAC89E1C984622F /* XCLocalSwiftPackageReference "Packages/TasteTraceCore" */,
+				2FF8EF4CDDB973B6389979C5 /* XCLocalSwiftPackageReference "Packages/TasteTraceFeatures" */,
+				4311AEC0E7EC0561B49D1255 /* XCLocalSwiftPackageReference "Packages/TasteTraceUI" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 7253951CD452E85FC16388E3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E6893098E3A42E4A651DA572 /* TasteTrace */,
+				429A84843F93C6B3F7DD80EF /* TasteTraceTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D0156EE9897C4D6489A62701 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B1E6D43571DBD3C8CE9EE752 /* Assets.xcassets in Resources */,
+				5D4C7844D6F62509D42427D4 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0F59490EEDAD9D8B33110762 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A90731CAB1775762A147B3B /* TasteTraceApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D03628EBDC14F456519CACB7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BCCEBE2389C914B43E502E97 /* TasteTraceAppTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		9CE889958437F961F0D0C3E8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E6893098E3A42E4A651DA572 /* TasteTrace */;
+			targetProxy = 9D94C15C66DCB9F2896DFD27 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		17EAE0AD5660FC76EE5B9158 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.tastetrace.TasteTraceTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TasteTrace.app/TasteTrace";
+			};
+			name = Debug;
+		};
+		1A85D0127216AA0018655D97 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.tastetrace.TasteTraceTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TasteTrace.app/TasteTrace";
+			};
+			name = Release;
+		};
+		21BCB7499E96F760AB8D83D1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E093F83137138CC5BA758CBC /* Release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = TasteTrace/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.tastetrace.ios;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		2A655C2AFE97C8DC468A0CA3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3DB4399B850335760DB08192 /* Debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = TasteTrace/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.tastetrace.ios;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		95D8D26646B9AC761CAD7123 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+		B2F125DC7A883F358CCD57E2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0686EB980FB1A0DE7A0885E5 /* Build configuration list for PBXNativeTarget "TasteTrace" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2A655C2AFE97C8DC468A0CA3 /* Debug */,
+				21BCB7499E96F760AB8D83D1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		26650B3322CA824F6B348014 /* Build configuration list for PBXNativeTarget "TasteTraceTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				17EAE0AD5660FC76EE5B9158 /* Debug */,
+				1A85D0127216AA0018655D97 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		30342CE13158022AA804CE30 /* Build configuration list for PBXProject "TasteTrace" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B2F125DC7A883F358CCD57E2 /* Debug */,
+				95D8D26646B9AC761CAD7123 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		2FF8EF4CDDB973B6389979C5 /* XCLocalSwiftPackageReference "Packages/TasteTraceFeatures" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/TasteTraceFeatures;
+		};
+		4311AEC0E7EC0561B49D1255 /* XCLocalSwiftPackageReference "Packages/TasteTraceUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/TasteTraceUI;
+		};
+		BAF72A848BAC89E1C984622F /* XCLocalSwiftPackageReference "Packages/TasteTraceCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/TasteTraceCore;
+		};
+		DC640C0B5D876465C6E578AF /* XCLocalSwiftPackageReference "Packages/TasteTraceAPI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/TasteTraceAPI;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1A49A26727CFF50F90E7FEA0 /* TasteTraceUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TasteTraceUI;
+		};
+		382CA2B1A80E69B3155F56BB /* TasteTraceAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TasteTraceAPI;
+		};
+		CDAC692E6007BCFEAB99A36C /* TasteTraceCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TasteTraceCore;
+		};
+		F721F6143A88A4F6112B8828 /* TasteTraceFeatures */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TasteTraceFeatures;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = E53DEE1206339CD9BC09B323 /* Project object */;
+}
