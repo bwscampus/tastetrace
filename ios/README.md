@@ -68,6 +68,37 @@ Per-user state inside the project (window layout, scheme ordering, the nested
 `DEVELOPMENT_TEAM` is empty in the spec. Simulator builds do not care; setting
 a team for device signing in Xcode writes into the project file, so either put
 your team ID in `project.yml` and regenerate, or leave that change uncommitted.
+## TestFlight from GitHub (no Mac needed)
+
+`.github/workflows/ios-testflight.yml` builds the app on GitHub's Macs on every
+push to `main` or `taylor` that touches `ios/`, and uploads it to TestFlight.
+Each upload's build number is the workflow run number. Until the secrets below
+exist, a run only checks that the app compiles.
+
+One-time setup (needs the paid Apple Developer account):
+
+1. **Register the bundle ID.** developer.apple.com → Certificates, IDs &
+   Profiles → Identifiers → **+** → App IDs → App → Bundle ID (explicit)
+   `app.tastetrace.ios`, description "TasteTrace".
+2. **Create the app.** appstoreconnect.apple.com → Apps → **+** → New App →
+   iOS, name "TasteTrace", bundle ID `app.tastetrace.ios`, any SKU.
+3. **Create an API key.** App Store Connect → Users and Access →
+   Integrations → App Store Connect API → Team Keys → **+**, access **Admin**
+   (automatic signing needs it to create the distribution certificate).
+   Download the `.p8` file (it can only be downloaded once) and note the Key ID
+   and the Issuer ID shown above the list.
+4. **Find the Team ID.** developer.apple.com → Account → Membership details.
+5. **Add four repository secrets** on GitHub: Settings → Secrets and
+   variables → Actions → New repository secret:
+   - `APP_STORE_CONNECT_KEY_ID`: the Key ID
+   - `APP_STORE_CONNECT_ISSUER_ID`: the Issuer ID
+   - `APP_STORE_CONNECT_KEY`: the whole contents of the `.p8` file, including
+     the `BEGIN`/`END` lines
+   - `APPLE_TEAM_ID`: the Team ID
+6. Re-run the workflow (Actions → iOS → TestFlight → Run workflow). After
+   Apple processes the build, install **TestFlight** on the phone, sign in with
+   the same Apple ID, and install TasteTrace from there. Later builds show up
+   as updates.
 
 ### Schemes
 

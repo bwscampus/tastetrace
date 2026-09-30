@@ -15,7 +15,7 @@ struct IngredientEditor: View {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass").foregroundStyle(TTColor.primary)
                 TextField("avocado, sourdough bread, salt", text: $input)
-                    .font(TTFont.body)
+                    .font(TTFont.body).foregroundStyle(TTColor.inputText)
                     .onSubmit(add)
                 Button("Add", action: add)
                     .font(TTFont.bodySemibold)
@@ -43,8 +43,9 @@ struct IngredientEditor: View {
     }
 
     private func add() {
+        // Newest first: each added ingredient goes to the top of the list
         for name in parseIngredientInput(input, existing: ingredients.map(\.name)) {
-            ingredients.append(IngredientDetail(name: name))
+            ingredients.insert(IngredientDetail(name: name), at: 0)
         }
         input = ""
     }

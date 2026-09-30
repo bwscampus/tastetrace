@@ -50,13 +50,17 @@ struct EditSymptomView: View {
                 }
                 TTCard {
                     VStack(alignment: .leading, spacing: 10) {
-                        SectionLabel("When")
-                        DatePicker("", selection: $timestamp, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
-                            .environment(\.calendar, env.dateMath.calendar)
-                            .environment(\.timeZone, env.dateMath.timeZone)
+                        SectionLabel("When did it start?")
+                        DatePicker("Date", selection: $timestamp, in: ...Date(), displayedComponents: .date)
+                        DatePicker("Time", selection: $timestamp, in: ...Date(), displayedComponents: .hourAndMinute)
+                        Text("Changing the time re-checks which meals came before this symptom.")
+                            .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
                     }
                 }
+                .font(TTFont.bodySemibold)
+                .foregroundStyle(TTColor.navy)
+                .environment(\.calendar, env.dateMath.calendar)
+                .environment(\.timeZone, env.dateMath.timeZone)
                 AdvancedSymptomSettingsInline(durationMinutes: $durationMinutes, notes: $notes)
             }
             ErrorText(error)
@@ -113,7 +117,7 @@ struct AdvancedSymptomSettingsInline: View {
                     }
                 }
                 SectionLabel("Notes")
-                TextField("Notes", text: $notes, axis: .vertical).lineLimit(2...5).font(TTFont.body)
+                TextField("Notes", text: $notes, axis: .vertical).lineLimit(2...5).font(TTFont.body).foregroundStyle(TTColor.inputText)
             }
         }
     }

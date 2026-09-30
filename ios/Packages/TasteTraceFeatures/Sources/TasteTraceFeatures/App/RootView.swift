@@ -18,6 +18,8 @@ public struct RootView: View {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity).background(TTColor.background)
             case .signedOut:
                 AuthView(model: AuthViewModel(session: env.session))
+            case .signedIn(let user) where user.needsOnboarding:
+                OnboardingView(model: OnboardingViewModel(env: env))
             case .signedIn:
                 MainTabView()
             }
@@ -25,6 +27,8 @@ public struct RootView: View {
         .environment(env)
         .environment(router)
         .tint(TTColor.primary)
+        // Colors are designed for light mode only; dark mode made typed text white
+        .preferredColorScheme(.light)
         .task {
             await env.session.restore()
             if env.session.user != nil { await env.syncTimezone(); await env.syncPreferences() }

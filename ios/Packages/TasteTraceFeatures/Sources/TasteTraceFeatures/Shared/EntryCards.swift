@@ -27,7 +27,8 @@ struct MealEntryCard: View {
                             StatusBadge("Logged", tone: .success)
                         }
                     }
-                    Text(meal.ingredientNames.isEmpty ? meal.name : Formatting.joinedList(meal.ingredientNames))
+                    // Named so several foods logged for one meal can be told apart
+                    Text(meal.ingredientNames.isEmpty ? meal.name : "\(meal.name): \(Formatting.joinedList(meal.ingredientNames))")
                         .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
                         .lineLimit(2)
                 }
@@ -55,6 +56,7 @@ struct MealEntryCard: View {
 struct SymptomEntryCard: View {
     let symptom: Symptom
     let math: DateMath
+    var onEdit: (() -> Void)?
     var onDelete: (() -> Void)?
 
     var body: some View {
@@ -72,11 +74,19 @@ struct SymptomEntryCard: View {
                         .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
                 }
                 Spacer(minLength: 0)
-                if let onDelete {
-                    Button(action: onDelete) { Image(systemName: "trash").foregroundStyle(TTColor.danger) }
-                        .buttonStyle(.plain).accessibilityLabel("Delete symptom")
-                        .font(.system(size: 17, weight: .semibold))
-                        .padding(.top, 10)
+                if onEdit != nil || onDelete != nil {
+                    HStack(spacing: 14) {
+                        if let onDelete {
+                            Button(action: onDelete) { Image(systemName: "trash").foregroundStyle(TTColor.danger) }
+                                .buttonStyle(.plain).accessibilityLabel("Delete symptom")
+                        }
+                        if let onEdit {
+                            Button(action: onEdit) { Image(systemName: "square.and.pencil").foregroundStyle(TTColor.primary) }
+                                .buttonStyle(.plain).accessibilityLabel("Edit symptom time and details")
+                        }
+                    }
+                    .font(.system(size: 17, weight: .semibold))
+                    .padding(.top, 10)
                 }
             }
         }

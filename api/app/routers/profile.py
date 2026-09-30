@@ -43,6 +43,8 @@ async def profile_payload(session, user: User) -> ProfileRead:
         avatar_emoji=user.avatar_emoji,
         discovery_purpose=user.discovery_purpose,
         sensitivity_tags=user.sensitivity_tags or [],
+        data_sharing=user.data_sharing,
+        onboarding_completed_at=_aware(user.onboarding_completed_at),
         created_at=_aware(user.created_at),
         journaler_days=max(1, days),
         first_log_at=first_log_at,
@@ -56,7 +58,13 @@ async def read_profile(user: CurrentUser, session: Session) -> ProfileRead:
 
 @router.patch("/profile", response_model=ProfileRead)
 async def update_profile(patch: ProfilePatch, user: CurrentUser, session: Session) -> ProfileRead:
-    for field, value in patch.model_dump(exclude_unset=True).items():
+    values = patch.model_dump(exclude_unset=True)
+    if "onboarding_completed" in values:
+        if not values.pop("onboarding_completed"):
+            user.onboarding_completed_at = None
+        elif user.onboarding_completed_at is None:
+            user.onboarding_completed_at = datetime.now(UTC)
+    for field, value in values.items():
         setattr(user, field, value)
     session.add(user)
     await session.commit()

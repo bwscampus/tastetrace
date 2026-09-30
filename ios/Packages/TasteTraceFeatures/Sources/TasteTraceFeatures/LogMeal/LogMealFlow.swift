@@ -3,7 +3,8 @@ import TasteTraceAPI
 import TasteTraceCore
 import TasteTraceUI
 
-/// Two-step meal logging presented as a sheet: pick category/tile, verify ingredients, save.
+/// Two-step meal logging presented as a sheet: pick the foods (saved tiles and/or
+/// new ones), give each its ingredients, then log them together.
 struct LogMealFlow: View {
     @Environment(Router.self) private var router
     @State private var model: LogMealViewModel
@@ -40,8 +41,8 @@ struct LogMealStep1View: View {
 
     var body: some View {
         TTScreen {
-            InfoBanner(emoji: "⚡️", title: "Quick speed logs",
-                       message: "Tap any saved food tile to log instantly with its saved ingredients! Or create a new custom recipe.")
+            InfoBanner(emoji: "⚡️", title: "Build your meal",
+                       message: "Tap every saved tile you ate and add any new foods. Pasta and a salad? Add both, then list each one's ingredients.")
             DateTimeCard(title: "Meal Date & Time", subtitle: "Helps map digestive correlation windows", day: $model.day, time: $model.time, math: model.math)
 
             SectionLabel("1. Select meal category")
@@ -81,12 +82,12 @@ struct LogMealStep1View: View {
                     }
                     Divider().overlay(TTColor.cardBorder)
                     if model.dishes.isEmpty {
-                        Text("Dishes you save from a new recipe show up here for one-tap logging.")
+                        Text("Foods you save while logging show up here. Tap one or more to add them to this meal.")
                             .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
                     }
                     ForEach(model.dishes.prefix(4)) { dish in
-                        DishTileRow(dish: dish,
-                                    onLog: { Task { await model.logTile(dish) } },
+                        DishTileRow(dish: dish, selected: model.isSelected(dish),
+                                    onLog: { model.toggleTile(dish) },
                                     onEdit: { editingDish = dish },
                                     onDelete: { pendingDelete = dish })
                     }
@@ -95,24 +96,55 @@ struct LogMealStep1View: View {
 
             TTCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Write new recipe").font(TTFont.captionSemibold).tracking(0.8).textCase(.uppercase).foregroundStyle(TTColor.navy)
+                    Text("Add a food").font(TTFont.captionSemibold).tracking(0.8).textCase(.uppercase).foregroundStyle(TTColor.navy)
                     HStack(spacing: 10) {
                         Image(systemName: "pencil.and.scribble").foregroundStyle(TTColor.primary)
-                        TextField("Avocado Sourdough Toast", text: $model.recipeName).font(TTFont.body)
+                        TextField("Pasta, side salad…", text: $model.newFoodName)
+                            .font(TTFont.body).foregroundStyle(TTColor.inputText)
+                            .onSubmit { model.addNewFood() }
+                        Button("Add") { model.addNewFood() }
+                            .font(TTFont.bodySemibold).foregroundStyle(TTColor.primary).buttonStyle(.plain)
+                            .disabled(!model.canAddFood)
                     }
                     .padding(12)
                     .background(TTColor.background, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(TTColor.cardBorder, lineWidth: 1))
-                    PrimaryButton("Configure ingredients & prep styles →", isLoading: model.isBusy) { model.configureRecipe() }
-                        .opacity(model.canConfigure ? 1 : 0.5).disabled(!model.canConfigure)
+                    Text("Add each food separately; you'll list the ingredients for each one next.")
+                        .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                }
+            }
+
+            if !model.items.isEmpty {
+                SectionLabel("3. In this meal (\(model.items.count))")
+                TTCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(model.items) { item in
+                            HStack(spacing: 10) {
+                                Text(item.emoji).font(.title3)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.name).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
+                                    Text(item.isFromTile ? "Saved tile • \(item.ingredients.count) ingredient\(item.ingredients.count == 1 ? "" : "s")" : "New food")
+                                        .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                                }
+                                Spacer()
+                                Button { model.remove(item) } label: {
+                                    Image(systemName: "xmark.circle.fill").foregroundStyle(TTColor.textSecondary)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Remove \(item.name)")
+                            }
+                        }
+                    }
                 }
             }
             ErrorText(model.error)
         } bottom: {
-            Text("Select category above and tap a tile, or configure custom recipe! 🥣")
-                .font(TTFont.body.italic()).foregroundStyle(TTColor.textSecondary)
-                .frame(maxWidth: .infinity).padding(.vertical, 12)
-                .background(TTColor.background)
+            PinnedBottomBar {
+                PrimaryButton(model.items.count > 1 ? "Ingredients for \(model.items.count) foods →" : "Next: ingredients →") {
+                    model.goToIngredients()
+                }
+                .opacity(model.canContinue ? 1 : 0.5).disabled(!model.canContinue)
+            }
         }
         .navigationTitle("Log a Meal")
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { router.sheet = nil } } }
@@ -127,9 +159,10 @@ struct LogMealStep1View: View {
     }
 }
 
-/// Saved tile row: tap to log instantly, Edit / Delete on the right.
+/// Saved tile row: tap to add it to (or take it out of) the meal, Edit / Delete on the right.
 struct DishTileRow: View {
     let dish: Dish
+    var selected = false
     let onLog: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
@@ -142,7 +175,7 @@ struct DishTileRow: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 8) {
                             Text(dish.name).font(TTFont.cardTitle).foregroundStyle(TTColor.navy).lineLimit(1)
-                            StatusBadge("Saved", tone: .success)
+                            StatusBadge(selected ? "✓ Added" : "Saved", tone: selected ? .primary : .success)
                         }
                         Text(dish.ingredientNames.isEmpty ? "No ingredients saved" : Formatting.joinedList(dish.ingredientNames))
                             .font(TTFont.body).foregroundStyle(TTColor.textSecondary).lineLimit(1)
@@ -165,12 +198,12 @@ struct DishTileRow: View {
             .accessibilityLabel("Delete \(dish.name)")
         }
         .padding(12)
-        .background(TTColor.background, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(TTColor.cardBorder, lineWidth: 1))
+        .background(selected ? TTColor.infoTint : TTColor.background, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(selected ? TTColor.primary : TTColor.cardBorder, lineWidth: selected ? 2 : 1))
     }
 }
 
-/// All saved tiles in a grid; tapping logs with the current category/time.
+/// All saved tiles in a grid; tapping adds or removes a tile from the meal.
 struct DishLibraryView: View {
     @Environment(\.dismiss) private var dismiss
     let model: LogMealViewModel
@@ -179,20 +212,26 @@ struct DishLibraryView: View {
         NavigationStack {
             TTScreen {
                 if model.dishes.isEmpty {
-                    EmptyStateView(emoji: "🍽️", title: "No saved dishes yet", message: "Save a recipe from the Verify Ingredients step and it will appear here.")
+                    EmptyStateView(emoji: "🍽️", title: "No saved dishes yet", message: "Save a new food when you log a meal and it will appear here.")
                 }
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                     ForEach(model.dishes) { dish in
-                        Button { Task { await model.logTile(dish) }; dismiss() } label: {
+                        let selected = model.isSelected(dish)
+                        Button { model.toggleTile(dish) } label: {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text(dish.emoji).font(.system(size: 32))
+                                HStack {
+                                    Text(dish.emoji).font(.system(size: 32))
+                                    Spacer()
+                                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(selected ? TTColor.primary : TTColor.cardBorder)
+                                }
                                 Text(dish.name).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy).lineLimit(2)
                                 Text("Logged \(dish.timesLogged)×").font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(14)
-                            .background(TTColor.card, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(TTColor.cardBorder, lineWidth: 1))
+                            .background(selected ? TTColor.infoTint : TTColor.card, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(selected ? TTColor.primary : TTColor.cardBorder, lineWidth: selected ? 2 : 1))
                         }
                         .buttonStyle(.plain)
                     }
@@ -212,47 +251,75 @@ struct VerifyIngredientsView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Step 2 of 2").font(TTFont.captionSemibold).tracking(1).textCase(.uppercase).foregroundStyle(TTColor.primary)
-                    Text("Analyze Ingredient Traces").font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
+                    Text("Ingredients for each food").font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
                 }
                 Spacer()
-                StatusBadge("Reviewing Blueprints", tone: .info)
+                StatusBadge("\(model.items.count) food\(model.items.count == 1 ? "" : "s")", tone: .info)
             }
             .padding(TTSpacing.card)
             .background(TTColor.infoTint, in: RoundedRectangle(cornerRadius: TTRadius.card, style: .continuous))
 
-            TTCard {
-                VStack(alignment: .leading, spacing: 6) {
-                    SectionLabel("Dish name / label")
-                    HStack {
-                        TextField("Dish name", text: $model.dishName).font(TTFont.screenTitle).foregroundStyle(TTColor.navy)
-                        Image(systemName: "pencil").foregroundStyle(TTColor.primary)
-                    }
-                }
+            TriggerTracesCard(hits: model.watchlistHits)
+
+            ForEach($model.items) { $item in
+                MealItemIngredientsCard(item: $item,
+                                        position: (model.items.firstIndex { $0.id == item.id } ?? 0) + 1,
+                                        count: model.items.count,
+                                        onRemove: model.items.count > 1 ? { model.remove(item) } : nil)
             }
 
-            TriggerTracesCard(hits: model.watchlistHits)
-            IngredientEditor(input: $model.ingredientInput, ingredients: $model.ingredients)
-
-            DashedPlaceholderCard {
-                HStack(spacing: 10) {
-                    Image(systemName: "star").foregroundStyle(TTColor.primary)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("First Log Save Suggestion").font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
-                        Text("Save this dish as a tile so its ingredients are remembered next time.").font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
-                    }
+            TTCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionLabel("Meal notes (optional)")
+                    TextField("Anything else about this meal", text: $model.notes, axis: .vertical)
+                        .lineLimit(2...4).font(TTFont.body).foregroundStyle(TTColor.inputText)
                 }
             }
             ErrorText(model.error)
         } bottom: {
             PinnedBottomBar {
-                PrimaryButton("Complete Meal & Review Save", systemImage: "square.and.arrow.down.fill", isLoading: model.isBusy) {
-                    model.showSaveSheet = true
+                PrimaryButton(model.items.count > 1 ? "Log Meal (\(model.items.count) foods)" : "Log Meal",
+                              systemImage: "square.and.arrow.down.fill", isLoading: model.isBusy) {
+                    Task { await model.reviewAndComplete() }
                 }
-                .opacity(model.dishName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
-                .disabled(model.dishName.trimmingCharacters(in: .whitespaces).isEmpty)
+                .opacity(model.canComplete ? 1 : 0.5)
+                .disabled(!model.canComplete)
             }
         }
         .navigationTitle("Verify Ingredients")
+    }
+}
+
+/// One food of the meal: its name and its own ingredient list.
+struct MealItemIngredientsCard: View {
+    @Binding var item: MealItem
+    let position: Int
+    let count: Int
+    let onRemove: (() -> Void)?
+
+    var body: some View {
+        TTCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    EmojiCircle(item.emoji, size: 40)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Food \(position) of \(count)\(item.isFromTile ? " • saved tile" : "")")
+                            .font(TTFont.captionSemibold).tracking(0.8).textCase(.uppercase).foregroundStyle(TTColor.primary)
+                        TextField("Food name", text: $item.name)
+                            .font(TTFont.cardTitle).foregroundStyle(TTColor.inputText)
+                    }
+                    if let onRemove {
+                        Button(action: onRemove) { Image(systemName: "trash").foregroundStyle(TTColor.danger) }
+                            .buttonStyle(.plain).accessibilityLabel("Remove \(item.name)")
+                    }
+                }
+                if item.isFromTile && item.ingredients != item.savedIngredients {
+                    Text("Edited for this meal only; the saved tile keeps its ingredients.")
+                        .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                }
+                IngredientEditor(input: $item.ingredientInput, ingredients: $item.ingredients)
+            }
+        }
     }
 }
 
@@ -286,66 +353,59 @@ struct TriggerTracesCard: View {
     }
 }
 
+/// Offers to save the meal's new foods as one-tap tiles before logging.
 struct SaveDishSheet: View {
     @Bindable var model: LogMealViewModel
 
     var body: some View {
         TTScreen {
-            VStack(spacing: 10) {
-                ZStack(alignment: .bottom) {
-                    Text(model.stampEmoji).font(.system(size: 40))
-                        .frame(width: 96, height: 96)
-                        .background(TTColor.infoTint, in: Circle())
-                        .overlay(Circle().stroke(TTColor.primary, style: StrokeStyle(lineWidth: 2, dash: [8, 6])))
-                    Text("NEW SHORTCUT").font(.system(size: 10, weight: .bold)).tracking(1)
-                        .padding(.horizontal, 10).padding(.vertical, 5).foregroundStyle(.white)
-                        .background(TTColor.primary, in: Capsule()).offset(y: 10)
-                }
-                Text("Save custom dish?").font(TTFont.screenTitle).foregroundStyle(TTColor.navy).padding(.top, 8)
-                Text("Saved dishes become one-tap tiles with their ingredients remembered.")
+            VStack(spacing: 8) {
+                Text("⭐").font(.system(size: 40))
+                    .frame(width: 84, height: 84)
+                    .background(TTColor.infoTint, in: Circle())
+                    .overlay(Circle().stroke(TTColor.primary, style: StrokeStyle(lineWidth: 2, dash: [8, 6])))
+                Text("Save new foods as tiles?").font(TTFont.screenTitle).foregroundStyle(TTColor.navy).padding(.top, 6)
+                Text("Saved foods become one-tap tiles with their ingredients remembered.")
                     .font(TTFont.body).foregroundStyle(TTColor.textSecondary).multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
 
-            TTCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel("Dish name / label")
-                    TextField("Dish name", text: $model.dishName)
-                        .font(TTFont.cardTitle).foregroundStyle(TTColor.primary)
-                        .padding(12)
-                        .background(TTColor.background, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(TTColor.cardBorder, lineWidth: 1))
-                    SectionLabel("Select stamp emoji")
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(LogMealViewModel.stampOptions, id: \.self) { emoji in
-                                let selected = model.stampEmoji == emoji
-                                Button { model.stampEmoji = emoji } label: {
-                                    Text(emoji).font(.system(size: 28))
-                                        .frame(width: 60, height: 60)
-                                        .background(selected ? TTColor.infoTint : TTColor.card, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
-                                        .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(selected ? TTColor.primary : TTColor.cardBorder, lineWidth: selected ? 2 : 1))
+            ForEach($model.items) { $item in
+                if !item.isFromTile {
+                    TTCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Toggle(isOn: $item.saveAsTile) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.name).font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
+                                    Text(item.ingredients.isEmpty ? "No ingredients entered" : "\(item.ingredients.count) ingredient\(item.ingredients.count == 1 ? "" : "s")")
+                                        .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
                                 }
-                                .buttonStyle(.plain)
+                            }
+                            if item.saveAsTile {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(LogMealViewModel.stampOptions, id: \.self) { emoji in
+                                            let selected = item.emoji == emoji
+                                            Button { item.emoji = emoji } label: {
+                                                Text(emoji).font(.system(size: 24))
+                                                    .frame(width: 48, height: 48)
+                                                    .background(selected ? TTColor.infoTint : TTColor.card, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
+                                                    .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(selected ? TTColor.primary : TTColor.cardBorder, lineWidth: selected ? 2 : 1))
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
-                    Divider().overlay(TTColor.cardBorder)
-                    HStack {
-                        Text("Associated Ingredients:").font(TTFont.body).foregroundStyle(TTColor.textSecondary)
-                        Spacer()
-                        StatusBadge(model.ingredients.isEmpty ? "No ingredients entered" : "\(model.ingredients.count) ingredient\(model.ingredients.count == 1 ? "" : "s")", tone: .info)
                     }
                 }
             }
             ErrorText(model.error)
         } bottom: {
             PinnedBottomBar {
-                PrimaryButton("Save & Complete Log", systemImage: "square.and.arrow.down.fill", isLoading: model.isBusy) {
-                    Task { await model.complete(saveAsDish: true) }
-                }
-                SecondaryButton("Just Log Once (No Shortcut)") {
-                    Task { await model.complete(saveAsDish: false) }
+                PrimaryButton("Log Meal", systemImage: "square.and.arrow.down.fill", isLoading: model.isBusy) {
+                    Task { await model.complete() }
                 }
             }
         }
@@ -378,7 +438,7 @@ struct EditDishView: View {
                 TTCard {
                     VStack(alignment: .leading, spacing: 12) {
                         SectionLabel("Dish name")
-                        TextField("Name", text: $name).font(TTFont.cardTitle)
+                        TextField("Name", text: $name).font(TTFont.cardTitle).foregroundStyle(TTColor.inputText)
                         SectionLabel("Stamp emoji")
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {

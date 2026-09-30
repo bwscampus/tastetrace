@@ -41,6 +41,8 @@ UtcDatetime = Annotated[
 UuidStr = Annotated[str, BeforeValidator(lambda v: str(v) if v is not None else v)]
 
 MealTypeName = Literal["Breakfast", "Lunch", "Dinner", "Snack"]
+DataSharing = Literal["private", "practitioner", "research"]
+ClockTime = Annotated[str, StringConstraints(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
 Trimmed = Annotated[str, StringConstraints(strip_whitespace=True)]
 
 
@@ -71,6 +73,8 @@ class ProfileRead(CamelModel):
     avatar_emoji: str | None = None
     discovery_purpose: str | None = None
     sensitivity_tags: list[str] = Field(default_factory=list)
+    data_sharing: str | None = None
+    onboarding_completed_at: UtcDatetime | None = None
     created_at: UtcDatetime | None = None
     journaler_days: int
     first_log_at: UtcDatetime | None = None
@@ -83,6 +87,9 @@ class ProfilePatch(CamelModel):
     avatar_emoji: Annotated[str, StringConstraints(strip_whitespace=True, max_length=8)] | None = None
     discovery_purpose: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
     sensitivity_tags: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]] | None = Field(default=None, max_length=20)
+    data_sharing: DataSharing | None = None
+    # true stamps onboarding_completed_at (once); false clears it
+    onboarding_completed: bool | None = None
 
 
 class SettingsRead(CamelModel):
@@ -94,6 +101,9 @@ class SettingsRead(CamelModel):
     nudge_time: str
     nudges_enabled: bool
     meal_check_ins_enabled: bool
+    breakfast_time: str
+    lunch_time: str
+    dinner_time: str
     updated_at: UtcDatetime | None = None
 
 
@@ -103,9 +113,12 @@ class SettingsPatch(CamelModel):
     min_trigger_count: Annotated[int, Field(ge=1, le=20)] | None = None
     min_confidence: Annotated[int, Field(ge=0, le=100)] | None = None
     streak_meals_per_day: Annotated[int, Field(ge=1, le=6)] | None = None
-    nudge_time: Annotated[str, StringConstraints(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")] | None = None
+    nudge_time: ClockTime | None = None
     nudges_enabled: bool | None = None
     meal_check_ins_enabled: bool | None = None
+    breakfast_time: ClockTime | None = None
+    lunch_time: ClockTime | None = None
+    dinner_time: ClockTime | None = None
 
 
 # ── Meals ───────────────────────────────────────────────────────────────────

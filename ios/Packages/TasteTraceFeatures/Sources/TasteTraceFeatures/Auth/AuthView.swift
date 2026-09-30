@@ -75,6 +75,7 @@ struct LabeledField: View {
                 }
             }
             .font(TTFont.body)
+            .foregroundStyle(TTColor.inputText)
             .padding(12)
             .background(TTColor.background, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(TTColor.cardBorder, lineWidth: 1))

@@ -38,7 +38,7 @@ struct NotificationsView: View {
                 TTCard(padding: 12) {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack { Text("Post-dinner nudge").font(TTFont.bodySemibold).foregroundStyle(TTColor.navy); Spacer(); Text(settings.nudgesEnabled ? Formatting.clock(settings.nudgeTime) : "Off").font(TTFont.bodySemibold).foregroundStyle(TTColor.primary) }
-                        HStack { Text("Meal check-ins").font(TTFont.bodySemibold).foregroundStyle(TTColor.navy); Spacer(); Text(settings.mealCheckInsEnabled ? "9:30 • 13:30 • 19:30" : "Off").font(TTFont.bodySemibold).foregroundStyle(TTColor.primary) }
+                        HStack { Text("Meal check-ins").font(TTFont.bodySemibold).foregroundStyle(TTColor.navy); Spacer(); Text(settings.mealCheckInsEnabled ? ReminderScheduler.checkInSummary(for: settings) : "Off").font(TTFont.bodySemibold).foregroundStyle(TTColor.primary) }
                     }
                 }
                 Button("Change reminders") { router.sheet = .profile }.font(TTFont.bodySemibold).foregroundStyle(TTColor.primary).frame(maxWidth: .infinity)
