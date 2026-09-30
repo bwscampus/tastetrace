@@ -1,0 +1,111 @@
+# Builds the iOS app on GitHub's Macs and uploads it to TestFlight.
+#
+# Every run compiles the app. Signing and the upload need four repository
+# secrets (see "TestFlight from GitHub" in ios/README.md); until they are
+# added the run stops after the compile check.
+
+name: iOS → TestFlight
+
+on:
+  push:
+    branches: [main, taylor]
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios-testflight.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ios-testflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: ios
+    env:
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ARCHIVE_PATH: ${{ runner.temp }}/TasteTrace.xcarchive
+      KEY_PATH: ${{ runner.temp }}/keys/AuthKey.p8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          xcodebuild -version
+
+      - name: Compile check (unsigned)
+        run: |
+          xcodebuild build \
+            -workspace TasteTrace.xcworkspace -scheme TasteTrace \
+            -configuration Release -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO -quiet
+
+      - name: Skip upload until the App Store Connect secrets exist
+        if: env.ASC_KEY_ID == '' || env.ASC_ISSUER_ID == '' || env.TEAM_ID == ''
+        run: echo "::warning::The app compiled. Add the App Store Connect secrets (ios/README.md) to upload builds to TestFlight."
+
+      - name: Write the App Store Connect API key
+        if: env.ASC_KEY_ID != '' && env.ASC_ISSUER_ID != '' && env.TEAM_ID != ''
+        env:
+          ASC_KEY: ${{ secrets.APP_STORE_CONNECT_KEY }}
+        run: |
+          mkdir -p "$(dirname "$KEY_PATH")"
+          printf '%s\n' "$ASC_KEY" > "$KEY_PATH"
+
+      - name: Archive (signed)
+        if: env.ASC_KEY_ID != '' && env.ASC_ISSUER_ID != '' && env.TEAM_ID != ''
+        run: |
+          # Automatic signing with the API key: Xcode creates the certificate
+          # and profile in the cloud, so no .p12 files are stored here.
+          xcodebuild archive \
+            -workspace TasteTrace.xcworkspace -scheme TasteTrace \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$ARCHIVE_PATH" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            -quiet
+
+      - name: Upload to TestFlight
+        if: env.ASC_KEY_ID != '' && env.ASC_ISSUER_ID != '' && env.TEAM_ID != ''
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "Uploaded build ${{ github.run_number }}. It appears in TestFlight after Apple finishes processing (usually 5–15 minutes)."
+
+      - name: Remove the API key
+        if: always()
+        run: rm -f "$KEY_PATH"
