@@ -166,7 +166,7 @@ final class OnboardingViewModel {
             // Swaps the root view over to the tabs
             await env.session.refreshUser()
             if env.session.user?.needsOnboarding == true {
-                error = "Your answers were saved, but we couldn't reach TasteTrace to finish. Please try again."
+                error = "Your answers were saved, but the TasteTrace server didn't confirm onboarding is done. It may need updating. Please try again shortly."
             }
         } catch let apiError as APIError {
             error = apiError.message
