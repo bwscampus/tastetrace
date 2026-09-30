@@ -43,8 +43,9 @@ struct IngredientEditor: View {
     }
 
     private func add() {
+        // Newest first: each added ingredient goes to the top of the list
         for name in parseIngredientInput(input, existing: ingredients.map(\.name)) {
-            ingredients.append(IngredientDetail(name: name))
+            ingredients.insert(IngredientDetail(name: name), at: 0)
         }
         input = ""
     }
