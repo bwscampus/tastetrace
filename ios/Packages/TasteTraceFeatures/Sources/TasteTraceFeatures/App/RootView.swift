@@ -27,6 +27,8 @@ public struct RootView: View {
         .environment(env)
         .environment(router)
         .tint(TTColor.primary)
+        // Colors are designed for light mode only; dark mode made typed text white
+        .preferredColorScheme(.light)
         .task {
             await env.session.restore()
             if env.session.user != nil { await env.syncTimezone(); await env.syncPreferences() }

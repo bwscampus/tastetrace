@@ -128,13 +128,13 @@ enum ReportRenderer {
 
     private static func digest(_ b: PDFDocumentBuilder, _ week: WeeklyDigest, math: DateMath) {
         b.subheading("Week \(week.weekStart) – \(week.weekEnd)")
-        b.keyValue("Weekly discomfort index", String(format: "%.1f / 10 (baseline %.1f)", week.trends.index, week.trends.baselineIndex))
+        b.keyValue("Weekly discomfort index", String(format: "%.1f / 5 (baseline %.1f)", Formatting.outOfFive(week.trends.index), Formatting.outOfFive(week.trends.baselineIndex)))
         b.keyValue("Symptom occurrences", "\(week.trends.occurrences) in \(week.trends.flares) flare(s)")
         b.keyValue("Discomfort-free days", "\(week.trends.discomfortFreeDays)")
         b.keyValue("Meal log depth", "\(Int((week.trends.mealLogDepth * 100).rounded()))% of breakfast/lunch/dinner slots")
-        for day in week.trends.days { b.bullet("\(day.weekday) \(day.date): index \(Int(day.index)), \(day.occurrences) occurrence(s)") }
+        for day in week.trends.days { b.bullet("\(day.weekday) \(day.date): index \(String(format: "%.1f", Formatting.outOfFive(day.index)))/5, \(day.occurrences) occurrence(s)") }
         for card in week.symptoms.cards {
-            b.bullet("\(card.name): \(card.occurrences)× , avg severity \(String(format: "%.1f", card.avgSeverity10))/10\(card.avgDurationMinutes.map { ", avg \($0) min" } ?? "")\(card.topTriggers.isEmpty ? "" : ", top triggers: " + card.topTriggers.joined(separator: ", "))")
+            b.bullet("\(card.name): \(card.occurrences)× , avg severity \(String(format: "%.1f", Formatting.outOfFive(card.avgSeverity10)))/5\(card.avgDurationMinutes.map { ", avg \($0) min" } ?? "")\(card.topTriggers.isEmpty ? "" : ", top triggers: " + card.topTriggers.joined(separator: ", "))")
         }
         let w = week.symptoms.onsetWindows
         b.keyValue("Onset after last meal", "<1 h: \(w.under1h), 1–3 h: \(w.from1to3h), 3 h+: \(w.over3h), no meal in window: \(w.unmatched)")

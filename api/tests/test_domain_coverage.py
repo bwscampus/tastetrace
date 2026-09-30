@@ -70,3 +70,21 @@ def test_days_are_bucketed_in_the_requested_timezone():
     dinner = [meal("2026-09-18T02:00:00", "Dinner")]  # 7pm on the 17th in Los Angeles
     assert compute_coverage(dinner, "2026-09-17", TZ, SETTINGS).slots["Dinner"].logged is True
     assert compute_coverage(dinner, "2026-09-17", "UTC", SETTINGS).slots["Dinner"].logged is False
+
+
+def test_foods_logged_together_count_as_one_meal_toward_the_streak():
+    # Pasta and a salad logged for the same dinner are one meal, not two
+    meals = [
+        meal("2026-09-18T02:00:00", "Dinner"),
+        meal("2026-09-18T02:00:00", "Dinner"),
+    ]
+    coverage = compute_coverage(meals, "2026-09-17", TZ, SETTINGS)
+
+    assert coverage.week[6].meals == 1
+    assert coverage.week[6].met_threshold is False
+    assert coverage.streak.today_counts is False
+
+    meals.append(meal("2026-09-17T19:00:00", "Lunch"))
+    coverage = compute_coverage(meals, "2026-09-17", TZ, SETTINGS)
+    assert coverage.week[6].meals == 2
+    assert coverage.streak.today_counts is True

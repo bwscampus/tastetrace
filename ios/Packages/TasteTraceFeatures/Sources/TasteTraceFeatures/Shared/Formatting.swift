@@ -2,6 +2,11 @@ import Foundation
 import TasteTraceCore
 
 enum Formatting {
+    /// The API scores discomfort 0–10 (intensity × 2); the app shows it out of 5 to match the 1–5 intensity grid.
+    static let discomfortScale = 5.0
+
+    static func outOfFive(_ tenPointScore: Double) -> Double { tenPointScore / 2 }
+
     static func time(_ date: Date, math: DateMath) -> String {
         let formatter = DateFormatter()
         formatter.calendar = math.calendar

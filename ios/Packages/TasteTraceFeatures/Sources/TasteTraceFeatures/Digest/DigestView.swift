@@ -96,15 +96,15 @@ struct TrendsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("WEEKLY AVERAGE").font(TTFont.captionSemibold).tracking(1).foregroundStyle(TTColor.successTint)
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text(String(format: "%.1f", digest.trends.index)).font(TTFont.heroNumber)
-                            Text("/ 10").font(TTFont.cardTitle).opacity(0.8)
+                            Text(String(format: "%.1f", Formatting.outOfFive(digest.trends.index))).font(TTFont.heroNumber)
+                            Text("/ 5").font(TTFont.cardTitle).opacity(0.8)
                         }
                         Text("Physical Discomfort Index").font(TTFont.body).opacity(0.9)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(deltaLabel).font(TTFont.bodySemibold)
-                        Text(String(format: "vs All-Time (%.1f)", digest.trends.baselineIndex)).font(TTFont.caption).opacity(0.8)
+                        Text(String(format: "vs All-Time (%.1f)", Formatting.outOfFive(digest.trends.baselineIndex))).font(TTFont.caption).opacity(0.8)
                     }
                     .padding(10).background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
                 }
@@ -124,18 +124,18 @@ struct TrendsView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Discomfort vs Historical Baseline").font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
-                        Text(String(format: "Dashed line = All-History Baseline (%.1f)", digest.trends.baselineIndex)).font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                        Text(String(format: "Dashed line = All-History Baseline (%.1f)", Formatting.outOfFive(digest.trends.baselineIndex))).font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
                     }
                     Spacer()
                     StatusBadge(digest.trends.dataCompleteness == "complete" ? "✓ Complete Data" : digest.trends.dataCompleteness == "partial" ? "Partial Data" : "No Data",
                                 tone: digest.trends.dataCompleteness == "complete" ? .success : .warning)
                 }
-                DiscomfortBarChart(bars: digest.trends.days.map { .init(id: $0.date, label: $0.weekday, value: $0.index, level: $0.level) },
-                                   baseline: digest.trends.baselineIndex)
+                DiscomfortBarChart(bars: digest.trends.days.map { .init(id: $0.date, label: $0.weekday, value: Formatting.outOfFive($0.index), level: $0.level) },
+                                   baseline: Formatting.outOfFive(digest.trends.baselineIndex), maxValue: Formatting.discomfortScale)
                 HStack(spacing: 14) {
                     legend("Zero Discomfort", TTColor.success)
-                    legend("Moderate (1-4)", TTColor.primary)
-                    legend("High Flare (5+)", TTColor.danger)
+                    legend("Mild (1-2)", TTColor.primary)
+                    legend("High Flare (3+)", TTColor.danger)
                 }
             }
         }
@@ -281,7 +281,7 @@ struct SymptomDigestCard: View {
                 StatusBadge(card.vsBaseline == "up" ? "Above Baseline" : card.vsBaseline == "down" ? "Below Baseline" : "Same as Baseline", tone: card.vsBaseline == "up" ? .danger : .success)
             }
             HStack {
-                metric("Avg Severity", String(format: "%.1f / 10", card.avgSeverity10), color)
+                metric("Avg Severity", String(format: "%.1f / 5", Formatting.outOfFive(card.avgSeverity10)), color)
                 Spacer()
                 metric("Avg Duration", card.avgDurationMinutes.map { $0 < 30 ? "< 30 min" : $0 < 90 ? "~1 hour" : Formatting.duration($0) } ?? "—", TTColor.navy)
                 Spacer()

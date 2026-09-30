@@ -15,7 +15,7 @@ struct IngredientEditor: View {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass").foregroundStyle(TTColor.primary)
                 TextField("avocado, sourdough bread, salt", text: $input)
-                    .font(TTFont.body)
+                    .font(TTFont.body).foregroundStyle(TTColor.inputText)
                     .onSubmit(add)
                 Button("Add", action: add)
                     .font(TTFont.bodySemibold)

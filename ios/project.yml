@@ -44,6 +44,8 @@ targets:
       properties:
         CFBundleDisplayName: TasteTrace
         UILaunchScreen: {}
+        # The palette is light-only; ignore the phone's dark mode
+        UIUserInterfaceStyle: Light
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
         NSAppTransportSecurity:

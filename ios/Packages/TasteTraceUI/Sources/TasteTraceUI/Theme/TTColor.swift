@@ -22,6 +22,8 @@ public enum TTColor {
     public static let infoTint = Color(hex: 0xE8F0FE)
     public static let neutralTint = Color(hex: 0xEEF2F9)
     public static let dot = Color(hex: 0xC7D2E5)
+    /// Typed text in fields: always black, whatever the phone's appearance setting
+    public static let inputText = Color.black
 }
 
 public extension Color {
