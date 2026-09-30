@@ -71,6 +71,11 @@ class _Day:
     meals: list[MealRow] = field(default_factory=list)
     slots: dict[str, MealRow] = field(default_factory=dict)
 
+    @property
+    def meal_count(self) -> int:
+        """Eating occasions: foods logged together (same type and time) are one meal."""
+        return len({(meal.meal_type, meal.timestamp) for meal in self.meals})
+
 
 def _group_by_day(meals: list[MealRow], tz: str) -> dict[str, _Day]:
     days: dict[str, _Day] = {}
@@ -107,7 +112,7 @@ def compute_coverage(
     for offset in range(6, -1, -1):
         day_date = add_days(date, -offset)
         day = days.get(day_date)
-        meal_count = len(day.meals) if day else 0
+        meal_count = day.meal_count if day else 0
         week.append(
             DayCoverage(
                 date=day_date,
@@ -120,10 +125,10 @@ def compute_coverage(
 
     # A day still in progress shouldn't break a streak, so start from
     # yesterday when today hasn't met the threshold yet.
-    today_counts = (len(today.meals) if today else 0) >= threshold
+    today_counts = (today.meal_count if today else 0) >= threshold
     cursor = date if today_counts else add_days(date, -1)
     streak_days = 0
-    while len(days.get(cursor, _Day()).meals) >= threshold:
+    while days.get(cursor, _Day()).meal_count >= threshold:
         streak_days += 1
         cursor = add_days(cursor, -1)
 

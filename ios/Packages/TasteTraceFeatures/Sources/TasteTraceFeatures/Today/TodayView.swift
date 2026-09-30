@@ -102,13 +102,13 @@ struct DigestHeroCard: View {
                     HStack(alignment: .bottom) {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text(String(format: "%.1f", index)).font(TTFont.heroNumber)
-                                Text("/ 10").font(TTFont.cardTitle).opacity(0.8)
+                                Text(String(format: "%.1f", Formatting.outOfFive(index))).font(TTFont.heroNumber)
+                                Text("/ 5").font(TTFont.cardTitle).opacity(0.8)
                             }
                             Text("Weekly Discomfort Index • \(occurrences ?? 0) Occurrences").font(TTFont.body).opacity(0.9)
                         }
                         Spacer()
-                        SparklineView(values: days.map(\.index), levels: days.map(\.level))
+                        SparklineView(values: days.map { Formatting.outOfFive($0.index) }, levels: days.map(\.level), maxValue: Formatting.discomfortScale)
                     }
                 } else {
                     Text("—").font(TTFont.heroNumber)
@@ -158,6 +158,7 @@ struct CoverageCard: View {
 
 /// Today's Timeline card: entries in time order plus the next pending slot.
 struct TimelineSection: View {
+    @Environment(Router.self) private var router
     let model: TodayViewModel
     let onDelete: (TimelineItem) -> Void
 
@@ -187,9 +188,13 @@ struct TimelineSection: View {
                         TimelineRail(color: itemColor(item))
                         switch item {
                         case .meal(let meal):
-                            MealEntryCard(meal: meal, math: model.math, onDelete: { onDelete(item) })
+                            MealEntryCard(meal: meal, math: model.math,
+                                          onEdit: { router.sheet = .editMeal(id: meal.id) },
+                                          onDelete: { onDelete(item) })
                         case .symptom(let symptom):
-                            SymptomEntryCard(symptom: symptom, math: model.math, onDelete: { onDelete(item) })
+                            SymptomEntryCard(symptom: symptom, math: model.math,
+                                             onEdit: { router.sheet = .editSymptom(id: symptom.id) },
+                                             onDelete: { onDelete(item) })
                         }
                     }
                 }

@@ -98,3 +98,54 @@ async def test_password_policy_is_the_template_minimum(client):
     )
     assert short.status_code == 400
     assert "at least 8" in short.text
+
+
+async def test_onboarding_answers_are_saved_and_completion_is_stamped(client):
+    auth = await register_and_login(client, "taylor@example.com")
+
+    me = (await client.get("/api/users/me", headers=auth)).json()
+    assert me["onboardingCompletedAt"] is None
+    assert me["dataSharing"] is None
+
+    settings = (await client.get("/api/settings", headers=auth)).json()
+    assert (settings["breakfastTime"], settings["lunchTime"], settings["dinnerTime"]) == (
+        "09:00",
+        "13:00",
+        "19:00",
+    )
+
+    saved = await client.patch(
+        "/api/settings",
+        headers=auth,
+        json={"breakfastTime": "07:15", "lunchTime": "12:00", "dinnerTime": "18:45",
+              "mealCheckInsEnabled": True, "minTriggerCount": 3},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["breakfastTime"] == "07:15"
+    assert saved.json()["minTriggerCount"] == 3
+
+    done = await client.patch(
+        "/api/profile",
+        headers=auth,
+        json={"discoveryPurpose": "Find food triggers", "dataSharing": "practitioner",
+              "onboardingCompleted": True},
+    )
+    assert done.status_code == 200
+    stamped = done.json()["onboardingCompletedAt"]
+    assert stamped is not None
+    assert done.json()["dataSharing"] == "practitioner"
+
+    # Completing again keeps the original timestamp
+    again = await client.patch("/api/profile", headers=auth, json={"onboardingCompleted": True})
+    assert again.json()["onboardingCompletedAt"] == stamped
+    assert (await client.get("/api/users/me", headers=auth)).json()["onboardingCompletedAt"] == stamped
+
+
+async def test_onboarding_rejects_unknown_sharing_choices_and_bad_meal_times(client):
+    auth = await register_and_login(client, "taylor@example.com")
+
+    bad_sharing = await client.patch("/api/profile", headers=auth, json={"dataSharing": "everyone"})
+    assert bad_sharing.status_code == 422
+
+    bad_time = await client.patch("/api/settings", headers=auth, json={"lunchTime": "25:00"})
+    assert bad_time.status_code == 422

@@ -27,7 +27,9 @@ struct HistoryView: View {
                                   onEdit: { router.sheet = .editMeal(id: meal.id) },
                                   onDelete: { pendingDelete = item })
                 case .symptom(let symptom):
-                    SymptomEntryCard(symptom: symptom, math: model.math, onDelete: { pendingDelete = item })
+                    SymptomEntryCard(symptom: symptom, math: model.math,
+                                     onEdit: { router.sheet = .editSymptom(id: symptom.id) },
+                                     onDelete: { pendingDelete = item })
                         .onTapGesture { router.sheet = .editSymptom(id: symptom.id) }
                 }
             }

@@ -15,10 +15,13 @@ public struct DiscomfortBarChart: View {
 
     let bars: [Bar]
     let baseline: Double
+    /// Top of the scale; the app shows discomfort out of 5.
+    let maxValue: Double
 
-    public init(bars: [Bar], baseline: Double) {
+    public init(bars: [Bar], baseline: Double, maxValue: Double = 5) {
         self.bars = bars
         self.baseline = baseline
+        self.maxValue = maxValue
     }
 
     public static func color(for level: String) -> Color {
@@ -32,7 +35,7 @@ public struct DiscomfortBarChart: View {
     public var body: some View {
         Chart {
             ForEach(bars) { bar in
-                BarMark(x: .value("Day", bar.label), y: .value("Index", max(bar.value, 0.35)))
+                BarMark(x: .value("Day", bar.label), y: .value("Index", max(bar.value, maxValue * 0.035)))
                     .foregroundStyle(Self.color(for: bar.level).gradient)
                     .cornerRadius(6)
                     .annotation(position: .top, spacing: 4) {
@@ -54,7 +57,7 @@ public struct DiscomfortBarChart: View {
                     }
             }
         }
-        .chartYScale(domain: 0...10)
+        .chartYScale(domain: 0...maxValue)
         .chartYAxis(.hidden)
         .chartXAxis {
             AxisMarks { value in
@@ -124,10 +127,12 @@ public struct FrequencyBar: View {
 public struct SparklineView: View {
     let values: [Double]
     let levels: [String]
+    let maxValue: Double
 
-    public init(values: [Double], levels: [String]) {
+    public init(values: [Double], levels: [String], maxValue: Double = 5) {
         self.values = values
         self.levels = levels
+        self.maxValue = maxValue
     }
 
     public var body: some View {
@@ -135,7 +140,7 @@ public struct SparklineView: View {
             ForEach(Array(values.enumerated()), id: \.offset) { index, value in
                 RoundedRectangle(cornerRadius: 2)
                     .fill(DiscomfortBarChart.color(for: levels.indices.contains(index) ? levels[index] : "zero"))
-                    .frame(width: 6, height: max(4, CGFloat(value / 10) * 36))
+                    .frame(width: 6, height: max(4, CGFloat(min(value / maxValue, 1)) * 36))
             }
         }
         .frame(height: 36, alignment: .bottom)

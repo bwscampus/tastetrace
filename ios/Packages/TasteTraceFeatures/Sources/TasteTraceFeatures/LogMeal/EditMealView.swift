@@ -28,7 +28,7 @@ struct EditMealView: View {
                 TTCard {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionLabel("Meal name")
-                        TextField("Name", text: $name).font(TTFont.cardTitle)
+                        TextField("Name", text: $name).font(TTFont.cardTitle).foregroundStyle(TTColor.inputText)
                     }
                 }
                 DateTimeCard(title: "When did you eat?", subtitle: "Adjusting time re-maps correlation windows", day: $day, time: $time, math: env.dateMath)
@@ -38,7 +38,7 @@ struct EditMealView: View {
                 TTCard {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionLabel("Notes")
-                        TextField("Anything else about this meal", text: $notes, axis: .vertical).lineLimit(2...5).font(TTFont.body)
+                        TextField("Anything else about this meal", text: $notes, axis: .vertical).lineLimit(2...5).font(TTFont.body).foregroundStyle(TTColor.inputText)
                     }
                 }
             }

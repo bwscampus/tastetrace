@@ -36,7 +36,7 @@ struct QuickLogView: View {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass").foregroundStyle(TTColor.primary)
                 TextField("Search other custom symptoms…", text: $model.search)
-                    .font(TTFont.bodySemibold)
+                    .font(TTFont.bodySemibold).foregroundStyle(TTColor.inputText)
                     .onSubmit { Task { await model.createCustomSymptom() } }
                 if model.canCreateCustom {
                     Button("Add") { Task { await model.createCustomSymptom() } }
@@ -152,10 +152,14 @@ struct SymptomTimeSheet: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("When did it start?").font(TTFont.screenTitle).foregroundStyle(TTColor.navy)
-            DatePicker("", selection: $timestamp, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
-                .labelsHidden()
-                .environment(\.calendar, math.calendar)
-                .environment(\.timeZone, math.timeZone)
+            VStack(spacing: 10) {
+                DatePicker("Date", selection: $timestamp, in: ...Date(), displayedComponents: .date)
+                DatePicker("Time", selection: $timestamp, in: ...Date(), displayedComponents: .hourAndMinute)
+            }
+            .font(TTFont.bodySemibold)
+            .foregroundStyle(TTColor.navy)
+            .environment(\.calendar, math.calendar)
+            .environment(\.timeZone, math.timeZone)
             HStack(spacing: 10) {
                 SecondaryButton("Just Now") { timestamp = Date(); edited = false; dismiss() }
                 PrimaryButton("Use This Time") { edited = true; dismiss() }
@@ -185,7 +189,7 @@ struct AdvancedSymptomSettingsView: View {
                 }
                 SectionLabel("Notes")
                 TextField("Anything that might matter (stress, sleep, medication)…", text: $notes, axis: .vertical)
-                    .lineLimit(3...6).font(TTFont.body)
+                    .lineLimit(3...6).font(TTFont.body).foregroundStyle(TTColor.inputText)
                     .padding(12)
                     .background(TTColor.card, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(TTColor.cardBorder, lineWidth: 1))

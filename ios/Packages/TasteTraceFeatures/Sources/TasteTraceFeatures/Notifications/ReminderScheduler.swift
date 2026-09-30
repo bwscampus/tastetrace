@@ -4,11 +4,13 @@ import TasteTraceAPI
 import TasteTraceCore
 
 /// Schedules the daily nudge and optional meal check-ins as local notifications.
+/// Each check-in fires `checkInDelayMinutes` after the user's usual meal time.
 public final class ReminderScheduler: @unchecked Sendable {
     private let center: UNUserNotificationCenter?
     static let nudgeId = "tastetrace.nudge"
     static let checkInIds = ["tastetrace.checkin.breakfast", "tastetrace.checkin.lunch", "tastetrace.checkin.dinner"]
-    static let checkInTimes: [(hour: Int, minute: Int, slot: String)] = [(9, 30, "breakfast"), (13, 30, "lunch"), (19, 30, "dinner")]
+    static let checkInSlots = ["breakfast", "lunch", "dinner"]
+    static let checkInDelayMinutes = 30
 
     public init(center: UNUserNotificationCenter? = ReminderScheduler.defaultCenter) {
         self.center = center
@@ -38,7 +40,7 @@ public final class ReminderScheduler: @unchecked Sendable {
         }
 
         if settings.mealCheckInsEnabled {
-            for (index, time) in Self.checkInTimes.enumerated() {
+            for (index, time) in Self.checkInTimes(for: settings).enumerated() {
                 let content = UNMutableNotificationContent()
                 content.title = "Log your \(time.slot)?"
                 content.body = "Tap to record what you ate and keep your coverage streak alive."
@@ -51,8 +53,24 @@ public final class ReminderScheduler: @unchecked Sendable {
 
     /// Cancels the check-in for a slot that has already been logged today.
     public func cancelCheckIn(for slot: String) {
-        guard let index = Self.checkInTimes.firstIndex(where: { $0.slot == slot }) else { return }
+        guard let index = Self.checkInSlots.firstIndex(of: slot) else { return }
         center?.removePendingNotificationRequests(withIdentifiers: [Self.checkInIds[index]])
+    }
+
+    /// Breakfast, lunch and dinner check-in times: the saved meal time plus the delay.
+    public static func checkInTimes(for settings: UserSettings) -> [(hour: Int, minute: Int, slot: String)] {
+        let mealTimes = [settings.breakfastTime, settings.lunchTime, settings.dinnerTime]
+        let fallbacks = [(9, 0), (13, 0), (19, 0)]
+        return checkInSlots.indices.map { index in
+            let (hour, minute) = parse(mealTimes[index]) ?? fallbacks[index]
+            let total = (hour * 60 + minute + checkInDelayMinutes) % (24 * 60)
+            return (hour: total / 60, minute: total % 60, slot: checkInSlots[index])
+        }
+    }
+
+    /// "9:30 • 13:30 • 19:30" for the settings screens.
+    public static func checkInSummary(for settings: UserSettings) -> String {
+        checkInTimes(for: settings).map { String(format: "%d:%02d", $0.hour, $0.minute) }.joined(separator: " • ")
     }
 
     static func dailyTrigger(hour: Int, minute: Int, math: DateMath) -> UNCalendarNotificationTrigger {

@@ -12,6 +12,7 @@ final class ProfileViewModel {
     var displayName = ""
     var discoveryPurpose = ""
     var sensitivityTags: [String] = []
+    var dataSharing: DataSharingChoice?
     var isSaving = false
     var error: String?
     var saved = false
@@ -21,7 +22,7 @@ final class ProfileViewModel {
 
     var isDirty: Bool {
         guard let profile else { return false }
-        return displayName != (profile.displayName ?? "") || discoveryPurpose != (profile.discoveryPurpose ?? "") || sensitivityTags != profile.sensitivityTags
+        return displayName != (profile.displayName ?? "") || discoveryPurpose != (profile.discoveryPurpose ?? "") || sensitivityTags != profile.sensitivityTags || dataSharing?.rawValue != profile.dataSharing
     }
 
     func load() async {
@@ -34,6 +35,7 @@ final class ProfileViewModel {
             displayName = loaded.displayName ?? ""
             discoveryPurpose = loaded.discoveryPurpose ?? ""
             sensitivityTags = loaded.sensitivityTags
+            dataSharing = loaded.dataSharing.flatMap(DataSharingChoice.init(rawValue:))
         } catch let apiError as APIError { error = apiError.message } catch { self.error = error.localizedDescription }
     }
 
@@ -42,7 +44,7 @@ final class ProfileViewModel {
         defer { isSaving = false }
         do {
             profile = try await env.run {
-                try await env.api.updateProfile(ProfilePatch(displayName: displayName, discoveryPurpose: discoveryPurpose, sensitivityTags: sensitivityTags))
+                try await env.api.updateProfile(ProfilePatch(displayName: displayName, discoveryPurpose: discoveryPurpose, sensitivityTags: sensitivityTags, dataSharing: dataSharing?.rawValue))
             }
             await env.session.refreshUser()
             saved = true
@@ -130,6 +132,13 @@ struct ProfileView: View {
                         }
                         Text("Export your complete food, symptom, and preparation history for review with a dietitian or gastroenterologist.")
                             .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
+                        Picker("Data sharing", selection: $model.dataSharing) {
+                            if model.dataSharing == nil { Text("Not chosen").tag(DataSharingChoice?.none) }
+                            ForEach(DataSharingChoice.allCases) { choice in
+                                Text("\(choice.emoji) \(choice.title)").tag(Optional(choice))
+                            }
+                        }
+                        .font(TTFont.bodySemibold)
                         NavigationLink { ExportView(env: env, kind: .practitioner) } label: { exportRow("Practitioner Report (PDF)", icon: "doc.richtext", primary: true) }
                         NavigationLink { ExportView(env: env, kind: nil) } label: { exportRow("Export Raw Data (CSV)", icon: "tablecells", primary: false) }
                     }
@@ -143,7 +152,7 @@ struct ProfileView: View {
                                     subtitle: "\(model.settings?.correlationWindowHours ?? 24)h correlation window & trigger counts")
                         }
                         NavigationLink { RemindersView(model: model) } label: {
-                            prefRow(icon: "bell", tint: TTColor.warning, title: "Logging Nudges & Reminders", subtitle: "Meal check-ins and symptom follow-ups")
+                            prefRow(icon: "bell", tint: TTColor.warning, title: "Logging Nudges & Reminders", subtitle: "Meal times, check-ins and the evening nudge")
                         }
                         NavigationLink { WatchlistView(env: env) } label: {
                             prefRow(icon: "eye", tint: TTColor.success, title: "Ingredient Watchlist", subtitle: "Ingredients flagged while logging meals")
@@ -305,6 +314,9 @@ struct RemindersView: View {
     @State private var nudgesEnabled = true
     @State private var nudgeTime = Date()
     @State private var checkIns = false
+    @State private var breakfastTime = Date()
+    @State private var lunchTime = Date()
+    @State private var dinnerTime = Date()
     @State private var permissionDenied = false
 
     var body: some View {
@@ -314,7 +326,11 @@ struct RemindersView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     Toggle("Post-dinner nudge", isOn: $nudgesEnabled).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
                     DatePicker("Nudge time", selection: $nudgeTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!nudgesEnabled)
-                    Toggle("Meal check-ins (9:30, 13:30, 19:30)", isOn: $checkIns).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
+                    Toggle("Meal check-ins", isOn: $checkIns).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
+                    DatePicker("Breakfast", selection: $breakfastTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!checkIns)
+                    DatePicker("Lunch", selection: $lunchTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!checkIns)
+                    DatePicker("Dinner", selection: $dinnerTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!checkIns)
+                    Text("Each check-in arrives \(ReminderScheduler.checkInDelayMinutes) minutes after the meal time.").font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
                     if permissionDenied {
                         Text("Notifications are turned off for TasteTrace in Settings.").font(TTFont.caption).foregroundStyle(TTColor.danger)
                     }
@@ -324,8 +340,13 @@ struct RemindersView: View {
             PinnedBottomBar {
                 PrimaryButton("Save Reminders") {
                     Task {
-                        let hhmm = ReminderScheduler.hhmm(from: nudgeTime, math: env.dateMath)
-                        await model.updateSettings(SettingsPatch(nudgeTime: hhmm, nudgesEnabled: nudgesEnabled, mealCheckInsEnabled: checkIns))
+                        let math = env.dateMath
+                        await model.updateSettings(SettingsPatch(
+                            nudgeTime: ReminderScheduler.hhmm(from: nudgeTime, math: math), nudgesEnabled: nudgesEnabled, mealCheckInsEnabled: checkIns,
+                            breakfastTime: ReminderScheduler.hhmm(from: breakfastTime, math: math),
+                            lunchTime: ReminderScheduler.hhmm(from: lunchTime, math: math),
+                            dinnerTime: ReminderScheduler.hhmm(from: dinnerTime, math: math)
+                        ))
                         if let settings = model.settings {
                             let granted = await env.reminders.sync(settings: settings, math: env.dateMath)
                             permissionDenied = !granted && (nudgesEnabled || checkIns)
@@ -339,6 +360,9 @@ struct RemindersView: View {
             if let s = model.settings {
                 nudgesEnabled = s.nudgesEnabled; checkIns = s.mealCheckInsEnabled
                 nudgeTime = ReminderScheduler.date(fromHHMM: s.nudgeTime, math: env.dateMath)
+                breakfastTime = ReminderScheduler.date(fromHHMM: s.breakfastTime, math: env.dateMath)
+                lunchTime = ReminderScheduler.date(fromHHMM: s.lunchTime, math: env.dateMath)
+                dinnerTime = ReminderScheduler.date(fromHHMM: s.dinnerTime, math: env.dateMath)
             }
         }
     }

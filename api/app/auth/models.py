@@ -38,6 +38,12 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     sensitivity_tags: Mapped[list[str]] = mapped_column(
         JSONDocument, nullable=False, default=list
     )
+    # "private", "practitioner" or "research"; chosen during onboarding
+    data_sharing: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Null until the first-run questions are answered; the app shows them until then
+    onboarding_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
