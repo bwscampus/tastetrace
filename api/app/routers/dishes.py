@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.deps import CurrentUser, Session, owned_or_404, resolve_timezone
 from app.models import Dish, Meal
 from app.schemas import DishCreate, DishLog, DishPatch, DishRead, MealRead
+from app.services.correlations import recompute_correlations
 from app.services.entries import apply_meal_timing, detail_dicts, now_utc
 
 router = APIRouter(tags=["dishes"])
@@ -100,6 +101,8 @@ async def log_dish(dish_id: int, body: DishLog, user: CurrentUser, session: Sess
     dish.last_logged_at = meal.timestamp
     session.add(dish)
 
+    await session.flush()
+    await recompute_correlations(session, user.id)
     await session.commit()
     await session.refresh(meal)
     return meal

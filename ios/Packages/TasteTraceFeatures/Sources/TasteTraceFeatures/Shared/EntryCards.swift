@@ -21,8 +21,12 @@ struct MealEntryCard: View {
                         Text("\(meal.mealType) (\(Formatting.time(meal.timestamp, math: math)))")
                             .font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
                             .lineLimit(1).minimumScaleFactor(0.8)
-                        if let suspicious = meal.suspiciousFor, !suspicious.isEmpty {
+                        // Only a food the Triggers page lists earns "Suspicious Trigger"; a
+                        // symptom merely following the meal is just noted.
+                        if meal.suspicion == "correlated" {
                             StatusBadge("Suspicious Trigger", tone: .danger)
+                        } else if let followed = meal.suspiciousFor, !followed.isEmpty {
+                            StatusBadge("Symptom followed", tone: .warning)
                         } else {
                             StatusBadge("Logged", tone: .success)
                         }

@@ -21,6 +21,9 @@ Tier = Literal["strong", "likely", "watch"]
 THIN_EVIDENCE_CAP = 49
 # With no baseline to compare against, treat the lift as strongly positive
 MAX_LIFT = 5.0
+# The kinds of item the Triggers page shows. History only calls a meal a
+# trigger when it matches one of these, so the two screens agree.
+TRIGGER_PAGE_DIMENSIONS = ("ingredient", "cook_method")
 
 
 def tier_for(confidence: int) -> Tier:
@@ -154,6 +157,7 @@ def suspicion_for(
     item_ids = {item.id for item in meal_items(meal)}
     correlated = any(
         row.symptom_name in names
+        and row.dimension in TRIGGER_PAGE_DIMENSIONS
         and row.confidence >= min_confidence
         and f"{row.dimension}:{normalize_item(row.food_name)}" in item_ids
         for row in rows

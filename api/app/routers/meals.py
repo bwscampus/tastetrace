@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.deps import CurrentUser, Session, TzQuery, owned_or_404, resolve_timezone
 from app.models import Meal
 from app.schemas import MealCreate, MealPatch, MealRead
+from app.services.correlations import recompute_correlations
 from app.services.entries import apply_meal_timing, detail_dicts, resolve_ingredients
 
 router = APIRouter(tags=["meals"])
@@ -42,6 +43,10 @@ async def create_meal(body: MealCreate, user: CurrentUser, session: Session) -> 
     )
     apply_meal_timing(meal, body.timestamp, tz)
     session.add(meal)
+    await session.flush()
+    # Meals feed the associations too; without this the Triggers page and
+    # History's flags lag behind until the next symptom is logged.
+    await recompute_correlations(session, user.id)
     await session.commit()
     await session.refresh(meal)
     return meal
@@ -73,6 +78,8 @@ async def update_meal(meal_id: int, body: MealPatch, user: CurrentUser, session:
         apply_meal_timing(meal, body.timestamp, await resolve_timezone(session, user, body.tz))
 
     session.add(meal)
+    await session.flush()
+    await recompute_correlations(session, user.id)
     await session.commit()
     await session.refresh(meal)
     return meal
@@ -82,4 +89,6 @@ async def update_meal(meal_id: int, body: MealPatch, user: CurrentUser, session:
 async def delete_meal(meal_id: int, user: CurrentUser, session: Session) -> None:
     meal = await owned_or_404(session, Meal, meal_id, user, "Meal")
     await session.delete(meal)
+    await session.flush()
+    await recompute_correlations(session, user.id)
     await session.commit()
