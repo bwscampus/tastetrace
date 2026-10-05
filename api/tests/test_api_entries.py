@@ -129,6 +129,29 @@ async def test_entries_belong_to_their_owner_alone(client):
     assert (await client.delete(f"/api/symptoms/{symptom.json()['id']}", headers=bob)).status_code == 404
 
 
+async def test_a_meal_cannot_point_at_someone_elses_dish(client):
+    alice = await register_and_login(client, "alice@example.com")
+    bob = await register_and_login(client, "bob@example.com")
+    dish = await client.post("/api/dishes", headers=alice, json={"name": "Toast", "emoji": "🍞"})
+    assert dish.status_code == 201, dish.text
+    dish_id = dish.json()["id"]
+
+    stolen = await client.post(
+        "/api/meals", headers=bob, json={"name": "Toast", "mealType": "Lunch", "dishId": dish_id}
+    )
+    assert stolen.status_code == 404
+    missing = await client.post(
+        "/api/meals", headers=bob, json={"name": "Toast", "mealType": "Lunch", "dishId": 999999}
+    )
+    assert missing.status_code == 404
+
+    own = await client.post(
+        "/api/meals", headers=alice, json={"name": "Toast", "mealType": "Lunch", "dishId": dish_id}
+    )
+    assert own.status_code == 201, own.text
+    assert own.json()["dishId"] == dish_id
+
+
 async def test_a_dish_tile_logs_a_meal_and_counts_its_use(client):
     auth = await register_and_login(client, "taylor@example.com")
 

@@ -96,6 +96,22 @@ final class SignOutHygieneTests: XCTestCase {
     }
 
     @MainActor
+    func testEverySessionEndRunsTheCleanupHook() async throws {
+        // Sign-out, a 401 and account deletion must all let the app cancel reminders.
+        var ended = 0
+        for end in ["signOut", "unauthorized", "delete"] {
+            let session = AuthSession.make(baseURL: URL(string: "https://api.example")!, tokenStore: InMemoryTokenStore("tt_old"), transport: CannedTransport(status: 204), cacheDirectory: try cacheWithJournal())
+            session.onSessionEnded = { ended += 1 }
+            switch end {
+            case "signOut": await session.signOut()
+            case "unauthorized": await session.handleUnauthorized()
+            default: try await session.deleteAccount(password: "right")
+            }
+        }
+        XCTAssertEqual(ended, 3)
+    }
+
+    @MainActor
     func testDeleteAccountClearsEverythingOnlyWhenTheServerAgrees() async throws {
         let dir = try cacheWithJournal()
         let tokens = InMemoryTokenStore("tt_old")

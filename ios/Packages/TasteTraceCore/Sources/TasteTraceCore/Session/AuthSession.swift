@@ -14,6 +14,10 @@ public final class AuthSession {
 
     public private(set) var state: State = .unknown
     public var lastError: String?
+    /// Runs whenever the session ends (sign-out, account deletion, or a 401),
+    /// after the token and caches are gone. The app layer uses it to cancel
+    /// pending reminders, which this package can't see.
+    public var onSessionEnded: (@MainActor () async -> Void)?
 
     private let client: APIClient
     private let tokenStore: TokenStore
@@ -111,6 +115,7 @@ public final class AuthSession {
         tokenBox.token = nil
         CachedUser.clear()
         JSONFileStore<User>.clearAll(directory: cacheDirectory)
+        await onSessionEnded?()
     }
 
 }

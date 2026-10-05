@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { storage } from "../storage";
+import { pool } from "../db";
 import { setupAuth } from "../auth";
 import { createWaitlistLimiter } from "../rateLimit";
 import { registerMealRoutes } from "./meals";
@@ -27,6 +28,17 @@ const waitlistSchema = z.object({
 });
 
 export function registerRoutes(app: Express): void {
+  // Railway's health check (API-9): proves the app can reach its database.
+  // Answers only {status}; never versions, hosts or error details.
+  app.get("/api/health", async (_req: Request, res: Response) => {
+    try {
+      await pool.query("select 1");
+      res.json({ status: "ok" });
+    } catch {
+      res.status(503).json({ status: "unavailable" });
+    }
+  });
+
   // Waitlist signups come cross-origin from the landing page, so this is
   // registered before the session middleware and answers CORS itself.
   app.use("/api/waitlist", (req: Request, res: Response, next) => {
@@ -61,38 +73,15 @@ export function registerRoutes(app: Express): void {
   // Cookie sessions for the web client (the iOS app uses the Python API)
   setupAuth(app);
 
-  // Forgot password endpoint
-  app.post('/api/forgot-password', async (req: Request, res: Response) => {
-    try {
-      const { email } = req.body;
-      
-      if (!email) {
-        return res.status(400).json({ message: "Email is required" });
-      }
-
-      // Check if user exists
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        // Don't reveal if user exists or not for security
-        return res.status(200).json({ message: "If an account with that email exists, a password reset link has been sent." });
-      }
-
-      // In a real application, you would:
-      // 1. Generate a secure reset token
-      // 2. Store it in the database with an expiration time
-      // 3. Send an email with the reset link
-      // 
-      // For this demo, we'll just return a success message
-      // Never log the address (API-8). Reset email is not built yet; see
-      // docs/SECURITY-GAPS.md.
-
-      res.status(200).json({ 
-        message: "If an account with that email exists, a password reset link has been sent." 
-      });
-    } catch (error) {
-      console.error("Error processing forgot password:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
+  // Password reset is not built for web accounts yet (the iOS app's API has
+  // its own, separate accounts). Say so honestly instead of claiming an email
+  // was sent (FE-6). The reply never depends on the address, so it can't be
+  // used to check who has an account, and the address is never logged (API-8).
+  app.post("/api/forgot-password", (_req: Request, res: Response) => {
+    res.status(200).json({
+      message:
+        "Password reset by email isn't available on the web yet. Contact the TasteTrace team and we'll help you get back into your account.",
+    });
   });
 
   registerProfileRoutes(app);
