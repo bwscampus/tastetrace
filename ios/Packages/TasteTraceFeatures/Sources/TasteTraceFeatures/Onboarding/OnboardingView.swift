@@ -76,9 +76,9 @@ struct OnboardingView: View {
     private var purposeStep: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(OnboardingViewModel.purposeOptions + [OnboardingViewModel.otherPurpose], id: \.self) { option in
-                OptionRow(title: option, selected: model.purpose == option) { model.purpose = option }
+                OptionRow(title: option, selected: model.purposes.contains(option), multiSelect: true) { model.togglePurpose(option) }
             }
-            if model.purpose == OnboardingViewModel.otherPurpose {
+            if model.purposes.contains(OnboardingViewModel.otherPurpose) {
                 LabeledField("Tell us in a few words", text: $model.customPurpose)
             }
         }
@@ -128,11 +128,12 @@ struct OnboardingView: View {
     }
 }
 
-/// A tappable answer card with a radio indicator.
+/// A tappable answer card with a radio indicator, or a checkbox when several answers can be picked.
 private struct OptionRow: View {
     let title: String
     var detail: String?
     let selected: Bool
+    var multiSelect = false
     let action: () -> Void
 
     var body: some View {
@@ -147,7 +148,9 @@ private struct OptionRow: View {
                     }
                 }
                 Spacer(minLength: 0)
-                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                Image(systemName: multiSelect
+                      ? (selected ? "checkmark.square.fill" : "square")
+                      : (selected ? "checkmark.circle.fill" : "circle"))
                     .foregroundStyle(selected ? TTColor.primary : TTColor.cardBorder)
                     .font(.system(size: 20))
             }
