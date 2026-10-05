@@ -10,6 +10,7 @@ blocks the cross-site form-POST case; add a CSRF token if you ever need
 SameSite=None.
 """
 
+import secrets
 from collections.abc import AsyncGenerator
 
 from fastapi import Depends
@@ -28,6 +29,7 @@ from fastapi_users_db_sqlalchemy.access_token import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import AccessToken
+from app.auth.tokens import hash_token
 from app.config import settings
 from app.db import get_async_session
 
@@ -52,12 +54,33 @@ async def get_access_token_db(
     yield SQLAlchemyAccessTokenDatabase(session, AccessToken)
 
 
+class HashedDatabaseStrategy(DatabaseStrategy):
+    """DatabaseStrategy that stores SHA-256(token) instead of the token.
+
+    The raw value goes to the client once, at login; every later lookup
+    hashes what the client presents. See app/auth/tokens.py.
+    """
+
+    async def read_token(self, token, user_manager):
+        if token is None:
+            return None
+        return await super().read_token(hash_token(token), user_manager)
+
+    async def write_token(self, user) -> str:
+        raw = secrets.token_urlsafe()
+        await self.database.create({"token": hash_token(raw), "user_id": user.id})
+        return raw
+
+    async def destroy_token(self, token: str, user) -> None:
+        await super().destroy_token(hash_token(token), user)
+
+
 def get_database_strategy(
     access_token_db: AccessTokenDatabase[AccessToken] = Depends(
         get_access_token_db
     ),
 ) -> DatabaseStrategy:
-    return DatabaseStrategy(
+    return HashedDatabaseStrategy(
         access_token_db, lifetime_seconds=settings.SESSION_LIFETIME_SECONDS
     )
 

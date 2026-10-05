@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import AccessToken, User
 from app.auth.router import current_active_user
 from app.auth.schemas import UserRead, UserSelfUpdate, UserUpdate
+from app.auth.tokens import hash_token
 from app.auth.users import UserManager, get_user_manager
 from app.config import settings
 from app.db import get_async_session
@@ -93,10 +94,13 @@ async def update_me(
 
     if changes_password:
         # Keep the session that made the change; end every other one.
+        # access_tokens stores hashes, so compare against the hash of the
+        # token this request presented.
         current = _presented_token(request)
+        current_hash = hash_token(current) if current else ""
         await session.execute(
             delete(AccessToken).where(
-                AccessToken.user_id == user.id, AccessToken.token != current
+                AccessToken.user_id == user.id, AccessToken.token != current_hash
             )
         )
         await session.commit()
