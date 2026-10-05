@@ -16,7 +16,7 @@ struct TodayView: View {
     var body: some View {
         TTScreen {
             header
-            DigestHeroCard(index: model.digest?.trends.index, changePercent: model.digest?.trends.changeVsPreviousPercent,
+            DigestHeroCard(index: model.digest?.trends.index,
                            occurrences: model.digest?.trends.occurrences, days: model.digest?.trends.days ?? [],
                            onViewReport: { router.showDigest(weekStart: model.math.addingDays(-6, to: model.today)) })
             CoverageCard(logged: model.loggedSlots, fraction: model.coverageFraction,
@@ -77,7 +77,6 @@ struct TodayView: View {
 /// 7-day digest hero. Shows a placeholder until the digest endpoint lands (M4).
 struct DigestHeroCard: View {
     var index: Double? = nil
-    var changePercent: Int? = nil
     var occurrences: Int? = nil
     var days: [WeeklyDigest.DayTrend] = []
     let onViewReport: () -> Void
@@ -88,9 +87,6 @@ struct DigestHeroCard: View {
                 HStack {
                     StatusBadge("7-Day Digest", tone: .primary, uppercased: true)
                         .background(Color.white.opacity(0.15), in: Capsule())
-                    if let changePercent {
-                        StatusBadge("\(changePercent <= 0 ? "↓" : "↑") \(abs(changePercent))% \(changePercent <= 0 ? "Better" : "Worse")", tone: changePercent <= 0 ? .success : .danger)
-                    }
                     Spacer()
                     Button(action: onViewReport) {
                         HStack(spacing: 2) { Text("View Report"); Image(systemName: "chevron.right") }

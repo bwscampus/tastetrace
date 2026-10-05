@@ -119,3 +119,47 @@ def test_a_meal_is_suspicious_when_a_symptom_follows_it():
     assert suspicion_for(m, symptoms, known, 24, 50)[1] == "correlated"
     # Outside the window nothing is flagged
     assert suspicion_for(m, symptoms, known, 1, 50) == ([], None)
+
+
+def test_only_items_the_triggers_page_lists_upgrade_a_meal_to_correlated():
+    # A confident whole-food row isn't shown on the Triggers page, so it mustn't
+    # make History call the meal a trigger either.
+    m = meal("2026-09-11T19:45:00", "Avocado Sourdough Toast", [("sourdough bread", None)])
+    symptoms = [symptom("2026-09-11T21:29:00", "Acid Reflux")]
+    food_only = [
+        CorrelationRow(
+            food_name="Avocado Sourdough Toast",
+            symptom_name="Acid Reflux",
+            dimension="food",
+            confidence=90,
+        )
+    ]
+    assert suspicion_for(m, symptoms, food_only, 24, 50)[1] == "window"
+
+
+def test_dietary_tags_count_as_ingredients():
+    # Gluten is never typed as an ingredient, only ticked; it still becomes the trigger.
+    def tagged(iso: str, name: str, *tags: str) -> MealRow:
+        row = meal(iso, name, [(name.lower(), None)])
+        row.tags = list(tags)
+        return row
+
+    meals = [
+        tagged("2026-09-01T12:00:00", "Pasta", "gluten"),
+        tagged("2026-09-02T12:00:00", "Bagel", "gluten"),
+        tagged("2026-09-03T12:00:00", "Pizza", "gluten", "dairy"),
+        tagged("2026-09-04T12:00:00", "Rice"),
+        tagged("2026-09-05T12:00:00", "Salad"),
+    ]
+    symptoms = [
+        symptom("2026-09-01T14:00:00", "Bloating"),
+        symptom("2026-09-02T14:00:00", "Bloating"),
+        symptom("2026-09-03T14:00:00", "Bloating"),
+    ]
+    rows = compute_correlations(meals, symptoms, SETTINGS)
+    gluten = next(r for r in rows if r.food_name == "Gluten")
+    assert gluten.dimension == "ingredient"
+    assert (gluten.exposures, gluten.flare_exposures) == (3, 3)
+    assert gluten.confidence == rows[0].confidence
+    dairy = next(r for r in rows if r.food_name == "Dairy")
+    assert dairy.confidence < gluten.confidence

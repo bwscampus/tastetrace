@@ -85,7 +85,7 @@ class ProfilePatch(CamelModel):
     last_name: Annotated[str, StringConstraints(strip_whitespace=True, max_length=60)] | None = None
     display_name: Annotated[str, StringConstraints(strip_whitespace=True, max_length=80)] | None = None
     avatar_emoji: Annotated[str, StringConstraints(strip_whitespace=True, max_length=8)] | None = None
-    discovery_purpose: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
+    discovery_purpose: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None = None
     sensitivity_tags: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]] | None = Field(default=None, max_length=20)
     data_sharing: DataSharing | None = None
     # true stamps onboarding_completed_at (once); false clears it

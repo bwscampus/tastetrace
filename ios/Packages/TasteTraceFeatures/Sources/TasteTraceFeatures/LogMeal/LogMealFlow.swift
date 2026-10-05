@@ -120,7 +120,6 @@ struct LogMealStep1View: View {
                     VStack(alignment: .leading, spacing: 10) {
                         ForEach(model.items) { item in
                             HStack(spacing: 10) {
-                                Text(item.emoji).font(.title3)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.name).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
                                     Text(item.isFromTile ? "Saved tile • \(item.ingredients.count) ingredient\(item.ingredients.count == 1 ? "" : "s")" : "New food")
@@ -203,10 +202,11 @@ struct DishTileRow: View {
     }
 }
 
-/// All saved tiles in a grid; tapping adds or removes a tile from the meal.
+/// All saved tiles in a grid; tapping adds or removes a tile from the meal, the trash button deletes it.
 struct DishLibraryView: View {
     @Environment(\.dismiss) private var dismiss
     let model: LogMealViewModel
+    @State private var pendingDelete: Dish?
 
     var body: some View {
         NavigationStack {
@@ -234,11 +234,32 @@ struct DishLibraryView: View {
                             .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(selected ? TTColor.primary : TTColor.cardBorder, lineWidth: selected ? 2 : 1))
                         }
                         .buttonStyle(.plain)
+                        .overlay(alignment: .bottomTrailing) {
+                            Button { pendingDelete = dish } label: {
+                                Image(systemName: "trash").font(.system(size: 14)).foregroundStyle(TTColor.danger)
+                                    .frame(width: 32, height: 32).background(TTColor.dangerTint, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(10)
+                            .accessibilityLabel("Delete \(dish.name)")
+                        }
+                        .contextMenu {
+                            Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = dish }
+                        }
                     }
                 }
+                ErrorText(model.error)
             }
             .navigationTitle("Grid Library")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .confirmationDialog("Delete this saved dish?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
+                Button("Delete", role: .destructive) {
+                    if let dish = pendingDelete { Task { await model.deleteTile(dish) } }
+                    pendingDelete = nil
+                }
+            } message: {
+                Text("It disappears from your tiles. Meals you already logged keep their foods.")
+            }
         }
     }
 }
@@ -301,7 +322,6 @@ struct MealItemIngredientsCard: View {
         TTCard {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
-                    EmojiCircle(item.emoji, size: 40)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Food \(position) of \(count)\(item.isFromTile ? " • saved tile" : "")")
                             .font(TTFont.captionSemibold).tracking(0.8).textCase(.uppercase).foregroundStyle(TTColor.primary)

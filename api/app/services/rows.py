@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.foods import TAG_NAMES
 from app.domain.rows import IngredientRow, MealRow, SettingsRow, SymptomRow
 from app.domain.rows import CorrelationRow as DomainCorrelation
 from app.domain.time import as_utc
@@ -37,6 +38,7 @@ def meal_row(meal: Meal) -> MealRow:
         ingredient_details=ingredient_rows(meal.ingredient_details),
         notes=meal.notes,
         dish_id=meal.dish_id,
+        tags=[tag for tag in TAG_NAMES if getattr(meal, f"contains_{tag}", False)],
     )
 
 

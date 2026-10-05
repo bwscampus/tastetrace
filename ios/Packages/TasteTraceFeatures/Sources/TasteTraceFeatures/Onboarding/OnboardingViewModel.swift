@@ -54,7 +54,7 @@ final class OnboardingViewModel {
         var subtitle: String {
             switch self {
             case .about: return "Confirm the name and email on your account."
-            case .purpose: return "We'll tailor your digests to what you're after."
+            case .purpose: return "Pick as many as apply. We'll tailor your digests to what you're after."
             case .sharing: return "You can change this anytime in your profile."
             case .meals: return "We'll nudge you to log each meal shortly after you eat."
             case .triggers: return "The minimum number of flares before a food can be called a trigger."
@@ -75,7 +75,7 @@ final class OnboardingViewModel {
     var firstName: String
     var lastName: String
     let email: String
-    var purpose: String?
+    var purposes: Set<String> = []
     var customPurpose = ""
     var sharing: DataSharingChoice?
     var breakfastTime: Date
@@ -105,11 +105,19 @@ final class OnboardingViewModel {
     var isFirstStep: Bool { step == Step.allCases.first }
     var isLastStep: Bool { step == Step.allCases.last }
 
-    /// The purpose saved to the profile: the chosen option without its emoji, or the typed answer.
+    func togglePurpose(_ option: String) {
+        if purposes.contains(option) { purposes.remove(option) } else { purposes.insert(option) }
+    }
+
+    /// The purposes saved to the profile, in list order and joined with "; ": each chosen
+    /// option without its emoji, plus the typed answer for "Something else".
     var resolvedPurpose: String {
-        guard let purpose else { return "" }
-        if purpose == Self.otherPurpose { return customPurpose.trimmingCharacters(in: .whitespacesAndNewlines) }
-        return String(purpose.drop(while: { !$0.isLetter }))
+        var answers = Self.purposeOptions.filter(purposes.contains).map { String($0.drop(while: { !$0.isLetter })) }
+        if purposes.contains(Self.otherPurpose) {
+            let custom = customPurpose.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !custom.isEmpty { answers.append(custom) }
+        }
+        return answers.joined(separator: "; ")
     }
 
     var canContinue: Bool {

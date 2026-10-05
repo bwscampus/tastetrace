@@ -25,6 +25,8 @@ class MealRow:
     ingredient_details: list[IngredientRow] | None = None
     notes: str | None = None
     dish_id: int | None = None
+    # Dietary flags the user ticked ("gluten", "dairy", ...), see foods.TAG_NAMES
+    tags: list[str] = field(default_factory=list)
 
 
 @dataclass

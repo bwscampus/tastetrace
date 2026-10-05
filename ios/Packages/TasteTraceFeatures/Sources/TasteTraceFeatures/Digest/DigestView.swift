@@ -103,8 +103,8 @@ struct TrendsView: View {
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(deltaLabel).font(TTFont.bodySemibold)
-                        Text(String(format: "vs All-Time (%.1f)", Formatting.outOfFive(digest.trends.baselineIndex))).font(TTFont.caption).opacity(0.8)
+                        Text(String(format: "%.1f / 5", Formatting.outOfFive(digest.trends.baselineIndex))).font(TTFont.bodySemibold)
+                        Text("All-Time Avg").font(TTFont.caption).opacity(0.8)
                     }
                     .padding(10).background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
                 }
@@ -148,12 +148,6 @@ struct TrendsView: View {
             linkCard(icon: "waveform.path.ecg", tint: TTColor.primary, title: "View Symptom Occurrence Cards", subtitle: "Severity, duration and peak days per symptom", border: TTColor.primary)
         }
         .buttonStyle(.plain)
-    }
-
-    private var deltaLabel: String {
-        let delta = digest.trends.deltaVsBaselinePercent
-        if delta == 0 { return "↓ Same as Avg" }
-        return delta < 0 ? "↓ \(abs(delta))% Better" : "↑ \(delta)% Worse"
     }
 
     private func stat(_ value: String, _ label: String, _ color: Color) -> some View {

@@ -178,3 +178,25 @@ async def test_the_watchlist_normalises_entries_and_reports_confidence(client):
 
     assert (await client.delete(f"/api/watchlist/{listed[0]['id']}", headers=auth)).status_code == 204
     assert (await client.delete("/api/watchlist/999", headers=auth)).status_code == 404
+
+
+async def test_ticking_a_dietary_tag_on_a_meal_refreshes_the_triggers(client):
+    auth = await register_and_login(client, "taylor@example.com")
+    await seed_week(client, auth)
+
+    def gluten_cards(body):
+        return [c for c in body["cards"] if c["item"] == "Gluten"]
+
+    params = {"dimension": "ingredient", "minConfidence": 0}
+    before = await client.get("/api/insights/triggers", headers=auth, params=params)
+    assert gluten_cards(before.json()) == []
+
+    # Editing the meals, not logging a symptom, is what changes the picture here
+    for meal in (await client.get("/api/meals", headers=auth)).json():
+        edited = await client.put(f"/api/meals/{meal['id']}", headers=auth, json={"containsGluten": True})
+        assert edited.status_code == 200, edited.text
+
+    after = await client.get("/api/insights/triggers", headers=auth, params=params)
+    [card] = [c for c in gluten_cards(after.json()) if c["symptomName"] == "Acid Reflux"]
+    assert (card["exposures"], card["flareExposures"]) == (2, 2)
+    assert card["evidence"], "the tagged meals should back the card"

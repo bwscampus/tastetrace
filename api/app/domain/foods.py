@@ -1,7 +1,8 @@
 """Turning a meal into the items an association can be drawn against.
 
 A meal contributes three kinds of item: the whole foods parsed out of its
-name, the ingredients, and the cooking styles used on them.
+name, the ingredients (plus the dietary tags the user ticked, such as gluten
+or dairy), and the cooking styles used on them.
 """
 
 import re
@@ -17,6 +18,17 @@ DIETARY_TAGS = (
     "gluten-free", "dairy-free", "grain-free", "sugar-free",
     "glutenfree", "dairyfree", "grainfree", "sugarfree",
 )
+
+# The meal's contains_* flags, by suffix, and how each shows up as an ingredient.
+# A tagged meal counts as an exposure to that ingredient, so "Gluten" can be
+# flagged as a trigger even when no ingredient is literally named gluten.
+TAG_NAMES = {
+    "gluten": "Gluten",
+    "dairy": "Dairy",
+    "grains": "Grains",
+    "sugar": "Sugar",
+    "nuts": "Nuts",
+}
 
 _SEPARATORS = (",", "&", " and ", " with ", "+", "/")
 
@@ -115,6 +127,9 @@ def meal_items(meal: MealRow) -> list[MealItem]:
         names = parse_meal_into_foods(meal.name)
     for name in names:
         add(name, "ingredient")
+    for tag in meal.tags:
+        if tag in TAG_NAMES:
+            add(TAG_NAMES[tag], "ingredient")
 
     for detail in meal.ingredient_details or []:
         if detail.cook_method:
