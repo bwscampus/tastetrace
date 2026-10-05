@@ -1,18 +1,32 @@
-# Weekly dependency update PRs (Production Standard OPS-2). CI must pass
-# before merging one.
+# Production Standard OPS-2: weekly dependency updates, all in ONE pull request.
+#
+# The API (uv), the web app (npm) and GitHub Actions all join the same
+# multi-ecosystem group, so a week's updates land together and CI runs once
+# over the combined change. Lockfiles are regenerated against the final
+# manifests instead of being text-merged across separate PRs, which is how a
+# stale uv.lock can break Railway's `uv sync --locked` build.
+#
+# If the grouped PR falls behind main, comment `@dependabot rebase` rather than
+# clicking "Update branch". Security updates still arrive as their own PRs.
 version: 2
+
+multi-ecosystem-groups:
+  all-dependencies:
+    schedule:
+      interval: "weekly"
+
 updates:
   - package-ecosystem: "uv"
     directory: "/api"
-    schedule: { interval: "weekly" }
-    open-pull-requests-limit: 5
+    patterns: ["*"]
+    multi-ecosystem-group: "all-dependencies"
+
   - package-ecosystem: "npm"
     directory: "/app"
-    schedule: { interval: "weekly" }
-    open-pull-requests-limit: 5
-    groups:
-      minor-and-patch:
-        update-types: ["minor", "patch"]
+    patterns: ["*"]
+    multi-ecosystem-group: "all-dependencies"
+
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule: { interval: "weekly" }
+    patterns: ["*"]
+    multi-ecosystem-group: "all-dependencies"
