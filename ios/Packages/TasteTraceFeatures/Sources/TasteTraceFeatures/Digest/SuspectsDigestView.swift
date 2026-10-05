@@ -72,7 +72,6 @@ struct SuspectsDigestView: View {
             }
         }
 
-        TimingWindowsCard(windows: suspects.timingWindows)
         SynthesisCard(suspects: suspects, model: model)
 
         if !suspects.ingredients.isEmpty {
@@ -91,37 +90,6 @@ struct SuspectsDigestView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
-    }
-}
-
-struct TimingWindowsCard: View {
-    let windows: SuspectsDigest.TimingWindows
-
-    var body: some View {
-        TTCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Pre-Flare Timing Windows").font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
-                HStack(spacing: 8) {
-                    window("0 – 4 Hours", windows.early, "Rapid upper GI onset", TTColor.danger, TTColor.dangerTint)
-                    window("4 – 12 Hours", windows.mid, "Small bowel digestion", TTColor.warning, TTColor.warningTint)
-                    window("12 – 24 Hours", windows.late, "Colonic fermentation", TTColor.primary, TTColor.infoTint)
-                }
-            }
-        }
-    }
-
-    private func window(_ title: String, _ w: SuspectsDigest.TimingWindow, _ note: String, _ color: Color, _ tint: Color) -> some View {
-        VStack(spacing: 4) {
-            Text(title.uppercased()).font(.system(size: 11, weight: .bold)).foregroundStyle(color)
-            Text("\(w.flares) Flare\(w.flares == 1 ? "" : "s")").font(TTFont.screenTitle).foregroundStyle(color)
-            Text(w.topIngredients.isEmpty ? "None" : w.topIngredients.map { $0.capitalizedFirst }.joined(separator: ", "))
-                .font(TTFont.captionSemibold).foregroundStyle(TTColor.navy).multilineTextAlignment(.center).lineLimit(3)
-            Text(note).font(.system(size: 11)).foregroundStyle(color.opacity(0.9)).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(10)
-        .background(tint, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(color.opacity(0.5), lineWidth: 1))
     }
 }
 
