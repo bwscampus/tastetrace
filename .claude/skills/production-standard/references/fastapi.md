@@ -43,6 +43,22 @@ fastapi-users' `PATCH /users/me` changes email or password with only the session
   clear the auth cookie, 204. Foreign keys must be `ondelete="CASCADE"` so user data goes too.
   The built-in `DELETE /users/{id}` is superuser-only and does **not** satisfy AUTH-6.
 
+## DB-8: session tokens stored hashed
+
+fastapi-users' stock `DatabaseStrategy` stores the raw token as the `access_tokens` PK, so anyone who can
+read the DB can log in as any user. Use `HashedDatabaseStrategy` (see `mindrep/app/auth/backend.py`):
+store `hash_token(raw)` (base64url SHA-256, 43 chars), hash incoming values before lookup, and compare
+hashes anywhere code filters by token (e.g. "keep this session" on password change). Migrate existing
+rows in place with SQL so nobody is logged out. Check: `grep -n "DatabaseStrategy(" app/auth/backend.py`
+must show the hashed subclass.
+
+## DB-6: least-privilege role
+
+The app must not connect as `postgres`. Expect `app/db_roles.py` run after `alembic upgrade head` in the
+start command, `migrations/env.py` preferring `MIGRATION_DATABASE_URL`, and a Postgres-backed test that
+proves the app role can't run DDL (see `mindrep/tests/test_postgres.py`). Never log `APP_DB_PASSWORD`; build
+engines with `hide_parameters=True` so failed statements don't echo bind values.
+
 ## API-1: ownership
 
 Every query on user data filters by `user.id` from `current_active_user`. Pattern: a dependency

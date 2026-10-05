@@ -96,7 +96,7 @@ the database, API routes, rendering, or deploy config. It re-checks these rules.
 | OPS-1 | `.railway/railway.ts` (`checkSuites: false` ×3) and Railway dashboard | Turn on **Wait for CI**, so a red build never deploys. |
 | OPS-3 | GitHub → Settings → Code security | Secret scanning and push protection on. |
 | OPS-4 | GitHub → Settings → Rules | Protect `main`: PR required, the `CI / api` and `CI / app` checks must pass. |
-| DB-5 | Railway → both Postgres services → Backups | Turn on scheduled backups and rehearse one restore. |
+| DB-5 | Railway → both Postgres services → Backups | ✅ Done 2026-10-05: daily (6-day) + weekly (27-day) snapshots and point-in-time recovery on `tastetrace-api-db` and `Postgres`. Still to do: rehearse one restore (`railway postgres pitr restore --at 1h` into a new service, check it, delete it). |
 | OPS-6 | Sentry (free tier) and an uptime monitor | Error tracking, plus a monitor on `/api/health`. |
 | DB-6 | Railway → `tastetrace-api` and `tastetrace` services | After `security/db-hardening` is deployed, do the least-privilege cut-over in the README ("Database roles"). Until then both apps still connect as `postgres`. |
 | PRIV-1 | Teacher / school | Approve the privacy-policy text (health data). |

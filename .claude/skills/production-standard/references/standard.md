@@ -27,9 +27,15 @@ Every rule has an ID. Code reviews, the `production-standard` agent skill, and e
 | DB-2 | **Versioned migrations.** Every schema change is a reviewed file (Alembic, SQL files, Drizzle `generate`), applied automatically on deploy. No `db push` against production. Destructive statements (`DROP`, column removal) need a deliberate, separate migration. | Lost data is unrecoverable |
 | DB-3 | **Secrets live in the platform's env vars only.** `.env` is gitignored; `.env.example` holds placeholders. A secret that was ever committed (or sits in a public repo's client code) is burned: rotate it. | OWASP A04 Cryptographic Failures; GitHub secret scanning |
 | DB-4 | **Encrypted or private connection to the database.** Use Railway's private `*.railway.internal` host, or TLS with certificate verification. `rejectUnauthorized: false` on a public host is not TLS. | OWASP A04 |
-| DB-5 | **Backups on, restore rehearsed.** Enable the platform's scheduled backups and do one practice restore into a scratch database. Write the steps in the README. | Railway / Vercel production checklists |
-| DB-6 | **Least privilege.** The running app should not use the superuser role. (Recommended, not required, at class scale.) | ASVS L1 config |
-| DB-7 | **Know your PII.** List what personal data you store and why. Don't collect what you don't need. | OWASP A06 Insecure Design |
+| DB-5 | **Backups on, restore rehearsed.** Enable the platform's scheduled backups and do one practice restore into a scratch database. Write the steps in the README. On Railway (Pro plan): daily + weekly snapshot schedules, plus point-in-time recovery (`railway postgres pitr enable`), which lets you restore to any second in roughly the last 4 weeks. | Railway / Vercel production checklists |
+| DB-6 | **Least privilege.** The running app connects as a role that can only read and write rows (`SELECT/INSERT/UPDATE/DELETE`): no DDL, not superuser, no `BYPASSRLS`. Migrations run as the owner via a separate `MIGRATION_DATABASE_URL`. An idempotent step after migrations (re)creates the role and grants on every deploy. If an attacker gets SQL execution through the app, they can't drop tables or read other databases. | ASVS L1 config; OWASP A01 |
+| DB-7 | **Know your PII.** List what personal data you store and why. Don't collect what you don't need. Encrypt especially sensitive free text (health notes, minors' journals) at the application level when the threat model calls for it. | OWASP A06 Insecure Design |
+| DB-8 | **Store only hashes of tokens.** Session, API, reset, and verification tokens are stored as SHA-256 hashes, never raw, so a leaked database or backup can't be replayed to log in as users. | OWASP Session Management Cheat Sheet |
+
+> **About RLS (row-level security):** RLS makes Postgres itself enforce "users only see their own rows". It
+> has **no effect when the app connects as a superuser or table owner**, which is the default on Railway. Get
+> DB-6 right first. RLS is then a useful backstop for multi-tenant data, and it's mandatory if clients ever
+> query the database directly (e.g. Supabase).
 
 ## AUTH: Accounts and sessions
 
@@ -100,6 +106,9 @@ Every rule has an ID. Code reviews, the `production-standard` agent skill, and e
 - OWASP ASVS 5.0: https://owasp.org/www-project-application-security-verification-standard/
 - OWASP Password Storage Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
 - OWASP File Upload Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html
+- OWASP Session Management Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
+- Railway encryption at rest (staff): https://station.railway.com/questions/are-databases-encrypted-at-rest-0e719d6c
+- Railway Postgres backups and PITR: https://docs.railway.com/guides/postgres-backups-restores
 - Vercel production checklist: https://vercel.com/docs/production-checklist
 - Railway best practices: https://docs.railway.com/overview/best-practices
 - Railway staff on `X-Real-IP` / `X-Forwarded-For`: https://station.railway.com/questions/security-critical-questions-on-edge-prox-8fddd775

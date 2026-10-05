@@ -59,7 +59,8 @@ List these for the human. You can't do them from the repo:
 | OPS-3 | GitHub → Settings → Code security | Secret scanning + push protection on |
 | OPS-4 | GitHub → Settings → Rules | Protect `main`: PR required, CI must pass, 1 review |
 | OPS-1 | Railway → Service → Settings → Deploy | "Wait for CI" on (`checkSuites: true` in `railway.ts`) |
-| DB-5 | Railway → Postgres → Backups | Scheduled backups on; practice one restore |
+| DB-5 | Railway (Pro) → Postgres → Backups, or `railway postgres pitr schedule set --daily --weekly` + `railway postgres pitr enable` | Snapshots + point-in-time recovery on; practice one restore (`railway postgres pitr restore --at 1h`) |
+| DB-6 | Railway → app service → Variables | Sealed `APP_DB_PASSWORD`; `MIGRATION_DATABASE_URL` = owner URL; `DATABASE_URL` = `app_rw_login` URL |
 | OPS-5 | Railway → Environments | Separate `staging` env with its own DB |
 | OPS-6 | Sentry (free) + an uptime monitor | Point the monitor at `/api/health` |
 | OPS-7 | README | Rollback steps: Railway → Deployments → previous → Redeploy |
