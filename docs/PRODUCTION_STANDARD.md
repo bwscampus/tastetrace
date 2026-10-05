@@ -1,3 +1,6 @@
+> **Snapshot** of the class Production Standard, kept here so the rule IDs in `docs/SECURITY-GAPS.md` resolve on GitHub.
+> The canonical copy lives in the global `production-standard` Claude Code skill (`~/.claude/skills/production-standard/references/standard.md`); when in doubt, it wins.
+
 # Production Standard
 
 This is the bar every class project must clear before real users (and real data) touch it.
@@ -84,6 +87,12 @@ Every rule has an ID. Code reviews, the `production-standard` agent skill, and e
 | PRIV-1 | **A privacy policy is linked wherever you collect data** (signup, waitlist, app store listing): what you collect, why, who sees it, how to delete it. | App Store, COPPA, state privacy laws |
 | PRIV-2 | **Under-13 users need verifiable parental consent** before you collect personal information (US COPPA). If you serve minors, decide your age gate with your teacher. | FTC COPPA Rule |
 | PRIV-3 | **Health, mental-health, and minors' data are sensitive:** minimise it, never put it in logs or analytics, and give users export and delete. | FTC Health Breach Notification Rule; GDPR Art. 9 |
+
+## LIC: Licensing
+
+| ID | Rule | Why / source |
+|---|---|---|
+| LIC-1 | **Every repo is licensed under PolyForm Noncommercial 1.0.0 from its first commit.** `LICENSE.md` = a `Required Notice: Copyright <year> The <Project> founders (<repo URL>)` line plus the official text, verbatim. README has a License section; `package.json` says `"license": "PolyForm-Noncommercial-1.0.0"`. Never keep a scaffold's default license (often MIT). Repos are public so founders can build in public, but anyone may use the code only noncommercially and the founders keep all commercial rights. | [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) |
 
 ## OPS: Deployment and operations
 

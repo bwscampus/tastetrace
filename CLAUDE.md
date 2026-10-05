@@ -10,5 +10,6 @@
 
 Before finishing any change that touches auth, accounts, the database or migrations, API routes,
 rendering of user data, uploads, logging, env/deploy config, or CI, run the
-**`production-standard`** skill (`.claude/skills/production-standard/`). Don't call work done
+global **`production-standard`** skill (and **`database-security`** for database, migration, or
+Railway DB changes). Don't call work done
 while a Critical or High finding is open. Track Medium/Low findings in `docs/SECURITY-GAPS.md`.
