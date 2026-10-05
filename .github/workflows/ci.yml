@@ -48,7 +48,9 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: uv sync --frozen
+      # --locked (not --frozen): fail if uv.lock is out of date with
+      # pyproject.toml, exactly as Railway's `uv sync --locked` build does.
+      - run: uv sync --locked
       - name: Tests
         env:
           # Enables the Postgres-only tests: the app role's privileges
