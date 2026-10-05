@@ -7,7 +7,7 @@ import SymptomForm from "@/components/symptom/SymptomForm";
 import SymptomCard from "@/components/symptom/SymptomCard";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
-import { SymptomSeverity } from "@shared/schema";
+import { SymptomSeverity, type Symptom } from "@shared/schema";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft } from "lucide-react";
 import { commonSymptoms } from "@/lib/constants";
@@ -63,7 +63,7 @@ const EditSymptom = () => {
   }, []);
 
   // Fetch symptom data from API if not in sessionStorage
-  const { data: symptomData } = useQuery({
+  const { data: symptomData } = useQuery<Symptom>({
     queryKey: ["/api/symptoms", symptomId],
     enabled: !!(symptomId && isLoading),
   });

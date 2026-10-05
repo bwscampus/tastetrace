@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import MealForm from "@/components/meal/MealForm";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
-import { MealType } from "@shared/schema";
+import { MealType, type Meal } from "@shared/schema";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft } from "lucide-react";
 
@@ -88,7 +88,7 @@ const EditMeal = () => {
   }, [setValue]);
 
   // Fetch meal data from API if not in sessionStorage
-  const { data: mealData } = useQuery({
+  const { data: mealData } = useQuery<Meal>({
     queryKey: ["/api/meals", mealId],
     enabled: !!(mealId && isLoading),
   });
@@ -105,7 +105,7 @@ const EditMeal = () => {
         
         // Set form values
         setValue("name", mealData.name);
-        setValue("mealType", mealData.mealType);
+        setValue("mealType", mealData.mealType as MealType);
         setValue("notes", mealData.notes || "");
         setValue("ingredients", mealData.ingredients ? mealData.ingredients.join(", ") : "");
         setValue("containsGluten", mealData.containsGluten || false);
