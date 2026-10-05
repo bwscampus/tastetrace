@@ -1,0 +1,18 @@
+# Weekly dependency update PRs (Production Standard OPS-2). CI must pass
+# before merging one.
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/api"
+    schedule: { interval: "weekly" }
+    open-pull-requests-limit: 5
+  - package-ecosystem: "npm"
+    directory: "/app"
+    schedule: { interval: "weekly" }
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule: { interval: "weekly" }

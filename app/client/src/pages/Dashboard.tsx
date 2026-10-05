@@ -4,13 +4,16 @@ import { Button } from "@/components/ui/button";
 import DashboardEntries from "@/components/dashboard/DashboardEntries";
 import InsightCard from "@/components/dashboard/InsightCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Correlation } from "@shared/schema";
+
+type EntriesByDay = React.ComponentProps<typeof DashboardEntries>["entries"];
 
 const Dashboard = () => {
-  const { data: entriesData, isLoading: isEntriesLoading } = useQuery({
+  const { data: entriesData, isLoading: isEntriesLoading } = useQuery<EntriesByDay>({
     queryKey: ["/api/entries/recent"],
   });
 
-  const { data: correlations, isLoading: isCorrelationsLoading } = useQuery({
+  const { data: correlations, isLoading: isCorrelationsLoading } = useQuery<Correlation[]>({
     queryKey: ["/api/correlations"],
   });
 
@@ -43,7 +46,7 @@ const Dashboard = () => {
                   ))}
                 </div>
               ) : Object.keys(entriesData || {}).length ? (
-                <DashboardEntries entries={entriesData} />
+                <DashboardEntries entries={entriesData ?? {}} />
               ) : (
                 <div className="text-center py-8">
                   <p className="text-gray-500 mb-4">No entries yet. Start tracking your meals and symptoms!</p>
@@ -69,9 +72,9 @@ const Dashboard = () => {
                     <Skeleton key={index} className="h-32 w-full" />
                   ))}
                 </div>
-              ) : correlations?.length > 0 ? (
+              ) : (correlations?.length ?? 0) > 0 ? (
                 <div className="space-y-4">
-                  {correlations
+                  {correlations!
                     .filter((correlation: any) => correlation.confidence > 30)
                     .slice(0, 3)
                     .map((correlation: any) => (

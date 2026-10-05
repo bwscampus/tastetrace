@@ -18,18 +18,25 @@ public final class AuthSession {
     private let client: APIClient
     private let tokenStore: TokenStore
     private let tokenBox: TokenBox
+    private let cacheDirectory: URL
 
     /// Builds the session and the client it authenticates.
-    public static func make(baseURL: URL, tokenStore: TokenStore, transport: Transport = URLSessionTransport()) -> AuthSession {
+    public static func make(
+        baseURL: URL,
+        tokenStore: TokenStore,
+        transport: Transport = URLSessionTransport(),
+        cacheDirectory: URL = JSONFileStore<User>.defaultDirectory
+    ) -> AuthSession {
         let box = TokenBox(tokenStore.load())
         let client = APIClient(baseURL: baseURL, transport: transport, tokenProvider: box)
-        return AuthSession(client: client, tokenStore: tokenStore, tokenBox: box)
+        return AuthSession(client: client, tokenStore: tokenStore, tokenBox: box, cacheDirectory: cacheDirectory)
     }
 
-    init(client: APIClient, tokenStore: TokenStore, tokenBox: TokenBox) {
+    init(client: APIClient, tokenStore: TokenStore, tokenBox: TokenBox, cacheDirectory: URL) {
         self.client = client
         self.tokenStore = tokenStore
         self.tokenBox = tokenBox
+        self.cacheDirectory = cacheDirectory
     }
 
     public var api: APIClient { client }
@@ -70,6 +77,13 @@ public final class AuthSession {
         state = .signedOut
     }
 
+    /// Deletes the account on the server, then everything about it on this device.
+    public func deleteAccount(password: String) async throws {
+        try await client.deleteAccount(password: password)
+        await clearToken()
+        state = .signedOut
+    }
+
     /// Called when any request comes back 401.
     public func handleUnauthorized() async {
         await clearToken()
@@ -90,10 +104,13 @@ public final class AuthSession {
         state = .signedIn(auth.user)
     }
 
+    /// Forgets the token and every cached file, so the next person to sign in
+    /// on this phone never sees the previous user's journal.
     private func clearToken() async {
         tokenStore.clear()
         tokenBox.token = nil
         CachedUser.clear()
+        JSONFileStore<User>.clearAll(directory: cacheDirectory)
     }
 
 }

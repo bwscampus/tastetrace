@@ -18,7 +18,7 @@ final class AuthViewModelTests: XCTestCase {
 
         await model.submit()
         XCTAssertEqual(model.error, "Incorrect email or password.")
-        XCTAssertEqual(transport.requests.last?.url?.path, "/api/auth/token")
+        XCTAssertEqual(transport.requests.last?.url?.path, "/api/auth/bearer/login")
     }
 }
 

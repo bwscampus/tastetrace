@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     DATABASE_URL: str = (
         "postgresql+asyncpg://postgres:postgres@localhost:5432/app"
     )
+    # Owner credentials for migrations and app_db_roles. In production the
+    # app's DATABASE_URL is the restricted app_rw_login role (no DDL), so
+    # schema changes need a separate URL. Unset means "same as DATABASE_URL".
+    MIGRATION_DATABASE_URL: str | None = None
+    # Password for the app_rw_login role, created by `python -m app.db_roles`.
+    # Unset (dev, tests) skips creating the login role.
+    APP_DB_PASSWORD: str | None = None
     PUBLIC_BASE_URL: str = "http://localhost:8000"
 
     ALLOWED_ORIGINS: CsvList = Field(default_factory=list)
@@ -91,7 +98,7 @@ class Settings(BaseSettings):
         mode="before",
     )(_split_csv)
 
-    @field_validator("DATABASE_URL", mode="before")
+    @field_validator("DATABASE_URL", "MIGRATION_DATABASE_URL", mode="before")
     @classmethod
     def _coerce_async_driver(cls, value: str) -> str:
         """Railway hands out `postgresql://`; async SQLAlchemy needs asyncpg.
@@ -110,6 +117,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT == "production"
+
+    @property
+    def migration_database_url(self) -> str:
+        return self.MIGRATION_DATABASE_URL or self.DATABASE_URL
 
     @computed_field
     @property

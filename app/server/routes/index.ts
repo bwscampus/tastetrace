@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { storage } from "../storage";
 import { setupAuth } from "../auth";
-import { registerTokenRoutes } from "../tokenAuth";
+import { createWaitlistLimiter } from "../rateLimit";
 import { registerMealRoutes } from "./meals";
 import { registerSymptomRoutes } from "./symptoms";
 import { registerEntryRoutes } from "./entries";
@@ -41,7 +41,7 @@ export function registerRoutes(app: Express): void {
     next();
   });
 
-  app.post("/api/waitlist", async (req: Request, res: Response) => {
+  app.post("/api/waitlist", createWaitlistLimiter(), async (req: Request, res: Response) => {
     const parsed = waitlistSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: "Enter a valid email address" });
@@ -58,9 +58,8 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  // Cookie sessions (web) and bearer tokens (mobile) both end up as req.user
+  // Cookie sessions for the web client (the iOS app uses the Python API)
   setupAuth(app);
-  registerTokenRoutes(app);
 
   // Forgot password endpoint
   app.post('/api/forgot-password', async (req: Request, res: Response) => {
@@ -84,8 +83,9 @@ export function registerRoutes(app: Express): void {
       // 3. Send an email with the reset link
       // 
       // For this demo, we'll just return a success message
-      console.log(`Password reset requested for: ${email}`);
-      
+      // Never log the address (API-8). Reset email is not built yet; see
+      // docs/SECURITY-GAPS.md.
+
       res.status(200).json({ 
         message: "If an account with that email exists, a password reset link has been sent." 
       });

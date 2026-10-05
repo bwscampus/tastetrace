@@ -44,6 +44,13 @@ MealTypeName = Literal["Breakfast", "Lunch", "Dinner", "Snack"]
 DataSharing = Literal["private", "practitioner", "research"]
 ClockTime = Annotated[str, StringConstraints(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
 Trimmed = Annotated[str, StringConstraints(strip_whitespace=True)]
+# Request-size caps (API-2): every free-text field and list a client can send
+# is bounded, so one request cannot store megabytes or stall correlation work.
+Notes = Annotated[str, StringConstraints(max_length=2000)]
+TzName = Annotated[str, StringConstraints(max_length=64)]
+SeverityName = Annotated[str, StringConstraints(max_length=20)]
+IngredientName = Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)]
+IngredientList = Annotated[list[IngredientName], Field(max_length=50)]
 
 
 class CamelModel(BaseModel):
@@ -150,11 +157,11 @@ class MealCreate(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
     meal_type: MealTypeName
     timestamp: UtcDatetime | None = None
-    tz: str | None = None
-    notes: str | None = None
+    tz: TzName | None = None
+    notes: Notes | None = None
     is_custom: bool | None = True
-    ingredients: list[str] | None = None
-    ingredient_details: list[IngredientDetail] | None = None
+    ingredients: IngredientList | None = None
+    ingredient_details: Annotated[list[IngredientDetail], Field(max_length=50)] | None = None
     dish_id: int | None = None
     contains_gluten: bool = False
     contains_dairy: bool = False
@@ -167,10 +174,10 @@ class MealPatch(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)] | None = None
     meal_type: MealTypeName | None = None
     timestamp: UtcDatetime | None = None
-    tz: str | None = None
-    notes: str | None = None
-    ingredients: list[str] | None = None
-    ingredient_details: list[IngredientDetail] | None = None
+    tz: TzName | None = None
+    notes: Notes | None = None
+    ingredients: IngredientList | None = None
+    ingredient_details: Annotated[list[IngredientDetail], Field(max_length=50)] | None = None
     contains_gluten: bool | None = None
     contains_dairy: bool | None = None
     contains_grains: bool | None = None
@@ -199,12 +206,12 @@ class SymptomRead(CamelModel):
 class SymptomCreate(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
     catalog_key: Annotated[str, StringConstraints(max_length=80)] | None = None
-    severity: str | None = None
+    severity: SeverityName | None = None
     intensity: Annotated[int, Field(ge=1, le=5)] | None = None
     duration_minutes: Annotated[int, Field(ge=0, le=60 * 24 * 7)] | None = None
     timestamp: UtcDatetime | None = None
-    tz: str | None = None
-    notes: str | None = None
+    tz: TzName | None = None
+    notes: Notes | None = None
 
     @model_validator(mode="after")
     def _needs_a_level(self) -> "SymptomCreate":
@@ -215,13 +222,13 @@ class SymptomCreate(CamelModel):
 
 class SymptomPatch(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)] | None = None
-    severity: str | None = None
+    severity: SeverityName | None = None
     intensity: Annotated[int, Field(ge=1, le=5)] | None = None
     duration_minutes: Annotated[int, Field(ge=0, le=60 * 24 * 7)] | None = None
     catalog_key: Annotated[str, StringConstraints(max_length=80)] | None = None
     timestamp: UtcDatetime | None = None
-    tz: str | None = None
-    notes: str | None = None
+    tz: TzName | None = None
+    notes: Notes | None = None
 
 
 class SymptomBatchItem(CamelModel):
@@ -232,7 +239,7 @@ class SymptomBatchItem(CamelModel):
 
 class SymptomBatch(CamelModel):
     timestamp: UtcDatetime | None = None
-    tz: str | None = None
+    tz: TzName | None = None
     duration_minutes: Annotated[int, Field(ge=0, le=60 * 24 * 7)] | None = None
     notes: Annotated[str, StringConstraints(max_length=2000)] | None = None
     items: Annotated[list[SymptomBatchItem], Field(min_length=1, max_length=20)]
@@ -287,7 +294,7 @@ class DishRead(CamelModel):
 class DishCreate(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
     emoji: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)] = "🍽️"
-    ingredients: list[IngredientDetail] = Field(default_factory=list)
+    ingredients: list[IngredientDetail] = Field(default_factory=list, max_length=50)
     contains_gluten: bool = False
     contains_dairy: bool = False
     contains_grains: bool = False
@@ -298,7 +305,7 @@ class DishCreate(CamelModel):
 class DishPatch(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)] | None = None
     emoji: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)] | None = None
-    ingredients: list[IngredientDetail] | None = None
+    ingredients: Annotated[list[IngredientDetail], Field(max_length=50)] | None = None
     contains_gluten: bool | None = None
     contains_dairy: bool | None = None
     contains_grains: bool | None = None
@@ -307,7 +314,7 @@ class DishPatch(CamelModel):
 
 
 class DishLogOverrides(CamelModel):
-    ingredient_details: list[IngredientDetail] | None = None
+    ingredient_details: Annotated[list[IngredientDetail], Field(max_length=50)] | None = None
 
 
 class DishLog(CamelModel):
@@ -356,9 +363,9 @@ class DayMarker(CamelModel):
 
 
 class SynthesisRequest(CamelModel):
-    week_start: str | None = None
+    week_start: Annotated[str, StringConstraints(max_length=10)] | None = None
     symptom: Annotated[str, StringConstraints(max_length=80)] | None = None
-    tz: str | None = None
+    tz: TzName | None = None
 
 
 class SynthesisRead(CamelModel):

@@ -3,8 +3,8 @@ import { randomUUID } from "crypto";
 import { db } from "./db";
 import { IStorage } from "./storage";
 import { 
-  users, apiTokens, userSettings, meals, symptoms, customSymptoms, correlations, waitlistSignups, dishes, watchlist, aiSyntheses,
-  User, ProfilePatch, ApiToken, UserSettings, SettingsPatch,
+  users, userSettings, meals, symptoms, customSymptoms, correlations, waitlistSignups, dishes, watchlist, aiSyntheses,
+  User, ProfilePatch, UserSettings, SettingsPatch,
   Meal, Symptom, CustomSymptom, Correlation, Dish, WatchlistItem, AiSynthesis,
   InsertUser, InsertMeal, UpdateMeal, InsertSymptom, UpdateSymptom, InsertCustomSymptom, InsertDish,
   IngredientDetail, SymptomSeverity
@@ -42,7 +42,8 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    // Case-insensitive: older rows may have been stored with mixed case
+    const [user] = await db.select().from(users).where(sql`lower(${users.email}) = ${email.trim().toLowerCase()}`);
     return user;
   }
 
@@ -72,35 +73,6 @@ export class DatabaseStorage implements IStorage {
     const candidates = [meal?.t, symptom?.t].filter((t): t is Date => !!t);
     if (candidates.length === 0) return undefined;
     return new Date(Math.min(...candidates.map((t) => t.getTime())));
-  }
-
-  // API token operations
-  async createApiToken(token: { userId: string; tokenHash: string; deviceName: string | null; expiresAt: Date }): Promise<ApiToken> {
-    const [created] = await db.insert(apiTokens).values(token).returning();
-    return created;
-  }
-
-  async getApiTokenByHash(tokenHash: string): Promise<ApiToken | undefined> {
-    const [token] = await db.select().from(apiTokens).where(eq(apiTokens.tokenHash, tokenHash));
-    return token;
-  }
-
-  async touchApiToken(id: number, expiresAt: Date): Promise<void> {
-    await db.update(apiTokens).set({ lastUsedAt: new Date(), expiresAt }).where(eq(apiTokens.id, id));
-  }
-
-  async listApiTokens(userId: string): Promise<ApiToken[]> {
-    return await db.select().from(apiTokens)
-      .where(and(eq(apiTokens.userId, userId), sql`${apiTokens.revokedAt} IS NULL`))
-      .orderBy(desc(apiTokens.createdAt));
-  }
-
-  async revokeApiToken(id: number, userId: string): Promise<boolean> {
-    const revoked = await db.update(apiTokens)
-      .set({ revokedAt: new Date() })
-      .where(and(eq(apiTokens.id, id), eq(apiTokens.userId, userId), sql`${apiTokens.revokedAt} IS NULL`))
-      .returning({ id: apiTokens.id });
-    return revoked.length > 0;
   }
 
   // Settings operations

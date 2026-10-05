@@ -16,6 +16,8 @@ final class ProfileViewModel {
     var isSaving = false
     var error: String?
     var saved = false
+    var deletePassword = ""
+    var isDeleting = false
 
     private let env: AppEnvironment
     init(env: AppEnvironment) { self.env = env }
@@ -59,7 +61,27 @@ final class ProfileViewModel {
         JSONFileStore<UserSettings>.clearAll()
     }
 
-    func signOut() async { await env.session.signOut() }
+    func signOut() async {
+        await env.session.signOut()
+        await env.watchlist.reset()
+    }
+
+    /// Permanently deletes the account and its data (App Store guideline
+    /// 5.1.1(v)). Returns true once the account is gone.
+    func deleteAccount() async -> Bool {
+        isDeleting = true
+        defer { isDeleting = false; deletePassword = "" }
+        do {
+            try await env.run { try await env.session.deleteAccount(password: deletePassword) }
+            await env.watchlist.reset()
+            return true
+        } catch let apiError as APIError {
+            error = apiError.message
+        } catch {
+            self.error = error.localizedDescription
+        }
+        return false
+    }
 }
 
 struct ProfileView: View {
@@ -68,6 +90,7 @@ struct ProfileView: View {
     @State private var model: ProfileViewModel
     @State private var showTags = false
     @State private var confirmClear = false
+    @State private var confirmDelete = false
 
     init(env: AppEnvironment) { _model = State(initialValue: ProfileViewModel(env: env)) }
 
@@ -164,6 +187,8 @@ struct ProfileView: View {
                     Text("Account Actions").font(TTFont.cardTitle).foregroundStyle(TTColor.danger)
                     Button { confirmClear = true } label: { dangerRow("Clear Local Journal History", icon: "trash") }
                     Button { Task { await model.signOut(); router.sheet = nil } } label: { dangerRow("Sign Out of Account", icon: "rectangle.portrait.and.arrow.right") }
+                    Button { model.error = nil; confirmDelete = true } label: { dangerRow("Delete Account", icon: "person.crop.circle.badge.xmark") }
+                        .disabled(model.isDeleting)
                 }
                 .padding(TTSpacing.card)
                 .background(TTColor.card, in: RoundedRectangle(cornerRadius: TTRadius.card, style: .continuous))
@@ -190,6 +215,15 @@ struct ProfileView: View {
         .sheet(isPresented: $showTags) { SensitivityTagsSheet(tags: $model.sensitivityTags) }
         .confirmationDialog("Clear cached entries on this device? Your account data on the server is not affected.", isPresented: $confirmClear, titleVisibility: .visible) {
             Button("Clear Local History", role: .destructive) { model.clearLocalHistory() }
+        }
+        .alert("Delete your account?", isPresented: $confirmDelete) {
+            SecureField("Password", text: $model.deletePassword)
+            Button("Delete Account", role: .destructive) {
+                Task { if await model.deleteAccount() { router.sheet = nil } }
+            }
+            Button("Cancel", role: .cancel) { model.deletePassword = "" }
+        } message: {
+            Text("This permanently deletes your account and every meal, symptom and note you've logged. It can't be undone. Enter your password to confirm.")
         }
     }
 

@@ -56,4 +56,15 @@ public extension APIClient {
     func revokeCurrentToken() async throws {
         try await requestVoid(.post, "/api/auth/bearer/logout")
     }
+
+    /// `DELETE /api/users/me` — permanently deletes the account and all of its
+    /// data. The server asks for the password again, so an unlocked phone on
+    /// its own is not enough.
+    func deleteAccount(password: String) async throws {
+        try await requestVoid(.delete, "/api/users/me", body: AccountDeletion(password: password))
+    }
+}
+
+private struct AccountDeletion: Encodable, Sendable {
+    let password: String
 }

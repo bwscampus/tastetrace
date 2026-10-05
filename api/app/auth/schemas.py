@@ -53,3 +53,13 @@ class UserUpdate(schemas.BaseUserUpdate):
     avatar_emoji: str | None = None
     discovery_purpose: str | None = None
     sensitivity_tags: list[str] | None = None
+
+
+class UserSelfUpdate(UserUpdate):
+    """`PATCH /users/me` body: a UserUpdate plus proof of the current password.
+
+    `current_password` is required whenever `email` or `password` changes
+    (AUTH-5) and is never passed on to the user manager.
+    """
+
+    current_password: str | None = Field(default=None, max_length=1024)

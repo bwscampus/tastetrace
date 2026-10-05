@@ -33,8 +33,10 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Bearer tokens for the mobile app (one per device). Only the sha256 of the
-// token is stored.
+// Retired: bearer tokens for the old mobile API. The iOS app now signs in to
+// the Python API, and the routes that used this table are gone. The table
+// stays defined so `db:push` doesn't drop it unprompted; remove it with a
+// reviewed migration once the data is no longer wanted (DB-2).
 export const apiTokens = pgTable(
   "api_tokens",
   {

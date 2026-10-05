@@ -41,8 +41,10 @@ async def send_email(to: str, subject: str, html: str) -> None:
         "html": html,
     }
 
-    def _send() -> None:
-        resend.Emails.send(params)
+    def _send() -> str | None:
+        sent = resend.Emails.send(params)
+        return sent.get("id") if isinstance(sent, dict) else None
 
-    await asyncio.to_thread(_send)
-    logger.info("Sent %r to %s", subject, to)
+    message_id = await asyncio.to_thread(_send)
+    # Never log the recipient address (API-8); the Resend id finds the message.
+    logger.info("Sent %r (resend id %s)", subject, message_id)

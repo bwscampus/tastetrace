@@ -27,7 +27,12 @@ except ImportError:
     pass
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Migrations run as the database owner. In production DATABASE_URL is the
+# restricted app role, which cannot run DDL; MIGRATION_DATABASE_URL carries
+# the owner credentials (falls back to DATABASE_URL when unset).
+config.set_main_option(
+    "sqlalchemy.url", settings.migration_database_url.replace("%", "%%")
+)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -38,7 +43,7 @@ target_metadata = Base.metadata
 def run_migrations_offline() -> None:
     """Emit SQL to stdout without connecting (alembic upgrade --sql)."""
     context.configure(
-        url=settings.sync_database_url,
+        url=settings.migration_database_url.replace("+asyncpg", ""),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},

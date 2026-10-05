@@ -72,6 +72,12 @@ runs `alembic upgrade head` before the server starts, so migrations must stay
 backward compatible with the running version (add a nullable column, deploy,
 then stop writing the old one). See the skill's `references/railway.md`.
 
+After migrations, the `Procfile` runs `python -m app.db_roles`, which keeps the
+least-privilege `app_rw` / `app_rw_login` roles in place. To make the API actually
+connect as `app_rw_login`, follow the cut-over in the root README ("Database
+roles"). It is not applied in production yet. Session tokens are stored hashed
+(`app/auth/tokens.py`, migration 0004).
+
 This service is deployed alongside the Express one in the existing Railway
 project, with its own Postgres, so the two never share data.
 

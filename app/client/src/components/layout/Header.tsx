@@ -62,9 +62,9 @@ const Header = () => {
           
           {/* User info and logout */}
           <div className="hidden md:flex items-center space-x-4">
-            {user && (
+            {!!user && (
               <div className="flex items-center space-x-2">
-                {(user as any).profileImageUrl && (
+                {!!(user as any).profileImageUrl && (
                   <img
                     src={(user as any).profileImageUrl}
                     alt="Profile"
