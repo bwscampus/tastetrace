@@ -1,8 +1,8 @@
 # TasteTrace: security and production gaps
 
 This list comes from the October 2026 audit against the class
-[Production Standard](../.claude/skills/production-standard/references/standard.md).
-Rule IDs (AUTH-3, FE-1, …) point to that file.
+Production Standard (the global `production-standard` Claude Code skill).
+Rule IDs (AUTH-3, FE-1, …) refer to its rules.
 
 - **Fixed:** changed on branch `security/production-standard`, or on
   `security/db-hardening` (branched from it) for the database items in their own section below.
