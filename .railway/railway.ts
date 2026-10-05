@@ -6,20 +6,20 @@ export default defineRailway(() => {
   const postgresVolumeR3Wf = volume("postgres-volume-r3Wf", { alerts: { usage: { "100": {}, "80": {}, "95": {} } }, allowOnlineResize: true, region: "us-west2", sizeMB: 50000 });
   const postgresVolume = volume("postgres-volume", { alerts: { usage: { "100": {}, "80": {}, "95": {} } }, allowOnlineResize: true, region: "us-west2", sizeMB: 50000 });
   const landing = service("landing", {
-    source: github("bwscampus/tastetrace", { checkSuites: false, rootDirectory: "/landing" }),
+    source: github("bwscampus/tastetrace", { checkSuites: true, rootDirectory: "/landing" }),
     replicas: { "us-west2": 1 },
     domains: ["tastetrace.app", "www.tastetrace.app"],
   });
   const tastetraceApi = service("tastetrace-api", {
-    source: github("bwscampus/tastetrace", { branch: "main", checkSuites: false, rootDirectory: "/api" }),
+    source: github("bwscampus/tastetrace", { branch: "main", checkSuites: true, rootDirectory: "/api" }),
     build: { buildEnvironment: "V3", builder: "RAILPACK", watchPatterns: ["/api/**"] },
     healthcheck: "/api/health",
     replicas: { "us-west2": 1 },
     env: { ALLOWED_HOSTS: preserve(), APP_NAME: preserve(), DATABASE_URL: preserve(), ENVIRONMENT: preserve(), PASSWORD_RESET_ENABLED: preserve(), PUBLIC_BASE_URL: preserve(), SECRET_KEY: preserve() },
   });
   const tastetrace = service("tastetrace", {
-    source: github("bwscampus/tastetrace", { checkSuites: false, rootDirectory: "/app" }),
-    healthcheck: "/api/health",
+    source: github("bwscampus/tastetrace", { checkSuites: true, rootDirectory: "/app" }),
+    healthcheck: "/",
     replicas: { "us-west2": 1 },
     deploy: { preDeployCommand: ["npm run db:push && npm run db:roles"] },
     domains: ["app.tastetrace.app"],

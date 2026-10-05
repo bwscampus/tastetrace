@@ -1,28 +1,25 @@
 # Tests, type checks, builds and dependency audits for the Python API and the
 # web app (Production Standard OPS-1). iOS builds run in ios-testflight.yml.
 #
-# Turn on "Wait for CI" in Railway (checkSuites: true in .railway/railway.ts)
-# and require these checks in GitHub branch protection, so a red build never
-# deploys.
+# Railway waits for these checks before deploying (checkSuites: true in
+# .railway/railway.ts), and `main`'s ruleset requires `api` and `app` to pass
+# before a PR can merge, so a red build never ships.
+#
+# Runs on every PR and push, with no path filter: a required check that never
+# runs (e.g. on an iOS- or landing-only PR) would block the merge forever.
 
 name: CI
 
 on:
   push:
     branches: [main, taylor]
-    paths:
-      - "api/**"
-      - "app/**"
-      - ".github/workflows/ci.yml"
   pull_request:
-    paths:
-      - "api/**"
-      - "app/**"
-      - ".github/workflows/ci.yml"
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded runs on PRs only. On main, Railway waits for every
+  # commit's checks; a cancelled run would leave that deploy waiting.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
