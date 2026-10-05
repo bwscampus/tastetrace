@@ -5,42 +5,49 @@ import request from "supertest";
 const hasDb = !!process.env.DATABASE_URL;
 process.env.SESSION_SECRET ??= "test-secret";
 
-describe.skipIf(!hasDb)("mobile API", () => {
+describe.skipIf(!hasDb)("web API", () => {
   let app: import("express").Express;
   const suffix = Date.now();
-  const alice = { email: `alice-${suffix}@example.com`, password: "pw12345", deviceName: "vitest" };
-  const bob = { email: `bob-${suffix}@example.com`, password: "pw12345", deviceName: "vitest" };
-  let aliceToken = "";
-  let bobToken = "";
+  const alice = { email: `Alice-${suffix}@Example.com`, password: "pw-12345678" };
+  const bob = { email: `bob-${suffix}@example.com`, password: "pw-12345678" };
+  // Cookie-session agents: each keeps its own session cookie between requests
+  let aliceAgent: ReturnType<typeof request.agent>;
+  let bobAgent: ReturnType<typeof request.agent>;
 
   beforeAll(async () => {
     app = (await import("../server/app")).default;
-    const a = await request(app).post("/api/auth/register").send({ ...alice, firstName: "Alice" });
+    aliceAgent = request.agent(app);
+    bobAgent = request.agent(app);
+    const a = await aliceAgent.post("/api/register").send({ ...alice, firstName: "Alice" });
     expect(a.status).toBe(201);
-    aliceToken = a.body.token;
-    const b = await request(app).post("/api/auth/register").send(bob);
-    bobToken = b.body.token;
+    const b = await bobAgent.post("/api/register").send(bob);
+    expect(b.status).toBe(201);
   });
 
-  const auth = (token: string) => ({ authorization: `Bearer ${token}` });
-
-  it("issues bearer tokens and identifies the user", async () => {
-    expect(aliceToken.startsWith("tt_")).toBe(true);
-    const me = await request(app).get("/api/user").set(auth(aliceToken));
+  it("signs users in with a session cookie and normalizes email case", async () => {
+    const me = await aliceAgent.get("/api/user");
     expect(me.status).toBe(200);
-    expect(me.body.email).toBe(alice.email);
+    expect(me.body.email).toBe(alice.email.toLowerCase());
     expect(me.body).toHaveProperty("displayName");
 
-    const login = await request(app).post("/api/auth/token").send(alice);
+    const login = await request(app).post("/api/login").send({ email: alice.email.toUpperCase(), password: alice.password });
     expect(login.status).toBe(200);
-    expect(login.body.token).not.toBe(aliceToken);
+    expect(login.headers["set-cookie"]?.[0]).toMatch(/SameSite=Lax/i);
 
-    const bad = await request(app).post("/api/auth/token").send({ ...alice, password: "wrong-pw" });
+    const dupe = await request(app).post("/api/register").send({ email: alice.email.toLowerCase(), password: alice.password });
+    expect(dupe.status).toBe(400);
+
+    const bad = await request(app).post("/api/login").send({ ...alice, password: "wrong-pw" });
     expect(bad.status).toBe(401);
   });
 
+  it("rejects short passwords at registration", async () => {
+    const res = await request(app).post("/api/register").send({ email: `short-${suffix}@example.com`, password: "pw123" });
+    expect(res.status).toBe(400);
+  });
+
   it("stores symptoms with intensity, severity, backdated timestamp and local date", async () => {
-    const created = await request(app).post("/api/symptoms").set(auth(aliceToken)).send({
+    const created = await aliceAgent.post("/api/symptoms").send({
       name: "Acid Reflux", catalogKey: "acid_reflux", intensity: 3,
       timestamp: "2026-09-11T21:29:00Z", tz: "America/Los_Angeles", durationMinutes: 60,
     });
@@ -52,21 +59,21 @@ describe.skipIf(!hasDb)("mobile API", () => {
     expect(created.body.emoji).toBe("🔥");
 
     // Web-style write gets a derived intensity
-    const web = await request(app).post("/api/symptoms").set(auth(aliceToken)).send({ name: "Headache", severity: "Severe" });
+    const web = await aliceAgent.post("/api/symptoms").send({ name: "Headache", severity: "Severe" });
     expect(web.status).toBe(201);
     expect(web.body.intensity).toBe(4);
 
-    const updated = await request(app).put(`/api/symptoms/${created.body.id}`).set(auth(aliceToken))
+    const updated = await aliceAgent.put(`/api/symptoms/${created.body.id}`)
       .send({ timestamp: "2026-09-12T22:00:00Z", tz: "America/Los_Angeles" });
     expect(updated.status).toBe(200);
     expect(updated.body.date).toBe("2026-09-12");
 
-    const invalid = await request(app).post("/api/symptoms").set(auth(aliceToken)).send({ name: "x", intensity: 9 });
+    const invalid = await aliceAgent.post("/api/symptoms").send({ name: "x", intensity: 9 });
     expect(invalid.status).toBe(400);
   });
 
   it("logs several symptoms in one batch", async () => {
-    const batch = await request(app).post("/api/symptoms/batch").set(auth(aliceToken)).send({
+    const batch = await aliceAgent.post("/api/symptoms/batch").send({
       timestamp: "2026-09-11T21:29:00Z", tz: "America/Los_Angeles",
       items: [{ name: "Acid Reflux", catalogKey: "acid_reflux", intensity: 3 }, { name: "Bloating", catalogKey: "bloating", intensity: 1 }],
     });
@@ -76,53 +83,53 @@ describe.skipIf(!hasDb)("mobile API", () => {
   });
 
   it("enforces ownership on meals and symptoms", async () => {
-    const meal = await request(app).post("/api/meals").set(auth(aliceToken))
+    const meal = await aliceAgent.post("/api/meals")
       .send({ name: "Avocado Sourdough Toast", mealType: "Lunch", ingredientDetails: [{ name: "sourdough bread", cookMethod: "toasted" }, { name: "avocado" }] });
     expect(meal.status).toBe(201);
     expect(meal.body.ingredients).toEqual(["sourdough bread", "avocado"]);
 
-    expect((await request(app).get(`/api/meals/${meal.body.id}`).set(auth(bobToken))).status).toBe(404);
-    expect((await request(app).put(`/api/meals/${meal.body.id}`).set(auth(bobToken)).send({ name: "x" })).status).toBe(404);
-    expect((await request(app).delete(`/api/meals/${meal.body.id}`).set(auth(bobToken))).status).toBe(404);
-    expect((await request(app).get(`/api/meals/${meal.body.id}`).set(auth(aliceToken))).status).toBe(200);
+    expect((await bobAgent.get(`/api/meals/${meal.body.id}`)).status).toBe(404);
+    expect((await bobAgent.put(`/api/meals/${meal.body.id}`).send({ name: "x" })).status).toBe(404);
+    expect((await bobAgent.delete(`/api/meals/${meal.body.id}`)).status).toBe(404);
+    expect((await aliceAgent.get(`/api/meals/${meal.body.id}`)).status).toBe(200);
 
     // Editing notes no longer rewrites the ingredient list
-    const edited = await request(app).put(`/api/meals/${meal.body.id}`).set(auth(aliceToken)).send({ notes: "with, extra, commas" });
+    const edited = await aliceAgent.put(`/api/meals/${meal.body.id}`).send({ notes: "with, extra, commas" });
     expect(edited.body.ingredients).toEqual(["sourdough bread", "avocado"]);
 
-    const symptoms = await request(app).get("/api/symptoms").set(auth(aliceToken));
+    const symptoms = await aliceAgent.get("/api/symptoms");
     const mine = symptoms.body[0];
-    expect((await request(app).delete(`/api/symptoms/${mine.id}`).set(auth(bobToken))).status).toBe(404);
+    expect((await bobAgent.delete(`/api/symptoms/${mine.id}`)).status).toBe(404);
   });
 
   it("serves profile and settings", async () => {
-    const settings = await request(app).get("/api/settings").set(auth(aliceToken));
+    const settings = await aliceAgent.get("/api/settings");
     expect(settings.status).toBe(200);
     expect(settings.body.correlationWindowHours).toBe(24);
 
-    const patched = await request(app).patch("/api/settings").set(auth(aliceToken)).send({ timezone: "America/Los_Angeles", streakMealsPerDay: 3 });
+    const patched = await aliceAgent.patch("/api/settings").send({ timezone: "America/Los_Angeles", streakMealsPerDay: 3 });
     expect(patched.body.timezone).toBe("America/Los_Angeles");
-    expect((await request(app).patch("/api/settings").set(auth(aliceToken)).send({ timezone: "Mars/Olympus" })).status).toBe(400);
+    expect((await aliceAgent.patch("/api/settings").send({ timezone: "Mars/Olympus" })).status).toBe(400);
 
-    const profile = await request(app).patch("/api/profile").set(auth(aliceToken)).send({ displayName: "Taylor", sensitivityTags: ["gluten"] });
+    const profile = await aliceAgent.patch("/api/profile").send({ displayName: "Taylor", sensitivityTags: ["gluten"] });
     expect(profile.status).toBe(200);
     expect(profile.body.displayName).toBe("Taylor");
     expect(profile.body.sensitivityTags).toEqual(["gluten"]);
     expect(profile.body.journalerDays).toBeGreaterThanOrEqual(1);
 
-    const catalog = await request(app).get("/api/symptom-catalog").set(auth(aliceToken));
+    const catalog = await aliceAgent.get("/api/symptom-catalog");
     expect(catalog.body.defaults).toHaveLength(6);
   });
 
   it("saves dishes and logs meals from them", async () => {
-    const dish = await request(app).post("/api/dishes").set(auth(aliceToken)).send({
+    const dish = await aliceAgent.post("/api/dishes").send({
       name: "Avocado Sourdough Toast", emoji: "🥑", containsGluten: true,
       ingredients: [{ name: "sourdough bread", cookMethod: "toasted" }, { name: "avocado", cookMethod: "raw" }, { name: "salt" }],
     });
     expect(dish.status).toBe(201);
     expect(dish.body.timesLogged).toBe(0);
 
-    const logged = await request(app).post(`/api/dishes/${dish.body.id}/log`).set(auth(aliceToken))
+    const logged = await aliceAgent.post(`/api/dishes/${dish.body.id}/log`)
       .send({ mealType: "Lunch", timestamp: "2026-09-11T19:45:00Z", tz: "America/Los_Angeles" });
     expect(logged.status).toBe(201);
     expect(logged.body.dishId).toBe(dish.body.id);
@@ -131,74 +138,74 @@ describe.skipIf(!hasDb)("mobile API", () => {
     expect(logged.body.containsGluten).toBe(true);
     expect(logged.body.date).toBe("2026-09-11");
 
-    const list = await request(app).get("/api/dishes").set(auth(aliceToken));
+    const list = await aliceAgent.get("/api/dishes");
     expect(list.body[0].timesLogged).toBe(1);
     expect(list.body[0].lastLoggedAt).toBe("2026-09-11T19:45:00.000Z");
 
-    expect((await request(app).post(`/api/dishes/${dish.body.id}/log`).set(auth(bobToken)).send({ mealType: "Lunch" })).status).toBe(404);
-    expect((await request(app).post(`/api/dishes/${dish.body.id}/log`).set(auth(aliceToken)).send({ mealType: "Brunch" })).status).toBe(400);
+    expect((await bobAgent.post(`/api/dishes/${dish.body.id}/log`).send({ mealType: "Lunch" })).status).toBe(404);
+    expect((await aliceAgent.post(`/api/dishes/${dish.body.id}/log`).send({ mealType: "Brunch" })).status).toBe(400);
 
-    const renamed = await request(app).put(`/api/dishes/${dish.body.id}`).set(auth(aliceToken)).send({ emoji: "🍞" });
+    const renamed = await aliceAgent.put(`/api/dishes/${dish.body.id}`).send({ emoji: "🍞" });
     expect(renamed.body.emoji).toBe("🍞");
-    expect((await request(app).delete(`/api/dishes/${dish.body.id}`).set(auth(aliceToken))).status).toBe(204);
+    expect((await aliceAgent.delete(`/api/dishes/${dish.body.id}`)).status).toBe(204);
     // The logged meal survives with its dish link cleared
-    const meal = await request(app).get(`/api/meals/${logged.body.id}`).set(auth(aliceToken));
+    const meal = await aliceAgent.get(`/api/meals/${logged.body.id}`);
     expect(meal.body.dishId).toBeNull();
   });
 
   it("reports daily coverage", async () => {
-    await request(app).post("/api/meals").set(auth(aliceToken)).send({ name: "Oats", mealType: "Breakfast", timestamp: "2026-09-17T15:15:00Z", tz: "America/Los_Angeles" });
-    const coverage = await request(app).get("/api/coverage?date=2026-09-17&tz=America/Los_Angeles").set(auth(aliceToken));
+    await aliceAgent.post("/api/meals").send({ name: "Oats", mealType: "Breakfast", timestamp: "2026-09-17T15:15:00Z", tz: "America/Los_Angeles" });
+    const coverage = await aliceAgent.get("/api/coverage?date=2026-09-17&tz=America/Los_Angeles");
     expect(coverage.status).toBe(200);
     expect(coverage.body.slots.Breakfast).toMatchObject({ logged: true, time: "08:15" });
     expect(coverage.body.slotTotal).toBe(3);
     expect(coverage.body.week).toHaveLength(7);
     expect(coverage.body.streak.threshold).toBe(3); // patched in the settings test
-    expect((await request(app).get("/api/coverage?date=nope").set(auth(aliceToken))).status).toBe(400);
+    expect((await aliceAgent.get("/api/coverage?date=nope")).status).toBe(400);
   });
 
   it("serves digests, suspects, trigger insights and the watchlist", async () => {
     // Alice already has: meals on Sep 11 (from dish) + Sep 17 breakfast, symptoms on Sep 11/12 and a batch on Sep 11
-    await request(app).post("/api/watchlist").set(auth(aliceToken)).send({ ingredient: "Sourdough Bread", source: "suspect" });
-    const watch = await request(app).get("/api/watchlist").set(auth(aliceToken));
+    await aliceAgent.post("/api/watchlist").send({ ingredient: "Sourdough Bread", source: "suspect" });
+    const watch = await aliceAgent.get("/api/watchlist");
     expect(watch.status).toBe(200);
     expect(watch.body[0]).toMatchObject({ ingredient: "sourdough bread", source: "suspect" });
     expect(watch.body[0]).toHaveProperty("confidenceMax");
 
-    const digest = await request(app).get("/api/digest/weekly?weekStart=2026-09-11&tz=America/Los_Angeles").set(auth(aliceToken));
+    const digest = await aliceAgent.get("/api/digest/weekly?weekStart=2026-09-11&tz=America/Los_Angeles");
     expect(digest.status).toBe(200);
     expect(digest.body.weekEnd).toBe("2026-09-17");
     expect(digest.body.trends.days).toHaveLength(7);
     expect(digest.body.trends.days[0].date).toBe("2026-09-11");
     expect(digest.body.symptoms.cards.length).toBeGreaterThan(0);
-    expect((await request(app).get("/api/digest/weekly?weekStart=bad").set(auth(aliceToken))).status).toBe(400);
-    expect((await request(app).get("/api/digest/weekly").set(auth(aliceToken))).status).toBe(200);
+    expect((await aliceAgent.get("/api/digest/weekly?weekStart=bad")).status).toBe(400);
+    expect((await aliceAgent.get("/api/digest/weekly")).status).toBe(200);
 
-    const suspects = await request(app).get("/api/digest/suspects?weekStart=2026-09-11&tz=America/Los_Angeles").set(auth(aliceToken));
+    const suspects = await aliceAgent.get("/api/digest/suspects?weekStart=2026-09-11&tz=America/Los_Angeles");
     expect(suspects.status).toBe(200);
     expect(suspects.body.windowHours).toBe(24);
     expect(suspects.body.symptomFilters[0].name).toBe("All Symptoms");
     expect(Array.isArray(suspects.body.ingredients)).toBe(true);
 
-    const insights = await request(app).get("/api/insights/triggers?dimension=ingredient&minConfidence=0").set(auth(aliceToken));
+    const insights = await aliceAgent.get("/api/insights/triggers?dimension=ingredient&minConfidence=0");
     expect(insights.status).toBe(200);
     expect(insights.body).toMatchObject({ dimension: "ingredient", minConfidence: 0 });
     expect(insights.body.symptoms.length).toBeGreaterThan(0);
-    expect((await request(app).get("/api/insights/triggers?minConfidence=200").set(auth(aliceToken))).status).toBe(400);
+    expect((await aliceAgent.get("/api/insights/triggers?minConfidence=200")).status).toBe(400);
 
     // Web-shaped correlations still work and never expose cook methods
-    const web = await request(app).get("/api/correlations").set(auth(aliceToken));
+    const web = await aliceAgent.get("/api/correlations");
     expect(web.status).toBe(200);
     expect(web.body.every((c: any) => c.dimension !== "cook_method")).toBe(true);
 
-    expect((await request(app).delete(`/api/watchlist/${watch.body[0].id}`).set(auth(aliceToken))).status).toBe(204);
+    expect((await aliceAgent.delete(`/api/watchlist/${watch.body[0].id}`)).status).toBe(204);
   });
 
   it("flags meals followed by symptoms as suspicious", async () => {
-    const meal = await request(app).post("/api/meals").set(auth(aliceToken))
+    const meal = await aliceAgent.post("/api/meals")
       .send({ name: "Late pizza", mealType: "Dinner", timestamp: "2026-09-20T02:00:00Z", tz: "America/Los_Angeles", ingredientDetails: [{ name: "cheese" }] });
-    await request(app).post("/api/symptoms").set(auth(aliceToken)).send({ name: "Bloating", intensity: 2, timestamp: "2026-09-20T04:00:00Z", tz: "America/Los_Angeles" });
-    const day = await request(app).get("/api/entries/date?date=2026-09-19&tz=America/Los_Angeles").set(auth(aliceToken));
+    await aliceAgent.post("/api/symptoms").send({ name: "Bloating", intensity: 2, timestamp: "2026-09-20T04:00:00Z", tz: "America/Los_Angeles" });
+    const day = await aliceAgent.get("/api/entries/date?date=2026-09-19&tz=America/Los_Angeles");
     const flagged = day.body.meals.find((m: any) => m.id === meal.body.id);
     expect(flagged.suspiciousFor).toEqual(["Bloating"]);
     expect(["window", "correlated"]).toContain(flagged.suspicion);
@@ -207,19 +214,19 @@ describe.skipIf(!hasDb)("mobile API", () => {
   });
 
   it("synthesises a pattern summary, cached until the data changes", async () => {
-    const first = await request(app).post("/api/ai/synthesis").set(auth(aliceToken)).send({ weekStart: "2026-09-11", tz: "America/Los_Angeles" });
+    const first = await aliceAgent.post("/api/ai/synthesis").send({ weekStart: "2026-09-11", tz: "America/Los_Angeles" });
     expect(first.status).toBe(200);
     expect(first.body.source).toBe(process.env.ANTHROPIC_API_KEY ? "claude" : "rules");
     expect(first.body.cached).toBe(false);
     expect(first.body.text.length).toBeGreaterThan(20);
-    const second = await request(app).post("/api/ai/synthesis").set(auth(aliceToken)).send({ weekStart: "2026-09-11", tz: "America/Los_Angeles" });
+    const second = await aliceAgent.post("/api/ai/synthesis").send({ weekStart: "2026-09-11", tz: "America/Los_Angeles" });
     expect(second.body.cached).toBe(true);
     expect(second.body.text).toBe(first.body.text);
-    expect((await request(app).post("/api/ai/synthesis").set(auth(aliceToken)).send({ weekStart: "nope" })).status).toBe(400);
+    expect((await aliceAgent.post("/api/ai/synthesis").send({ weekStart: "nope" })).status).toBe(400);
   });
 
   it("exports CSV and a ledger bundle", async () => {
-    const csv = await request(app).get("/api/export/csv?from=2026-09-01&to=2026-09-30&tz=America/Los_Angeles").set(auth(aliceToken));
+    const csv = await aliceAgent.get("/api/export/csv?from=2026-09-01&to=2026-09-30&tz=America/Los_Angeles");
     expect(csv.status).toBe(200);
     expect(csv.headers["content-type"]).toContain("text/csv");
     expect(csv.headers["content-disposition"]).toContain("tastetrace-2026-09-01-2026-09-30.csv");
@@ -227,24 +234,28 @@ describe.skipIf(!hasDb)("mobile API", () => {
     expect(lines[0]).toBe("entry_type,id,date,time,name,meal_type,ingredients,cook_methods,dish,intensity,severity,duration_minutes,notes,timestamp_utc");
     expect(lines.some((l) => l.startsWith("meal,") && l.includes("Avocado Sourdough Toast") && l.includes("sourdough bread; avocado"))).toBe(true);
     expect(lines.some((l) => l.startsWith("symptom,") && l.includes("Acid Reflux"))).toBe(true);
-    expect((await request(app).get("/api/export/csv?from=2026-09-30&to=2026-09-01").set(auth(aliceToken))).status).toBe(400);
+    expect((await aliceAgent.get("/api/export/csv?from=2026-09-30&to=2026-09-01")).status).toBe(400);
 
-    const ledger = await request(app).get("/api/export/ledger?from=2026-09-01&to=2026-09-30&tz=America/Los_Angeles").set(auth(aliceToken));
+    const ledger = await aliceAgent.get("/api/export/ledger?from=2026-09-01&to=2026-09-30&tz=America/Los_Angeles");
     expect(ledger.status).toBe(200);
     expect(ledger.body.range).toEqual({ from: "2026-09-01", to: "2026-09-30", tz: "America/Los_Angeles" });
-    expect(ledger.body.profile.email).toBe(alice.email);
+    expect(ledger.body.profile.email).toBe(alice.email.toLowerCase());
     expect(ledger.body.days.length).toBeGreaterThan(0);
     expect(ledger.body.days[0].meals[0] ?? ledger.body.days[0].symptoms[0]).toBeDefined();
     expect(ledger.body.digestWeeks.length).toBeGreaterThan(0);
     expect(Array.isArray(ledger.body.triggers)).toBe(true);
   });
 
-  it("revokes tokens", async () => {
-    const list = await request(app).get("/api/auth/tokens").set(auth(aliceToken));
-    expect(list.body.length).toBeGreaterThanOrEqual(2);
-    expect(list.body.some((t: any) => t.current)).toBe(true);
+  it("rate-limits repeated logins", async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      statuses.push((await request(app).post("/api/login").send({ ...alice, password: "wrong-pw" })).status);
+    }
+    expect(statuses).toContain(429);
+  });
 
-    expect((await request(app).delete("/api/auth/token").set(auth(aliceToken))).status).toBe(204);
-    expect((await request(app).get("/api/user").set(auth(aliceToken))).status).toBe(401);
+  it("logs out", async () => {
+    expect((await bobAgent.post("/api/logout")).status).toBe(200);
+    expect((await bobAgent.get("/api/user")).status).toBe(401);
   });
 });

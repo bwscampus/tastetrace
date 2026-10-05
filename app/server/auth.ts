@@ -7,7 +7,8 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import connectPg from "connect-pg-simple";
-import { bearerAuth } from "./tokenAuth";
+import { z } from "zod";
+import { createAuthLimiter } from "./rateLimit";
 
 declare global {
   namespace Express {
@@ -43,7 +44,24 @@ export function publicUser(user: SelectUser) {
   };
 }
 
+export const MIN_PASSWORD_LENGTH = 8;
+
+// Emails are compared case-insensitively, so store and look them up lowercased
+const emailSchema = z.string().trim().toLowerCase().email().max(254);
+
+const registerSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`).max(1024),
+  firstName: z.string().trim().max(60).optional(),
+  lastName: z.string().trim().max(60).optional(),
+});
+
 export function setupAuth(app: Express) {
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (!sessionSecret || (app.get("env") === "production" && sessionSecret.length < 32)) {
+    throw new Error("SESSION_SECRET must be set (at least 32 characters in production)");
+  }
+
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
@@ -54,13 +72,14 @@ export function setupAuth(app: Express) {
   });
 
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET!,
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
     cookie: {
       httpOnly: true,
       secure: "auto", // HTTPS-only cookie whenever the request came in over HTTPS
+      sameSite: "lax", // explicit: Safari and Firefox don't default to Lax
       maxAge: sessionTtl,
     },
   };
@@ -69,13 +88,14 @@ export function setupAuth(app: Express) {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
-  // Mobile clients send a bearer token instead of the session cookie
-  app.use(bearerAuth);
+
+  const authLimiter = createAuthLimiter();
 
   passport.use(
     new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        const user = await storage.getUserByEmail(email);
+        const parsed = emailSchema.safeParse(email);
+        const user = parsed.success ? await storage.getUserByEmail(parsed.data) : undefined;
         if (!user || !(await comparePasswords(password, user.password!))) {
           return done(null, false);
         }
@@ -96,13 +116,13 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/register", async (req, res, next) => {
+  app.post("/api/register", authLimiter, async (req, res, next) => {
     try {
-      const { email, password, firstName, lastName } = req.body;
-      
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password are required" });
+      const parsed = registerSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid email or password" });
       }
+      const { email, password, firstName, lastName } = parsed.data;
 
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
@@ -127,7 +147,7 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
+  app.post("/api/login", authLimiter, passport.authenticate("local"), (req, res) => {
     res.status(200).json(publicUser(req.user as SelectUser));
   });
 

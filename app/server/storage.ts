@@ -1,5 +1,5 @@
 import {
-  InsertUser, User, ProfilePatch, ApiToken, UserSettings, SettingsPatch,
+  InsertUser, User, ProfilePatch, UserSettings, SettingsPatch,
   InsertMeal, UpdateMeal, Meal, InsertSymptom, UpdateSymptom, Symptom, Dish, InsertDish,
   CustomSymptom, InsertCustomSymptom, Correlation, IngredientDetail, WatchlistItem, AiSynthesis,
 } from "@shared/schema";
@@ -16,11 +16,6 @@ export interface IStorage {
   getFirstEntryAt(userId: string): Promise<Date | undefined>;
 
   // API token operations
-  createApiToken(token: { userId: string; tokenHash: string; deviceName: string | null; expiresAt: Date }): Promise<ApiToken>;
-  getApiTokenByHash(tokenHash: string): Promise<ApiToken | undefined>;
-  touchApiToken(id: number, expiresAt: Date): Promise<void>;
-  listApiTokens(userId: string): Promise<ApiToken[]>;
-  revokeApiToken(id: number, userId: string): Promise<boolean>;
 
   // Settings operations
   getSettings(userId: string): Promise<UserSettings>;

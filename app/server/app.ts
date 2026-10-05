@@ -1,40 +1,54 @@
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import { registerRoutes } from "./routes/index";
 import { log } from "./log";
 
 // The Express app: middleware and API routes. server/index.ts adds the
 // client (Vite in dev, static files in production) and starts listening.
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.disable("x-powered-by");
 
+// Security headers (API-4). The strict CSP only applies in production: Vite's
+// dev server injects inline scripts and a websocket for hot reload.
+const isProduction = app.get("env") === "production";
+app.use(
+  helmet({
+    contentSecurityPolicy: isProduction
+      ? {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+            imgSrc: ["'self'", "data:", "blob:"],
+            connectSrc: ["'self'"],
+            frameAncestors: ["'none'"],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"],
+            formAction: ["'self'"],
+          },
+        }
+      : false,
+    xFrameOptions: { action: "deny" },
+    strictTransportSecurity: isProduction ? { maxAge: 15552000, includeSubDomains: true } : false,
+    // The landing page posts to /api/waitlist cross-origin
+    crossOriginResourcePolicy: { policy: "same-site" },
+  }),
+);
+
+app.use(express.json({ limit: "100kb" }));
+app.use(express.urlencoded({ extended: false, limit: "100kb" }));
+
+// Method, path, status and timing only. Response bodies carry emails and
+// session data, so they never go to the logs (API-8).
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
   res.on("finish", () => {
-    const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+      log(`${req.method} ${path} ${res.statusCode} in ${Date.now() - start}ms`);
     }
   });
-
   next();
 });
 
@@ -47,7 +61,9 @@ app.use("/api", (_req: Request, res: Response) => {
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
+  // 4xx messages are meant for the client; 5xx messages can carry database
+  // or library internals, so those stay in the server log (API-3).
+  const message = status >= 500 ? "Internal Server Error" : err.message || "Bad request";
 
   if (status >= 500) console.error(err);
   res.status(status).json({ message });
