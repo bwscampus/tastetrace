@@ -6,8 +6,16 @@
 # manifests instead of being text-merged across separate PRs, which is how a
 # stale uv.lock can break Railway's `uv sync --locked` build.
 #
+# Minor and patch versions only for app dependencies. Major versions (React 19,
+# Express 5, Zod 4, Vite 8, TypeScript 7, Tailwind 4...) usually need code
+# changes, and bundled into the weekly PR one of them breaks CI and blocks every
+# other update. Upgrade majors deliberately, one at a time, as planned work
+# (docs/SECURITY-GAPS.md, OPS-2). Per GitHub's docs, `update-types` ignores apply
+# to version updates only, so security updates still arrive as their own PRs even
+# when the fix is a major version. Keep Dependabot alerts on to see them.
+#
 # If the grouped PR falls behind main, comment `@dependabot rebase` rather than
-# clicking "Update branch". Security updates still arrive as their own PRs.
+# clicking "Update branch".
 version: 2
 
 multi-ecosystem-groups:
@@ -20,12 +28,19 @@ updates:
     directory: "/api"
     patterns: ["*"]
     multi-ecosystem-group: "all-dependencies"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
     directory: "/app"
     patterns: ["*"]
     multi-ecosystem-group: "all-dependencies"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
+  # Action majors (e.g. checkout v4 -> v7) have been drop-in so far; keep them.
   - package-ecosystem: "github-actions"
     directory: "/"
     patterns: ["*"]
