@@ -1,0 +1,103 @@
+# Tests, type checks, builds and dependency audits for the Python API and the
+# web app (Production Standard OPS-1). iOS builds run in ios-testflight.yml.
+#
+# Turn on "Wait for CI" in Railway (checkSuites: true in .railway/railway.ts)
+# and require these checks in GitHub branch protection, so a red build never
+# deploys.
+
+name: CI
+
+on:
+  push:
+    branches: [main, taylor]
+    paths:
+      - "api/**"
+      - "app/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "api/**"
+      - "app/**"
+      - ".github/workflows/ci.yml"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tastetrace
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Tests
+        run: uv run pytest
+      - name: Migrations apply to real Postgres
+        env:
+          ENVIRONMENT: test
+          SECRET_KEY: ci-only-secret-key-that-is-long-enough
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tastetrace
+        run: uv run alembic upgrade head
+      - name: Dependency audit
+        run: |
+          uv export --frozen --no-hashes --no-dev --no-emit-project > /tmp/requirements.txt
+          uvx pip-audit -r /tmp/requirements.txt
+
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: app
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tastetrace_web
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/tastetrace_web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - name: Typecheck
+        run: npm run check
+      - name: Schema
+        run: npx drizzle-kit push --force
+      - name: Tests (including DB-backed API tests)
+        run: npm test
+      - name: Build
+        run: npm run build
+      # Blocks on critical only for now: the remaining high advisory is
+      # braces via tailwindcss 3, a build-time dependency (see
+      # docs/SECURITY-GAPS.md). Raise to --audit-level=high after the
+      # Tailwind 4 upgrade.
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=critical
