@@ -14,6 +14,7 @@ os.environ.pop("RESEND_API_KEY", None)
 
 import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
+from sqlalchemy import event  # noqa: E402
 from sqlalchemy.ext.asyncio import (  # noqa: E402
     async_sessionmaker,
     create_async_engine,
@@ -33,6 +34,15 @@ async def engine():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+
+    # SQLite ignores foreign keys unless asked; Postgres always enforces them.
+    # Turning them on lets the account-deletion tests prove ON DELETE CASCADE.
+    @event.listens_for(test_engine.sync_engine, "connect")
+    def _enable_sqlite_fks(dbapi_connection, _record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield test_engine

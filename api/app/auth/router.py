@@ -42,7 +42,12 @@ def install_auth_routes(app: FastAPI, prefix: str = "/api") -> None:
         auth_router.include_router(fastapi_users.get_reset_password_router())
 
     app.include_router(auth_router, prefix=f"{prefix}/auth", tags=["auth"])
-    # GET/PATCH /me
+    # PATCH /me (requires current password) and DELETE /me. Mounted first so
+    # they shadow fastapi-users' PATCH /me and its superuser-only /{id} match.
+    from app.auth.account import router as account_router
+
+    app.include_router(account_router, prefix=f"{prefix}/users", tags=["users"])
+    # GET /me, plus superuser-only /{id} routes
     app.include_router(
         fastapi_users.get_users_router(UserRead, UserUpdate),
         prefix=f"{prefix}/users",
