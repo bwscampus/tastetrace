@@ -19,7 +19,7 @@ export default defineRailway(() => {
   });
   const tastetrace = service("tastetrace", {
     source: github("bwscampus/tastetrace", { checkSuites: false, rootDirectory: "/app" }),
-    healthcheck: "/",
+    healthcheck: "/api/health",
     replicas: { "us-west2": 1 },
     deploy: { preDeployCommand: ["npm run db:push && npm run db:roles"] },
     domains: ["app.tastetrace.app"],

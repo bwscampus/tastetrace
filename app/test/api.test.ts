@@ -24,6 +24,21 @@ describe.skipIf(!hasDb)("web API", () => {
     expect(b.status).toBe(201);
   });
 
+  it("answers the health check from the database, revealing nothing else", async () => {
+    const res = await request(app).get("/api/health");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: "ok" });
+  });
+
+  it("is honest that web password reset isn't available, for any address", async () => {
+    const known = await request(app).post("/api/forgot-password").send({ email: alice.email });
+    const unknown = await request(app).post("/api/forgot-password").send({ email: "nobody@example.com" });
+    expect(known.status).toBe(200);
+    expect(unknown.status).toBe(200);
+    expect(known.body).toEqual(unknown.body);
+    expect(known.body.message).not.toMatch(/sent/i);
+  });
+
   it("signs users in with a session cookie and normalizes email case", async () => {
     const me = await aliceAgent.get("/api/user");
     expect(me.status).toBe(200);

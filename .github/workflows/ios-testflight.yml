@@ -8,7 +8,7 @@ name: iOS → TestFlight
 
 on:
   push:
-    branches: [main, taylor]
+    branches: [main]  # TestFlight builds come from main only
     paths:
       - "ios/**"
       - ".github/workflows/ios-testflight.yml"
@@ -37,9 +37,12 @@ jobs:
           echo "ARCHIVE_PATH=$RUNNER_TEMP/TasteTrace.xcarchive" >> "$GITHUB_ENV"
           echo "KEY_PATH=$RUNNER_TEMP/keys/AuthKey.p8" >> "$GITHUB_ENV"
 
-      - uses: maxim-lobanov/setup-xcode@v1
+      # Third-party action that runs with the signing secrets: pinned to a commit.
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
-          xcode-version: latest-stable
+          # Pinned so a runner image update can't change the toolchain under a release.
+          # 26.3 is what the last successful upload used; bump deliberately.
+          xcode-version: "26.3"
 
       - name: Generate the Xcode project
         run: |
