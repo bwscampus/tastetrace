@@ -99,3 +99,14 @@ It is generated from `ios/project.yml` by XcodeGen. Change the spec, run
 ## landing/
 
 Open `landing/index.html` directly, or serve the folder with any static server.
+
+## License
+
+TasteTrace is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md).
+Copyright 2026 The TasteTrace founders. This covers everything in this repository, including the API, web app, landing page, and iOS app.
+
+- **Noncommercial use is free.** Personal study, learning, hobby projects, schools, and nonprofits may
+  use, copy, modify, and share the code, as long as they include the license and its `Required Notice:` line.
+- **Commercial use is reserved to the founders,** who keep all rights to the code and the product. To ask
+  about commercial use, open an issue on this repository.
+- Third-party libraries and assets keep their own licenses.
