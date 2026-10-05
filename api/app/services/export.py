@@ -29,11 +29,19 @@ CSV_HEADER = (
 MAX_LEDGER_WEEKS = 8
 
 
+# A text cell starting with one of these is run as a formula by Excel, Sheets
+# and Numbers (CSV/formula injection, OWASP). User-typed text gets a leading
+# apostrophe so it displays literally. Numbers are written as numbers.
+FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
 def csv_cell(value: object) -> str:
     """Quote only when the cell would otherwise break the row."""
     if value is None:
         return ""
     text = str(value)
+    if isinstance(value, str) and text.startswith(FORMULA_PREFIXES):
+        text = "'" + text
     if any(ch in text for ch in ('"', ",", "\n")):
         return '"' + text.replace('"', '""') + '"'
     return text

@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Hero from "@/components/home/Hero";
 import Features from "@/components/home/Features";
-import Testimonials from "@/components/home/Testimonials";
 import CallToAction from "@/components/home/CallToAction";
 import Footer from "@/components/layout/Footer";
 
@@ -27,7 +26,6 @@ const Landing = () => {
       <main>
         <Hero />
         <Features />
-        <Testimonials />
         <CallToAction />
       </main>
 

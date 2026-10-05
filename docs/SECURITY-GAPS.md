@@ -59,30 +59,37 @@ the database, API routes, rendering, or deploy config. It re-checks these rules.
 | DB-6 | Med | `api/app/db_roles.py`, `app/server/scripts/ensure-app-role.ts` | Both apps connected as the `postgres` superuser, which can do anything, bypasses RLS, and can drop every table. Each deploy now creates `app_rw` (data read/write only, no DDL, no superuser, no BYPASSRLS) and, with `APP_DB_PASSWORD`, the login `app_rw_login`. Migrations use `MIGRATION_DATABASE_URL` (owner). Verified against Postgres 16: both apps' integration flows pass as `app_rw_login`. **Takes effect only after the cut-over in the README.** |
 | — | Low | `api/migrations/env.py` | Alembic broke if the DB password contained `%`. The URL is now escaped. |
 
+## Fixed in `security/hardening-round-1`
+
+| Rule | Where | Fix |
+|---|---|---|
+| FE-6 | `app/client/src/components/home/Testimonials.tsx` | Fabricated 5-star testimonials removed from the web Home and Landing pages. |
+| FE-6 / AUTH | `app/server/routes/index.ts:65` | Web "forgot password" no longer claims an email was sent. It says web reset isn't available yet and to contact the team (web accounts are separate from the iOS app). Same reply for every address; the address is never looked up or logged. |
+| AUTH-3 | `api/app/ai/synthesis.py:39` | AI throttle memory is bounded: stale entries evicted, hard cap of 10k (`test_hardening.py`). |
+| API-1 | `api/app/routers/meals.py:36` | A meal's `dishId` must be the caller's own dish, else 404 (`test_a_meal_cannot_point_at_someone_elses_dish`). |
+| API-2 | `api/app/services/export.py` | CSV cells starting with `= + - @`, tab or CR get a leading `'` (formula injection). |
+| DB-2 | `api/migrations/env.py:30` | Already fixed in db-hardening: the URL's `%` is escaped as `%%`. |
+| FE-7 | `ios/TasteTrace/Info.plist:29` | `NSAllowsLocalNetworking` is Debug-only (`ios/Config/Info-Debug.plist`); Release has no ATS exception (checked in built app). |
+| FE-7 | `ios/.../AppEnvironment.swift:34` | Missing/invalid `API_BASE_URL` fails loudly (`assertionFailure`); no silent `http://localhost:5000` fallback. |
+| FE-7 | `ios/.../ReminderScheduler.swift` | All pending and delivered reminders are cancelled on sign-out, account deletion and 401 (`AuthSession.onSessionEnded`). |
+| FE-4 | `app/client/index.html:5` | `maximum-scale=1` removed; pinch-zoom works. |
+| OPS-1 | `.github/workflows/ios-testflight.yml:11,40` | TestFlight uploads from `main` only; `setup-xcode` pinned to a commit (v1.7.0) and Xcode to 26.3. |
+| API-9 | `.railway/railway.ts` (web) | Web app has `GET /api/health` (DB ping, `{status}` only, 503 on failure); `railway.ts` health check points at it. **Owner:** set the live Railway health check path to `/api/health` (repo config isn't auto-applied). |
+
+Out of scope for round 1 (still open above): email verification, Drizzle migrations instead of `db:push`, a staging environment (Debug builds still hit the production API), field-level encryption, duplicate health data across the two databases, RLS, the Tailwind 4 upgrade, and the design-system unification.
+
 ## Open: student tasks
 
 | Rule | Sev | Where | Problem | Suggested fix |
 |---|---|---|---|---|
 | PRIV-1 / PRIV-3 | **High** | `landing/index.html`, App Store listing | There's no privacy policy, though the product collects emails and **health data** (symptoms, sensitivities). App Store submission needs a privacy-policy URL. | **Owner action (teacher):** approve wording. Then link it from the landing page, the web sign-up and the iOS sign-up. |
-| FE-6 | Med | `app/client/src/components/home/Testimonials.tsx` | 5-star testimonials with initials for a product that hasn't launched. They look invented. | Remove them, or label them clearly as illustrative. |
-| FE-6 / AUTH | Med | `app/server/routes/index.ts:65` | Web "forgot password" says an email was sent but sends nothing. | Either build reset (copy the API's token flow) or say "contact support" honestly. |
 | DB-2 | Med | `.railway/railway.ts:24` (`npm run db:push`) | The web schema is pushed with no migration history; a rename or drop can silently lose data. | Switch to `drizzle-kit generate` + `migrate` with committed files. Drop `api_tokens` in a reviewed migration. |
 | AUTH-2 | Med | `api/` | Emails are never verified. | fastapi-users has a verify router. Require verification before data sharing or export. |
 | OPS-5 | Med | `ios/Config/Debug.xcconfig:9` | Debug builds talk to the **production** API, so test data lands in prod. | Point Debug at a staging API (a Railway `staging` environment). |
-| AUTH-3 | Low | `api/app/ai/synthesis.py:39` | The AI throttle dict `_last_generated` never shrinks. | Evict old entries, using the same pattern as `rate_limit.py`. |
-| API-1 | Low | `api/app/routers/meals.py:36` | `dish_id` on a meal isn't checked against the user. This is a data-integrity issue, not a leak. | Verify that the dish belongs to `user.id`, or 404. |
-| API-2 | Low | `api/app/services/export.py` | CSV cells starting with `= + - @` aren't neutralised (formula injection once the practitioner sharing feature exists). | Prefix those cells with `'`. |
 | DB-4 | Low | `api/app/db.py`, `app/server/db.ts` | No explicit TLS. | Confirm both `DATABASE_URL`s use `*.railway.internal`. |
-| DB-2 | Low | `api/migrations/env.py:30` | `set_main_option` breaks if the DB password contains `%`. | Escape `%` as `%%`. |
-| FE-7 | Low | `ios/TasteTrace/Info.plist:29` | `NSAllowsLocalNetworking` ships in Release. | Move it to a Debug-only plist or xcconfig. |
-| FE-7 | Low | `ios/.../AppEnvironment.swift:34` | The fallback base URL is `http://localhost:5000`, the old Express port. | Fail loudly if `API_BASE_URL` is missing. |
-| FE-7 | Low | `ios/.../ReminderScheduler.swift` | Local reminders keep firing after sign-out or delete. | Cancel all pending notifications in sign-out and delete. |
-| FE-4 | Low | `app/client/index.html:5` | `maximum-scale=1` blocks pinch-zoom. | Remove it. |
 | FE-4 | Low | iOS `Info.plist` | Portrait-only and light-mode-only. | Revisit for accessibility (Dynamic Type, dark mode). |
 | FE-5 | Low | landing / app / iOS | Three different visual systems: Fraunces + Plex, Inter + navy shadcn, and `TTColor`. | Pick one token set and share it. |
 | OPS-2 | Low | `app/` (tailwindcss 3 → braces) | High advisory in a build-time dependency. CI blocks on critical only until it's fixed. | Upgrade to Tailwind 4, then raise the CI audit level to `high`. |
-| OPS-1 | Low | `.github/workflows/ios-testflight.yml:11,40` | It uploads to TestFlight from the `taylor` branch as well as `main`, and pins neither the setup-xcode action nor Xcode. | Upload from `main` only; pin `xcode-version`. |
-| API-9 | Low | `.railway/railway.ts` (web) | The web app's health check is `/` (static HTML). | Add `/api/health` with a DB ping. |
 | — | Low | `README.md` | Web and iOS are two separate account systems. | Decide whether the web app moves to the Python API. |
 | PRIV-3 / DB-7 | Med | `api` + `app` databases: `symptoms.notes`, `meals.notes`, `ai_syntheses.text` | Free-text health notes and AI health summaries are stored as plain text. Railway encrypts the disk, but anyone with database access (a dump, a leaked credential) can read them. | Field-level encryption (e.g. AES-GCM via `cryptography`, key in a sealed Railway variable, key ID stored with each value). Encrypt only free text; structured fields are needed for the correlation queries. |
 | DB-7 | Med | `api` and `app` databases | The same kind of health data lives in **two** databases (web and mobile), doubling what can leak and what a deletion request must cover. | Move the web app onto the Python API (see the row above) and retire the web copy of the health tables. |

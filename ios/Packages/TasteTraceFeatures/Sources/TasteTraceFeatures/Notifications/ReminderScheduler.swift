@@ -51,6 +51,13 @@ public final class ReminderScheduler: @unchecked Sendable {
         return true
     }
 
+    /// Cancels every pending and delivered reminder. Called when the session
+    /// ends, so a signed-out or deleted account stops getting nudges.
+    public func cancelAll() {
+        center?.removeAllPendingNotificationRequests()
+        center?.removeAllDeliveredNotifications()
+    }
+
     /// Cancels the check-in for a slot that has already been logged today.
     public func cancelCheckIn(for slot: String) {
         guard let index = Self.checkInSlots.firstIndex(of: slot) else { return }
