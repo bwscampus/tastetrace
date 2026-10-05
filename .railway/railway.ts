@@ -21,7 +21,7 @@ export default defineRailway(() => {
     source: github("bwscampus/tastetrace", { checkSuites: false, rootDirectory: "/app" }),
     healthcheck: "/",
     replicas: { "us-west2": 1 },
-    deploy: { preDeployCommand: ["npm run db:push"] },
+    deploy: { preDeployCommand: ["npm run db:push && npm run db:roles"] },
     domains: ["app.tastetrace.app"],
     env: { DATABASE_URL: preserve(), SESSION_SECRET: preserve() },
   });
