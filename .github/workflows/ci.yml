@@ -50,13 +50,21 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen
       - name: Tests
+        env:
+          # Enables the Postgres-only tests: the app role's privileges
+          # (DB-6) and migration 0004's hash matching hash_token (DB-8).
+          TEST_POSTGRES_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/tastetrace
         run: uv run pytest
-      - name: Migrations apply to real Postgres
+      - name: Migrations and app role apply to real Postgres
         env:
           ENVIRONMENT: test
           SECRET_KEY: ci-only-secret-key-that-is-long-enough
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tastetrace
-        run: uv run alembic upgrade head
+          APP_DB_PASSWORD: ci-only-app-role-password
+        run: |
+          uv run alembic upgrade head
+          uv run python -m app.db_roles
+          uv run python -m app.db_roles   # idempotent
       - name: Dependency audit
         run: |
           uv export --frozen --no-hashes --no-dev --no-emit-project > /tmp/requirements.txt
