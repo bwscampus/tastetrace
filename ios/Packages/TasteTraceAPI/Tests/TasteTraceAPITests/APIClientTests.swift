@@ -90,3 +90,20 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(json.contains(#""mealType":"Snack""#))
     }
 }
+
+final class AccountDeletionTests: XCTestCase {
+    func testDeleteAccountSendsThePasswordToDeleteMe() async throws {
+        let transport = MockTransport()
+        let client = APIClient(baseURL: URL(string: "https://api.example")!, transport: transport, tokenProvider: StaticTokenProvider("tt_test"))
+        transport.stub("DELETE", "/api/users/me", status: 204, json: "")
+
+        try await client.deleteAccount(password: "a pass phrase")
+
+        let request = transport.requests[0]
+        XCTAssertEqual(request.httpMethod, "DELETE")
+        XCTAssertEqual(request.url?.path, "/api/users/me")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer tt_test")
+        let body = try JSONSerialization.jsonObject(with: request.httpBody!) as? [String: String]
+        XCTAssertEqual(body?["password"], "a pass phrase")
+    }
+}

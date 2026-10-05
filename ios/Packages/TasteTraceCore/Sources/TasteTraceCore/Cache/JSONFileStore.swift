@@ -21,8 +21,14 @@ public struct JSONFileStore<Value: Codable>: Sendable {
     }
 
     public func save(_ value: Value) throws {
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try JSONCoding.encoder.encode(value).write(to: url, options: .atomic)
+        var directory = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        // A cache the API can rebuild: keep it out of device backups.
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? directory.setResourceValues(values)
+        // Health data: encrypted at rest until the phone is first unlocked.
+        try JSONCoding.encoder.encode(value).write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     public func clear() {
