@@ -4,7 +4,8 @@ This list comes from the October 2026 audit against the class
 [Production Standard](../.claude/skills/production-standard/references/standard.md).
 Rule IDs (AUTH-3, FE-1, …) point to that file.
 
-- **Fixed:** changed on branch `security/production-standard`.
+- **Fixed:** changed on branch `security/production-standard`, or on
+  `security/db-hardening` (branched from it) for the database items in their own section below.
 - **Open:** a student task. Pick one, fix it with a test, and update this row.
 - **Owner action:** a GitHub, Railway, App Store or legal setting. It can't be fixed in code.
 
@@ -50,6 +51,14 @@ the database, API routes, rendering, or deploy config. It re-checks these rules.
 | OPS-2 | Low | `.github/dependabot.yml` | Weekly update PRs for uv, npm and Actions. Patched pyjwt (PYSEC-2026-4141) and ran `npm audit fix`. |
 | | Low | `app/server/replitAuth.ts` (deleted) | Unused auth module, removed. Pre-existing type errors fixed so `npm run check` is a usable gate. |
 
+## Fixed in `security/db-hardening` (production cut-over pending)
+
+| Rule | Sev | Where | What changed |
+|---|---|---|---|
+| DB-8 | High | `api/app/auth/tokens.py`, `api/app/auth/backend.py`, migration `0004_hash_access_tokens` | `access_tokens` stored the raw session token (cookie and iOS bearer) as its primary key, so anyone who could read the database or a backup could sign in as every logged-in user. It now stores `base64url(sha256(token))`. Migration 0004 hashes existing rows in place, so nobody is signed out. Tests prove a stored hash can't be used as a token. |
+| DB-6 | Med | `api/app/db_roles.py`, `app/server/scripts/ensure-app-role.ts` | Both apps connected as the `postgres` superuser, which can do anything, bypasses RLS, and can drop every table. Each deploy now creates `app_rw` (data read/write only, no DDL, no superuser, no BYPASSRLS) and, with `APP_DB_PASSWORD`, the login `app_rw_login`. Migrations use `MIGRATION_DATABASE_URL` (owner). Verified against Postgres 16: both apps' integration flows pass as `app_rw_login`. **Takes effect only after the cut-over in the README.** |
+| — | Low | `api/migrations/env.py` | Alembic broke if the DB password contained `%`. The URL is now escaped. |
+
 ## Open: student tasks
 
 | Rule | Sev | Where | Problem | Suggested fix |
@@ -75,6 +84,10 @@ the database, API routes, rendering, or deploy config. It re-checks these rules.
 | OPS-1 | Low | `.github/workflows/ios-testflight.yml:11,40` | It uploads to TestFlight from the `taylor` branch as well as `main`, and pins neither the setup-xcode action nor Xcode. | Upload from `main` only; pin `xcode-version`. |
 | API-9 | Low | `.railway/railway.ts` (web) | The web app's health check is `/` (static HTML). | Add `/api/health` with a DB ping. |
 | — | Low | `README.md` | Web and iOS are two separate account systems. | Decide whether the web app moves to the Python API. |
+| PRIV-3 / DB-7 | Med | `api` + `app` databases: `symptoms.notes`, `meals.notes`, `ai_syntheses.text` | Free-text health notes and AI health summaries are stored as plain text. Railway encrypts the disk, but anyone with database access (a dump, a leaked credential) can read them. | Field-level encryption (e.g. AES-GCM via `cryptography`, key in a sealed Railway variable, key ID stored with each value). Encrypt only free text; structured fields are needed for the correlation queries. |
+| DB-7 | Med | `api` and `app` databases | The same kind of health data lives in **two** databases (web and mobile), doubling what can leak and what a deletion request must cover. | Move the web app onto the Python API (see the row above) and retire the web copy of the health tables. |
+| DB-6 | Low | all user tables | No row-level security. Isolation relies on every query filtering by `user_id` (tested). Now that the app runs as a non-superuser role, RLS would actually be enforced. | Optional defense in depth: `ENABLE ROW LEVEL SECURITY` + a `user_id = current_setting('app.user_id')::uuid` policy, with the app setting `app.user_id` per request. |
+| DB-2 | Low | `app/shared/schema.ts:36-53` | The retired `api_tokens` table is still defined (kept so `db:push` doesn't drop it) and may still hold old token hashes. | Once `drizzle generate` migrations replace `push`, drop it in a reviewed migration. |
 
 ## Owner actions (settings, not code)
 
@@ -85,5 +98,6 @@ the database, API routes, rendering, or deploy config. It re-checks these rules.
 | OPS-4 | GitHub → Settings → Rules | Protect `main`: PR required, the `CI / api` and `CI / app` checks must pass. |
 | DB-5 | Railway → both Postgres services → Backups | Turn on scheduled backups and rehearse one restore. |
 | OPS-6 | Sentry (free tier) and an uptime monitor | Error tracking, plus a monitor on `/api/health`. |
+| DB-6 | Railway → `tastetrace-api` and `tastetrace` services | After `security/db-hardening` is deployed, do the least-privilege cut-over in the README ("Database roles"). Until then both apps still connect as `postgres`. |
 | PRIV-1 | Teacher / school | Approve the privacy-policy text (health data). |
 | — | Railway env (`api`) | `ANTHROPIC_API_KEY`, `RESEND_API_KEY` and `PASSWORD_RESET_ENABLED` are set in the dashboard but not listed in `railway.ts`. Confirm the intended values. |
