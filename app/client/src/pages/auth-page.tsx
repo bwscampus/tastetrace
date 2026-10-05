@@ -32,7 +32,6 @@ type RegisterData = z.infer<typeof registerSchema>;
 const AuthPage = () => {
   const [activeTab, setActiveTab] = useState("login");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const { toast } = useToast();
 
   const loginForm = useForm<LoginData>({
@@ -104,40 +103,6 @@ const AuthPage = () => {
 
   const onRegister = (data: RegisterData) => {
     registerMutation.mutate(data);
-  };
-
-  const forgotPasswordMutation = useMutation({
-    mutationFn: async (email: string) => {
-      const res = await apiRequest("POST", "/api/forgot-password", { email });
-      return await res.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Password reset email sent",
-        description: "Check your email for instructions to reset your password.",
-      });
-      setShowForgotPassword(false);
-      setForgotPasswordEmail("");
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Failed to send reset email",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleForgotPassword = () => {
-    if (!forgotPasswordEmail.trim()) {
-      toast({
-        title: "Email required",
-        description: "Please enter your email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-    forgotPasswordMutation.mutate(forgotPasswordEmail);
   };
 
   return (
@@ -281,45 +246,25 @@ const AuthPage = () => {
           </Card>
         </div>
 
-        {/* Forgot Password Dialog */}
+        {/* Forgot Password Dialog: reset by email isn't built for web accounts yet,
+            so say so instead of pretending to send a link (FE-6). */}
         <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Reset Password</DialogTitle>
+              <DialogTitle>Forgot your password?</DialogTitle>
               <DialogDescription>
-                Enter your email address and we'll send you a link to reset your password.
+                Password reset by email isn't available on the web yet. Contact the TasteTrace
+                team and we'll help you get back into your account. Your web account is separate
+                from the TasteTrace iPhone app, so resetting there won't change it.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="forgot-email">Email</Label>
-                <Input
-                  id="forgot-email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={forgotPasswordEmail}
-                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                />
-              </div>
-            </div>
             <DialogFooter>
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowForgotPassword(false);
-                  setForgotPasswordEmail("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleForgotPassword}
-                disabled={forgotPasswordMutation.isPending}
+                onClick={() => setShowForgotPassword(false)}
                 className="bg-navy hover:bg-navy/90"
               >
-                {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Link"}
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>

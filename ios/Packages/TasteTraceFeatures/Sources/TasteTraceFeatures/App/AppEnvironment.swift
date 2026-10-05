@@ -24,6 +24,12 @@ public final class AppEnvironment {
         self.watchlist = WatchlistStore()
         self.reminders = ReminderScheduler()
         self.dateMath = dateMath
+        // Sign-out, account deletion and 401 all end here: stop the reminders
+        // and drop the in-memory watchlist along with the cached files.
+        session.onSessionEnded = { [reminders, watchlist] in
+            reminders.cancelAll()
+            await watchlist.reset()
+        }
     }
 
     public static func live(baseURL: URL) -> AppEnvironment {
@@ -31,9 +37,17 @@ public final class AppEnvironment {
     }
 
     /// Reads API_BASE_URL from Info.plist (set per configuration by xcconfig).
-    public static func baseURLFromBundle(default fallback: String = "http://localhost:5000") -> URL {
-        let raw = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String
-        return URL(string: raw?.isEmpty == false ? raw! : fallback)!
+    /// A missing or malformed value is a build misconfiguration: fail loudly in
+    /// Debug, and in Release return an address that can never connect rather
+    /// than silently talking to an old local server over plain HTTP (FE-7).
+    public static func baseURLFromBundle(bundle: Bundle = .main) -> URL {
+        let raw = (bundle.object(forInfoDictionaryKey: "API_BASE_URL") as? String)?
+            .trimmingCharacters(in: .whitespaces)
+        if let raw, !raw.isEmpty, let url = URL(string: raw), url.scheme != nil, url.host != nil {
+            return url
+        }
+        assertionFailure("API_BASE_URL is missing or invalid in Info.plist; set it in ios/Config/*.xcconfig")
+        return URL(string: "https://api-base-url-not-configured.invalid")!
     }
 
     /// Runs an API call and signs out on 401 so the UI returns to sign-in.

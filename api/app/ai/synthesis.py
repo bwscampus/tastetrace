@@ -36,7 +36,27 @@ Do not diagnose, do not tell the person to eliminate foods, and do not give medi
 # Thinking is on by default, so the budget has to cover it as well as ~90 words
 MAX_TOKENS = 2000
 
+# Per-user time of the last model call, for the throttle below. Bounded so a
+# flood of accounts can't grow it without limit: entries older than the
+# throttle window are dropped (they can no longer throttle anything), and the
+# oldest go first past a hard cap. Insertion order is call order.
+MAX_THROTTLE_ENTRIES = 10_000
 _last_generated: dict[UUID, float] = {}
+
+
+def _is_throttled(user_id: UUID, now: float) -> bool:
+    last = _last_generated.get(user_id)
+    return last is not None and now - last < settings.SYNTHESIS_RATE_LIMIT_SECONDS
+
+
+def _record_call(user_id: UUID, now: float) -> None:
+    _last_generated.pop(user_id, None)  # re-insert so order stays oldest-first
+    _last_generated[user_id] = now
+    window = settings.SYNTHESIS_RATE_LIMIT_SECONDS
+    for key in list(_last_generated):
+        if now - _last_generated[key] < window and len(_last_generated) <= MAX_THROTTLE_ENTRIES:
+            break
+        del _last_generated[key]
 
 
 def _payload(suspects: SuspectsDigest) -> dict:
@@ -146,10 +166,10 @@ async def synthesize(
     # A model call is only worth making when there is something to describe,
     # and not more than twice a minute per person.
     now = time.monotonic()
-    throttled = now - _last_generated.get(user_id, 0) < settings.SYNTHESIS_RATE_LIMIT_SECONDS
+    throttled = _is_throttled(user_id, now)
     text = None
     if suspects.flares > 0 and suspects.ingredients and not throttled:
-        _last_generated[user_id] = now
+        _record_call(user_id, now)
         text = await _ask_claude(suspects)
 
     source = "claude" if text else "rules"
