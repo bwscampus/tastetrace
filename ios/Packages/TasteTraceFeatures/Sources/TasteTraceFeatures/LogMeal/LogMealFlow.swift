@@ -25,6 +25,12 @@ struct LogMealFlow: View {
             SaveDishSheet(model: model)
                 .presentationDetents([.large])
         }
+        #if canImport(UIKit)
+        .sheet(isPresented: $model.showPhotoSheet) {
+            MealPhotoSheet(model: model)
+                .presentationDetents([.medium, .large])
+        }
+        #endif
         .onChange(of: model.completed) { _, done in
             if done { router.sheet = nil }
         }
@@ -38,6 +44,7 @@ struct LogMealStep1View: View {
     @State private var pendingDelete: Dish?
     @State private var editingDish: Dish?
     @State private var showLibrary = false
+    @FocusState private var nameFieldFocused: Bool
 
     var body: some View {
         TTScreen {
@@ -46,7 +53,12 @@ struct LogMealStep1View: View {
             DateTimeCard(title: "Meal Date & Time", subtitle: "Helps map digestive correlation windows", day: $model.day, time: $model.time, math: model.math)
 
             SectionLabel("1. Select meal category")
-            MealCategoryGrid(selection: $model.mealType)
+            // Routed through the model so a category picked here is known to be
+            // deliberate, and a guess from a photo will not overwrite it.
+            MealCategoryGrid(selection: Binding(
+                get: { model.mealType },
+                set: { model.chooseMealType($0) }
+            ))
 
             SectionLabel("Quick sensitivity filter (optional)")
             HStack(spacing: 8) {
@@ -97,10 +109,12 @@ struct LogMealStep1View: View {
             TTCard {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Add a food").font(TTFont.captionSemibold).tracking(0.8).textCase(.uppercase).foregroundStyle(TTColor.navy)
+                    MealInputMethodCard(model: model) { nameFieldFocused = true }
                     HStack(spacing: 10) {
                         Image(systemName: "pencil.and.scribble").foregroundStyle(TTColor.primary)
                         TextField("Pasta, side salad…", text: $model.newFoodName)
                             .font(TTFont.body).foregroundStyle(TTColor.inputText)
+                            .focused($nameFieldFocused)
                             .onSubmit { model.addNewFood() }
                         Button("Add") { model.addNewFood() }
                             .font(TTFont.bodySemibold).foregroundStyle(TTColor.primary).buttonStyle(.plain)
@@ -318,12 +332,29 @@ struct MealItemIngredientsCard: View {
     let count: Int
     let onRemove: (() -> Void)?
 
+    private var provenanceLabel: String {
+        switch item.origin {
+        case .tile: return " • saved tile"
+        case .photo: return " • from your photo"
+        case .typed: return ""
+        }
+    }
+
+    /// Low confidence earns a stronger ask, because the alternative is a wrong
+    /// ingredient quietly becoming a suspect weeks later.
+    private var photoNote: String? {
+        guard item.origin == .photo else { return nil }
+        return item.photoConfidence == "low"
+            ? "Read with low confidence — please check every ingredient."
+            : "Read from your photo. Check it before logging."
+    }
+
     var body: some View {
         TTCard {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Food \(position) of \(count)\(item.isFromTile ? " • saved tile" : "")")
+                        Text("Food \(position) of \(count)\(provenanceLabel)")
                             .font(TTFont.captionSemibold).tracking(0.8).textCase(.uppercase).foregroundStyle(TTColor.primary)
                         TextField("Food name", text: $item.name)
                             .font(TTFont.cardTitle).foregroundStyle(TTColor.inputText)
@@ -336,6 +367,15 @@ struct MealItemIngredientsCard: View {
                 if item.isFromTile && item.ingredients != item.savedIngredients {
                     Text("Edited for this meal only; the saved tile keeps its ingredients.")
                         .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                }
+                if let note = photoNote {
+                    // A recognition is a draft. These ingredients become the
+                    // evidence behind the digest's suspects, so a wrong one is
+                    // worth more than a moment's attention now.
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Image(systemName: "camera").foregroundStyle(TTColor.primary)
+                        Text(note).font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                    }
                 }
                 IngredientEditor(input: $item.ingredientInput, ingredients: $item.ingredients)
             }
