@@ -58,3 +58,48 @@ class Throttle:
 
     def __len__(self) -> int:
         return len(self._last_call)
+
+
+class DailyQuota:
+    """A per-user daily ceiling, for calls that cost real money each time.
+
+    The throttle above stops a burst; this stops a slow, expensive day. Counts
+    reset by calendar day in UTC, which is coarse but needs no scheduler and no
+    per-user timezone, and the limit is generous enough that the boundary does
+    not matter.
+
+    Same bounded-memory approach: a new day drops every older entry, so the dict
+    is at most one day of distinct callers, and a hard cap backstops that.
+    """
+
+    def __init__(
+        self,
+        limit: Callable[[], int],
+        max_entries: int = DEFAULT_MAX_ENTRIES,
+    ) -> None:
+        self._limit = limit
+        self._max_entries = max_entries
+        self._counts: dict[tuple[UUID, str], int] = {}
+
+    def _prune(self, today: str) -> None:
+        for key in list(self._counts):
+            if key[1] != today:
+                del self._counts[key]
+        while len(self._counts) > self._max_entries:
+            del self._counts[next(iter(self._counts))]
+
+    def exhausted(self, user_id: UUID, today: str) -> bool:
+        return self._counts.get((user_id, today), 0) >= self._limit()
+
+    def record(self, user_id: UUID, today: str) -> None:
+        self._prune(today)
+        self._counts[(user_id, today)] = self._counts.get((user_id, today), 0) + 1
+
+    def used(self, user_id: UUID, today: str) -> int:
+        return self._counts.get((user_id, today), 0)
+
+    def clear(self) -> None:
+        self._counts.clear()
+
+    def __len__(self) -> int:
+        return len(self._counts)
