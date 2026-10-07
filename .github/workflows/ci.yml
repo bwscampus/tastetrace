@@ -1,9 +1,11 @@
-# Tests, type checks, builds and dependency audits for the Python API and the
-# web app (Production Standard OPS-1). iOS builds run in ios-testflight.yml.
+# Tests, type checks and dependency audits for the Python API (Production
+# Standard OPS-1). iOS builds run in ios-testflight.yml.
 #
 # Railway waits for these checks before deploying (checkSuites: true in
-# .railway/railway.ts), and `main`'s ruleset requires `api` and `app` to pass
-# before a PR can merge, so a red build never ships.
+# .railway/railway.ts), and `main`'s ruleset requires `api` to pass before a PR
+# can merge, so a red build never ships. The `app` job went with the Express web
+# app; if the ruleset still lists `app` as required, every PR will block on a
+# check that no longer runs.
 #
 # Runs on every PR and push, with no path filter: a required check that never
 # runs (e.g. on an iOS- or landing-only PR) would block the merge forever.
@@ -12,7 +14,7 @@ name: CI
 
 on:
   push:
-    branches: [main, taylor]
+    branches: [main]
   pull_request:
 
 concurrency:
@@ -68,43 +70,3 @@ jobs:
         run: |
           uv export --frozen --no-hashes --no-dev --no-emit-project > /tmp/requirements.txt
           uvx pip-audit -r /tmp/requirements.txt
-
-  app:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: app
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: tastetrace_web
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/tastetrace_web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: app/package-lock.json
-      - run: npm ci
-      - name: Typecheck
-        run: npm run check
-      - name: Schema
-        run: npx drizzle-kit push --force
-      - name: Tests (including DB-backed API tests)
-        run: npm test
-      - name: Build
-        run: npm run build
-      # Blocks on critical only for now: the remaining high advisory is
-      # braces via tailwindcss 3, a build-time dependency (see
-      # docs/SECURITY-GAPS.md). Raise to --audit-level=high after the
-      # Tailwind 4 upgrade.
-      - name: Dependency audit
-        run: npm audit --omit=dev --audit-level=critical

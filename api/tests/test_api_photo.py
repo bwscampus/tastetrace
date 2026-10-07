@@ -159,14 +159,18 @@ async def test_an_oversized_photo_is_refused(client, model_on, monkeypatch):
     assert response.status_code == 413
 
 
-async def test_a_photo_too_big_for_the_schema_is_refused_by_validation(client, model_on):
-    """The length ceiling on the field catches it before any decode."""
+async def test_a_photo_too_big_is_refused_before_the_body_is_read(client, model_on):
+    """The body-size middleware catches it from Content-Length alone.
+
+    It never reaches pydantic's field-length check, which is the point: by the
+    time a schema sees a field, the whole body has already been buffered.
+    """
     model_on()
     auth = await register_and_login(client, "taylor@example.com")
     response = await client.post(
         "/api/ai/meal-photo", headers=auth, json={"imageBase64": "A" * (9 * 1024 * 1024)}
     )
-    assert response.status_code == 422
+    assert response.status_code == 413
 
 
 # ── The limits ──────────────────────────────────────────────────────────────

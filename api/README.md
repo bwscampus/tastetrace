@@ -4,9 +4,9 @@ The backend for the TasteTrace iOS app: accounts, the food and symptom log,
 and the analytics behind the digests. Built from the `fastapi-backend` skill
 template (fastapi-users, async SQLAlchemy, Alembic, Railway).
 
-The Express app in `../app` is untouched and still serves the web client and
-the landing page's waitlist. This service owns the mobile API only, with its
-own database.
+This is the only backend. The Express + React web app that used to sit in
+`../app` was retired on 2026-10-07; its one surviving responsibility, the
+landing page's waitlist, is `app/routers/waitlist.py` here.
 
 ## Local development
 
@@ -78,8 +78,8 @@ connect as `app_rw_login`, follow the cut-over in the root README ("Database
 roles"). It is not applied in production yet. Session tokens are stored hashed
 (`app/auth/tokens.py`, migration 0004).
 
-This service is deployed alongside the Express one in the existing Railway
-project, with its own Postgres, so the two never share data.
+This service and the static landing page are the only two in the Railway
+project.
 
 ```bash
 railway add --database postgres                      # its own database
