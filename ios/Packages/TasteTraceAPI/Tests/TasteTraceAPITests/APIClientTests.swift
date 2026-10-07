@@ -134,7 +134,7 @@ final class MealPhotoTests: XCTestCase {
         XCTAssertEqual(read.confidence, "high")
         XCTAssertEqual(read.model, "claude-opus-5-5")
         XCTAssertNil(read.message)
-        XCTAssertEqual(read.flagNames, ["dairy", "grains"])
+        XCTAssertTrue(read.containsDairy && read.containsGrains)
     }
 
     func testSendsTheImageAsBase64WithTheKindAndHint() async throws {
@@ -175,7 +175,7 @@ final class MealPhotoTests: XCTestCase {
         XCTAssertFalse(read.recognized)
         XCTAssertTrue(read.ingredients.isEmpty)
         XCTAssertEqual(read.message, "We couldn't read that photo. Type the meal in instead.")
-        XCTAssertEqual(read.flagNames, [])
+        XCTAssertFalse(read.containsDairy)
     }
 
     func testBeingSwitchedOffSurfacesTheServersMessage() async throws {

@@ -62,16 +62,6 @@ public struct MealPhotoRecognition: Codable, Equatable, Sendable {
         self.message = message
     }
 
-    /// The dietary flags as the set the log flow carries them in.
-    public var flagNames: [String] {
-        var names: [String] = []
-        if containsGluten { names.append("gluten") }
-        if containsDairy { names.append("dairy") }
-        if containsGrains { names.append("grains") }
-        if containsSugar { names.append("sugar") }
-        if containsNuts { names.append("nuts") }
-        return names
-    }
 }
 
 public extension APIClient {

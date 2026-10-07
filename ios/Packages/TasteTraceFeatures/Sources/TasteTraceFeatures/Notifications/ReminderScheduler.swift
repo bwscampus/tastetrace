@@ -17,8 +17,14 @@ public final class ReminderScheduler: @unchecked Sendable {
     }
 
     /// The notification center is unavailable outside an app bundle (e.g. `swift test`).
+    ///
+    /// Checking for an actual `.app` is what works: under `swift test` the main
+    /// bundle is the xctest binary, which *has* an identifier, so testing for a
+    /// nil identifier let `current()` be called and it trapped with
+    /// "bundleProxyForCurrentProcess is nil" the moment anything built an
+    /// AppEnvironment in a test.
     public static var defaultCenter: UNUserNotificationCenter? {
-        Bundle.main.bundleIdentifier == nil ? nil : UNUserNotificationCenter.current()
+        Bundle.main.bundleURL.pathExtension == "app" ? UNUserNotificationCenter.current() : nil
     }
 
     /// Re-creates the pending reminders from settings. Returns false when permission is denied.
