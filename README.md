@@ -23,8 +23,10 @@ database.
 
 ## Database roles (least privilege)
 
-> **Status: code ready; not yet applied in production.**
-> Until the cut-over below, the API still connects as the `postgres` superuser.
+> **Status: applied in production.** The API connects as `app_rw_login`
+> (verified: `select current_user` returns it, and `usesuper` is false), so it
+> can read and write rows but cannot change the schema. The steps below are the
+> procedure, kept for rotation and for any new service.
 
 Each deploy runs a role step after migrations: `python -m app.db_roles`, from
 `api/Procfile`. It creates `app_rw`, which can
