@@ -73,7 +73,7 @@ class Settings(BaseSettings):
 
     # Optional: without it the AI summary falls back to a written template.
     ANTHROPIC_API_KEY: str | None = None
-    SYNTHESIS_MODEL: str = "claude-opus-5"
+    SYNTHESIS_MODEL: str = "claude-opus-5-5"
     SYNTHESIS_TIMEOUT_SECONDS: float = 8.0
     SYNTHESIS_RATE_LIMIT_SECONDS: int = 30
 

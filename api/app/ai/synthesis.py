@@ -1,9 +1,14 @@
 """The written summary on the Food Suspect Digest.
 
-Cached against a hash of the numbers it describes, so re-opening the screen
-costs nothing and the text only changes when the data does. A model is used
-when one is configured; otherwise, and on any failure, the template in
-rules.py writes it instead. The endpoint never fails because of the model.
+A model is used when one is configured; otherwise, and on any failure, the
+template in rules.py writes it instead. The endpoint never fails because of the
+model.
+
+Only the model's prose is cached, against a hash of the numbers it describes, so
+re-opening the screen costs nothing and the text changes only when the data
+does. The template is never stored: it is what a cache miss looks like, it costs
+nothing to rewrite, and storing it would stop the model ever being asked again
+for that week.
 """
 
 import hashlib
@@ -19,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.rules import rules_synthesis
+from app.ai.throttle import Throttle
 from app.config import settings
 from app.domain.suspects import SuspectsDigest
 from app.models import AiSynthesis
@@ -36,27 +42,16 @@ Do not diagnose, do not tell the person to eliminate foods, and do not give medi
 # Thinking is on by default, so the budget has to cover it as well as ~90 words
 MAX_TOKENS = 2000
 
-# Per-user time of the last model call, for the throttle below. Bounded so a
-# flood of accounts can't grow it without limit: entries older than the
-# throttle window are dropped (they can no longer throttle anything), and the
-# oldest go first past a hard cap. Insertion order is call order.
-MAX_THROTTLE_ENTRIES = 10_000
-_last_generated: dict[UUID, float] = {}
+throttle = Throttle(lambda: settings.SYNTHESIS_RATE_LIMIT_SECONDS)
 
 
-def _is_throttled(user_id: UUID, now: float) -> bool:
-    last = _last_generated.get(user_id)
-    return last is not None and now - last < settings.SYNTHESIS_RATE_LIMIT_SECONDS
-
-
-def _record_call(user_id: UUID, now: float) -> None:
-    _last_generated.pop(user_id, None)  # re-insert so order stays oldest-first
-    _last_generated[user_id] = now
-    window = settings.SYNTHESIS_RATE_LIMIT_SECONDS
-    for key in list(_last_generated):
-        if now - _last_generated[key] < window and len(_last_generated) <= MAX_THROTTLE_ENTRIES:
-            break
-        del _last_generated[key]
+def _client_factory() -> anthropic.AsyncAnthropic:
+    """Seam for the tests: the only place the SDK client is constructed."""
+    return anthropic.AsyncAnthropic(
+        api_key=settings.ANTHROPIC_API_KEY,
+        timeout=settings.SYNTHESIS_TIMEOUT_SECONDS,
+        max_retries=1,
+    )
 
 
 def _payload(suspects: SuspectsDigest) -> dict:
@@ -100,18 +95,16 @@ async def _ask_claude(suspects: SuspectsDigest) -> str | None:
     if not settings.ANTHROPIC_API_KEY:
         return None
 
-    client = anthropic.AsyncAnthropic(
-        api_key=settings.ANTHROPIC_API_KEY,
-        timeout=settings.SYNTHESIS_TIMEOUT_SECONDS,
-        max_retries=1,
-    )
+    client = _client_factory()
     try:
         response = await client.beta.messages.create(
             model=settings.SYNTHESIS_MODEL,
             max_tokens=MAX_TOKENS,
             output_config={"effort": "low"},
-            betas=["server-side-fallback-2026-06-01"],
-            fallbacks=[{"model": "claude-opus-4-8"}],
+            # "default" routes by refusal category, so there is no model list to
+            # keep current. Paired header must be the 07-01 one.
+            betas=["server-side-fallback-2026-07-01"],
+            fallbacks="default",
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": json.dumps(_payload(suspects), separators=(",", ":"))}],
         )
@@ -130,8 +123,15 @@ async def _ask_claude(suspects: SuspectsDigest) -> str | None:
     finally:
         await client.close()
 
+    # stop_reason is checked before content is touched: on a refusal there is no
+    # prose to read. stop_details is null for every other stop reason, so it has
+    # to be guarded rather than assumed.
     if response.stop_reason == "refusal":
-        logger.warning("Synthesis declined by the model")
+        category = getattr(response.stop_details, "category", None)
+        logger.warning("Synthesis declined by the model (%s)", category or "no category")
+        return None
+    if response.stop_reason == "max_tokens":
+        logger.warning("Synthesis hit the %s-token ceiling; discarding a half-written paragraph", MAX_TOKENS)
         return None
     # Thinking blocks ride along with the text ones; keep the prose
     text = "".join(block.text for block in response.content if block.type == "text").strip()
@@ -153,7 +153,12 @@ async def synthesize(
             AiSynthesis.symptom_filter == filter_key,
         )
     )
-    if cached is not None and cached.input_hash == digest_hash:
+    # Only the model's own prose is a cache hit. A stored template is treated as
+    # a miss, so the next request still tries the model: otherwise the first
+    # keyless or throttled view of a week pins the template into the cache, and
+    # because nothing here expires, the model is never asked again until the
+    # numbers themselves change. Adding a key would then appear to do nothing.
+    if cached is not None and cached.input_hash == digest_hash and cached.source == "claude":
         return {
             "text": cached.text,
             "source": cached.source,
@@ -163,23 +168,40 @@ async def synthesize(
             "suggested_watchlist": fallback.suggested_watchlist,
         }
 
-    # A model call is only worth making when there is something to describe,
-    # and not more than twice a minute per person.
+    # A model call is only worth making when there is a key, something to
+    # describe, and not more than twice a minute per person. Recording the call
+    # before making it is deliberate: a fast failure should still hold the
+    # window, so a broken upstream is not hammered.
     now = time.monotonic()
-    throttled = _is_throttled(user_id, now)
     text = None
-    if suspects.flares > 0 and suspects.ingredients and not throttled:
-        _record_call(user_id, now)
+    if (
+        settings.ANTHROPIC_API_KEY
+        and suspects.flares > 0
+        and suspects.ingredients
+        and not throttle.is_throttled(user_id, now)
+    ):
+        throttle.record(user_id, now)
         text = await _ask_claude(suspects)
 
-    source = "claude" if text else "rules"
+    # Nothing is written unless the model wrote it. The template costs nothing
+    # to regenerate, and storing it would be storing a cache miss.
+    if text is None:
+        return {
+            "text": fallback.text,
+            "source": "rules",
+            "model": None,
+            "cached": False,
+            "generated_at": datetime.now(UTC),
+            "suggested_watchlist": fallback.suggested_watchlist,
+        }
+
     row = cached or AiSynthesis(
         user_id=user_id, kind=KIND, week_start=suspects.week_start, symptom_filter=filter_key
     )
     row.input_hash = digest_hash
-    row.source = source
-    row.model = settings.SYNTHESIS_MODEL if text else None
-    row.text = text or fallback.text
+    row.source = "claude"
+    row.model = settings.SYNTHESIS_MODEL
+    row.text = text
     row.created_at = datetime.now(UTC)
     session.add(row)
     await session.commit()
@@ -187,7 +209,7 @@ async def synthesize(
 
     return {
         "text": row.text,
-        "source": source,
+        "source": "claude",
         "model": row.model,
         "cached": False,
         "generated_at": row.created_at,
