@@ -82,7 +82,11 @@ class Settings(BaseSettings):
     # Reading a meal photo. The model is named separately from the summary's
     # because ai_syntheses records which model wrote each summary, and the two
     # should be able to move apart.
-    PHOTO_RECOGNITION_ENABLED: bool = True
+    # Off by default, deliberately. docs/SECURITY-GAPS.md carries PRIV-1 as an
+    # open High: no privacy policy, while this collects health data. A camera
+    # that sends meal photos to a third party widens that, so the route answers
+    # 503 until someone turns this on, and nothing can expose it by accident.
+    PHOTO_RECOGNITION_ENABLED: bool = False
     PHOTO_MODEL: str = "claude-opus-5-5"
     # Vision plus a structured reply is slower than the summary's 8s, and still
     # well inside URLSession's 60s default on the phone.
