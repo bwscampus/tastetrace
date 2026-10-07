@@ -1,10 +1,12 @@
 # TasteTrace: notes for Claude
 
-- `api/`: FastAPI + Postgres (Railway). The iOS app's backend. Tests: `cd api && uv run pytest`.
-- `app/`: Express + React/Vite web app with its own Postgres. Gates: `cd app && npm run check && npm test && npm run build`
-  (`npm test` runs the DB-backed API tests only when `DATABASE_URL` is set).
+- `api/`: FastAPI + Postgres (Railway). The only backend. Tests: `cd api && uv run pytest`.
 - `ios/`: SwiftUI app; local packages under `ios/Packages/*` (`swift test` in each).
-- `landing/`: static page; its waitlist form posts to `app`'s `/api/waitlist`.
+- `landing/`: static page; its waitlist form posts to the API's `/api/waitlist`.
+
+The Express + React web app in `app/` was retired on 2026-10-07. Its one
+surviving responsibility, the landing page's waitlist, moved to
+`api/app/routers/waitlist.py`.
 
 ## Production Standard
 

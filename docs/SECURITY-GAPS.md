@@ -51,6 +51,20 @@ the database, API routes, rendering, or deploy config. It re-checks these rules.
 | OPS-2 | Low | `.github/dependabot.yml` | Weekly update PRs for uv, npm and Actions. Patched pyjwt (PYSEC-2026-4141) and ran `npm audit fix`. |
 | | Low | `app/server/replitAuth.ts` (deleted) | Unused auth module, removed. Pre-existing type errors fixed so `npm run check` is a usable gate. |
 
+## Fixed by retiring the Express web app
+
+Deleting `app/` and its Railway service closed these rather than deferring them.
+
+| Rule | Sev | Where | What changed |
+|---|---|---|---|
+| DB-7 | Med | `api` + `app` databases | The same kind of health data lived in two databases, doubling what could leak and what a deletion request had to cover. One database now. |
+| DB-2 | Med | `.railway/railway.ts` (`npm run db:push`) | The web schema was pushed with no migration history, which had already caused a silent production failure. Gone with the service; `api/` has ordered Alembic migrations. |
+| DB-2 | Low | `app/shared/schema.ts` | The retired `api_tokens` table was still defined and may have held old token hashes. Deleted with its database. |
+| API-2 | Med | `api/app/security.py` | The API had no cap on the whole request body. `BodySizeLimitMiddleware` now rejects one from `Content-Length` before it is buffered, with the photo route carrying its own larger ceiling. Fixed **before** deleting the web app's 100kb limit, which was the only example of this in the repo. |
+| OPS-2 | Low | `app/` (tailwindcss 3 → braces) | The advisory that held the CI audit at "critical only". The whole npm dependency surface is gone; `pip-audit` runs clean at full strength and is the only audit left. |
+| — | Low | `README.md` | "Web and iOS are two separate account systems; decide whether the web app moves to the Python API." Decided: the web app was retired. |
+| PRIV-3 | — | `app` database | The abandoned web accounts and their logged health data were deleted outright rather than left sitting in a service nobody maintained. Waitlist signups were exported first and loaded into the API database. |
+
 ## Fixed in `feat/meal-photo-recognition`
 
 | Rule | Sev | Where | What changed |
@@ -94,30 +108,24 @@ Out of scope for round 1 (still open above): email verification, Drizzle migrati
 | Rule | Sev | Where | Problem | Suggested fix |
 |---|---|---|---|---|
 | PRIV-1 / PRIV-3 | **High** | `landing/index.html`, App Store listing | There's no privacy policy, though the product collects emails and **health data** (symptoms, sensitivities). App Store submission needs a privacy-policy URL. **Meal photo recognition is gated behind this:** `PHOTO_RECOGNITION_ENABLED` defaults to false and the route answers 503, so no photo leaves a device until the policy is live. | **Owner action (teacher):** approve wording. Then link it from the landing page, the web sign-up and the iOS sign-up, and only then set `PHOTO_RECOGNITION_ENABLED=true` on `tastetrace-api`. The wording needs to say photos are sent to Anthropic to be read, are never stored by us, are deleted by them after processing and not used for training, and that the resulting text is an ordinary meal entry covered by account deletion. |
-| API-2 | Med | `api/app/main.py` (absent) | The Python API caps individual fields but has no cap on the **whole request body**, so any authenticated route will buffer whatever is sent. The web app has a 100kb limit; this one has none. `POST /api/ai/meal-photo` caps itself (Content-Length, then the base64 length, then the decoded length), but every other route is unbounded. | A small middleware rejecting an oversized `Content-Length` with 413 before the body is read, with the photo route's larger cap as the exception. |
-| DB-2 | Med | `.railway/railway.ts:24` (`npm run db:push`) | The web schema is pushed with no migration history; a rename or drop can silently lose data. | Switch to `drizzle-kit generate` + `migrate` with committed files. Drop `api_tokens` in a reviewed migration. |
 | AUTH-2 | Med | `api/` | Emails are never verified. | fastapi-users has a verify router. Require verification before data sharing or export. |
 | OPS-5 | Med | `ios/Config/Debug.xcconfig:9` | Debug builds talk to the **production** API, so test data lands in prod. | Point Debug at a staging API (a Railway `staging` environment). |
-| DB-4 | Low | `api/app/db.py`, `app/server/db.ts` | No explicit TLS. | Confirm both `DATABASE_URL`s use `*.railway.internal`. |
+| DB-4 | Low | `api/app/db.py` | No explicit TLS. | Confirm `DATABASE_URL` uses `*.railway.internal`. |
 | FE-4 | Low | iOS `Info.plist` | Portrait-only and light-mode-only. | Revisit for accessibility (Dynamic Type, dark mode). |
 | FE-5 | Low | landing / app / iOS | Three different visual systems: Fraunces + Plex, Inter + navy shadcn, and `TTColor`. | Pick one token set and share it. |
-| OPS-2 | Low | `app/` (tailwindcss 3 → braces) | High advisory in a build-time dependency. CI blocks on critical only until it's fixed. | Upgrade to Tailwind 4, then raise the CI audit level to `high`. |
-| — | Low | `README.md` | Web and iOS are two separate account systems. | Decide whether the web app moves to the Python API. |
-| PRIV-3 / DB-7 | Med | `api` + `app` databases: `symptoms.notes`, `meals.notes`, `ai_syntheses.text` | Free-text health notes and AI health summaries are stored as plain text. Railway encrypts the disk, but anyone with database access (a dump, a leaked credential) can read them. | Field-level encryption (e.g. AES-GCM via `cryptography`, key in a sealed Railway variable, key ID stored with each value). Encrypt only free text; structured fields are needed for the correlation queries. |
-| DB-7 | Med | `api` and `app` databases | The same kind of health data lives in **two** databases (web and mobile), doubling what can leak and what a deletion request must cover. | Move the web app onto the Python API (see the row above) and retire the web copy of the health tables. |
+| PRIV-3 | Med | `api` database: `symptoms.notes`, `meals.notes`, `ai_syntheses.text` | Free-text health notes and AI health summaries are stored as plain text. Railway encrypts the disk, but anyone with database access (a dump, a leaked credential) can read them. | Field-level encryption (e.g. AES-GCM via `cryptography`, key in a sealed Railway variable, key ID stored with each value). Encrypt only free text; structured fields are needed for the correlation queries. |
 | DB-6 | Low | all user tables | No row-level security. Isolation relies on every query filtering by `user_id` (tested). Now that the app runs as a non-superuser role, RLS would actually be enforced. | Optional defense in depth: `ENABLE ROW LEVEL SECURITY` + a `user_id = current_setting('app.user_id')::uuid` policy, with the app setting `app.user_id` per request. |
-| DB-2 | Low | `app/shared/schema.ts:36-53` | The retired `api_tokens` table is still defined (kept so `db:push` doesn't drop it) and may still hold old token hashes. | Once `drizzle generate` migrations replace `push`, drop it in a reviewed migration. |
 
 ## Owner actions (settings, not code)
 
 | Rule | Where | Action |
 |---|---|---|
-| OPS-1 | `.railway/railway.ts` and Railway dashboard | ✅ Done: `checkSuites: true` on all three services, so a red build never deploys. |
+| OPS-1 | `.railway/railway.ts` and Railway dashboard | ✅ Done: `checkSuites: true` on both remaining services, so a red build never deploys. |
 | OPS-3 | GitHub → Settings → Code security | Secret scanning and push protection on. |
-| OPS-4 | GitHub → Settings → Rules | ✅ Done: ruleset "Protect main" is active — PR required, `api` and `app` checks required, no bypass. |
-| DB-5 | Railway → both Postgres services → Backups | ✅ Done 2026-10-05: daily (6-day) + weekly (27-day) snapshots and point-in-time recovery on `tastetrace-api-db` and `Postgres`. Still to do: rehearse one restore (`railway postgres pitr restore --at 1h` into a new service, check it, delete it). |
+| OPS-4 | GitHub → Settings → Rules | ✅ Done: ruleset "Protect main" is active — PR required, the `api` check required, no bypass. The `app` check was removed with the web app. |
+| DB-5 | Railway → both Postgres services → Backups | ✅ Done 2026-10-05: daily (6-day) + weekly (27-day) snapshots and point-in-time recovery on `tastetrace-api-db`. (`Postgres`, the web app's database, was deleted with that app after its waitlist rows were exported.) Still to do: rehearse one restore (`railway postgres pitr restore --at 1h` into a new service, check it, delete it). |
 | OPS-6 | Sentry (free tier) and an uptime monitor | Error tracking, plus a monitor on `/api/health`. |
-| DB-6 | Railway → `tastetrace-api` and `tastetrace` services | After `security/db-hardening` is deployed, do the least-privilege cut-over in the README ("Database roles"). Until then both apps still connect as `postgres`. |
+| DB-6 | Railway → `tastetrace-api` | After `security/db-hardening` is deployed, do the least-privilege cut-over in the README ("Database roles"). Until then the API still connects as `postgres`. |
 | PRIV-1 | Teacher / school | Approve the privacy-policy text (health data). |
 | — | Railway env (`api`) | ✅ Done: `ANTHROPIC_API_KEY`, `RESEND_API_KEY` and `PHOTO_RECOGNITION_ENABLED` are now `preserve()`d in `railway.ts` alongside `PASSWORD_RESET_ENABLED`, so they are documented without their values leaving the dashboard. |
 | — | Anthropic Console → Limits | **Set a monthly spend limit.** There is none by default. Reading a photo costs roughly 2–3 cents, and the app will call it once per logged meal, so an unbounded key is the real cost backstop — not the per-user daily ceiling in the code. |

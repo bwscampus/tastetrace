@@ -1,5 +1,11 @@
 # TasteTrace iOS App — Build Plan
 
+> **Historical (2026-10-07).** This plan is kept for the endpoint map and the
+> mockup-to-screen table, but it is written against the Express backend in
+> `app/`, which has since been retired. The iOS app runs on the FastAPI backend
+> in `api/`; read `api/README.md` for the current contract. Paths and route
+> names below may not match.
+
 > **Status (2026-09-18):** M0–M6 are implemented on the `ios-m0-backend` branch. The backend has 36 vitest tests (unit + integration against a scratch Postgres) and the Swift packages build with the command-line toolchain; `apismoke` runs 30 end-to-end checks against a live backend. Not yet done: running the app in the simulator and the XCTest suites (needs Xcode), the optional TestFlight step, and `DELETE /api/account` (required before App Store submission).
 
 ## Context

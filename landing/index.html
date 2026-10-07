@@ -584,8 +584,8 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   }
 
-  // Switch to https://app.tastetrace.app once DNS for the custom domains is set up
-  const WAITLIST_URL = 'https://tastetrace-app.up.railway.app/api/waitlist';
+  // The Python API. The Express service that used to answer this was retired.
+  const WAITLIST_URL = 'https://tastetrace-api-production.up.railway.app/api/waitlist';
 
   function wireForm(formId, inputId, btnId, errorId, confirmId, confirmEmailId, noteId){
     const form = document.getElementById(formId);
@@ -611,7 +611,7 @@
       btn.disabled = true;
       btn.textContent = 'Adding you…';
 
-      // Signups are stored by the app's API (app/server/routes/index.ts).
+      // Signups are stored by the API (api/app/routers/waitlist.py).
       // Only confirm once the server says it saved the address: fetch
       // resolves on 4xx/5xx, so check res.ok rather than trusting it.
       fetch(WAITLIST_URL, {
