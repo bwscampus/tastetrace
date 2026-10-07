@@ -78,6 +78,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             ("POST", "/api/ai/meal-photo"): parse_rule(
                 settings.RATE_LIMIT_MEAL_PHOTO
             ),
+            # The only unauthenticated write in the API, reachable by anyone.
+            ("POST", "/api/waitlist"): parse_rule(settings.RATE_LIMIT_WAITLIST),
             # Both take the current password, so both are guessing oracles.
             ("PATCH", "/api/users/me"): parse_rule(settings.RATE_LIMIT_LOGIN),
             ("DELETE", "/api/users/me"): parse_rule(settings.RATE_LIMIT_LOGIN),

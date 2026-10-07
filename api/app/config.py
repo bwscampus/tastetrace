@@ -97,11 +97,28 @@ class Settings(BaseSettings):
     # generous; it exists to bound what we are willing to decode.
     MAX_PHOTO_BYTES: int = 4 * 1024 * 1024
 
+    # The landing page is a different origin, so the waitlist endpoint answers
+    # CORS for itself. Deliberately NOT ALLOWED_ORIGINS: that installs the shared
+    # CORS middleware with credentials across every route, auth included, for the
+    # sake of one public form. The iOS client is not a browser and needs none.
+    WAITLIST_ORIGINS: CsvList = Field(
+        default_factory=lambda: [
+            "https://tastetrace.app",
+            "https://www.tastetrace.app",
+            "https://tastetrace.up.railway.app",
+        ]
+    )
+
+    # Every request body, not just a field. The photo route sets its own larger
+    # ceiling; this is what stops any other route buffering whatever is sent.
+    MAX_REQUEST_BYTES: int = 1024 * 1024
+
     RATE_LIMIT_LOGIN: str = "10/minute"
     RATE_LIMIT_FORGOT_PASSWORD: str = "5/hour"
     RATE_LIMIT_REGISTER: str = "10/hour"
     # Per IP, in middleware, so a flood never reaches the body decode.
     RATE_LIMIT_MEAL_PHOTO: str = "20/hour"
+    RATE_LIMIT_WAITLIST: str = "20/hour"
 
     # Extra CSP sources a project needs on top of the strict 'self' baseline.
     CSP_ALLOW_INLINE_STYLES: bool = False
@@ -113,6 +130,7 @@ class Settings(BaseSettings):
     _csv_fields = field_validator(
         "ALLOWED_ORIGINS",
         "ALLOWED_HOSTS",
+        "WAITLIST_ORIGINS",
         "CSP_STYLE_SRC_EXTRA",
         "CSP_FONT_SRC_EXTRA",
         "CSP_IMG_SRC_EXTRA",

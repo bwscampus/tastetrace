@@ -12,6 +12,7 @@ from pydantic import (
     BaseModel,
     BeforeValidator,
     ConfigDict,
+    EmailStr,
     Field,
     PlainSerializer,
     StringConstraints,
@@ -414,3 +415,30 @@ class MealPhotoRead(CamelModel):
     model: str | None = None
     # Set whenever recognized is false, so the screen always has something to say.
     message: str | None = None
+
+
+# ── Waitlist ────────────────────────────────────────────────────────────────
+
+
+# EmailStr lowercases the domain but leaves the local part alone, which would
+# let Reader@example.com and reader@example.com both be stored and make the
+# unique constraint meaningless. Every real provider treats the local part
+# case-insensitively, and the Express endpoint this replaces lowercased the
+# whole address, so match that.
+LowercaseEmail = Annotated[
+    EmailStr,
+    StringConstraints(max_length=254),
+    BeforeValidator(lambda v: v.strip().lower() if isinstance(v, str) else v),
+]
+
+
+class WaitlistRequest(CamelModel):
+    # 254 is the longest an address can be, so anything beyond it is not a
+    # near-miss worth accepting.
+    email: LowercaseEmail
+    # Honeypot. A real visitor never sees this field, so anything in it is a bot.
+    company: Annotated[str, StringConstraints(max_length=200)] | None = None
+
+
+class WaitlistRead(CamelModel):
+    message: str

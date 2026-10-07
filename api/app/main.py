@@ -84,12 +84,13 @@ def register_project_routes(app: FastAPI) -> None:
         meals,
         profile,
         symptoms,
+        waitlist,
         watchlist,
     )
     from app.routers.errors import install_error_shapes
 
     install_error_shapes(app)
-    for module in (profile, meals, dishes, symptoms, entries, analytics, watchlist, ai, export):
+    for module in (profile, meals, dishes, symptoms, entries, analytics, watchlist, ai, export, waitlist):
         app.include_router(module.router, prefix="/api")
 
 
