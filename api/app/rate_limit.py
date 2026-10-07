@@ -72,6 +72,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             ("POST", "/api/auth/reset-password"): parse_rule(
                 settings.RATE_LIMIT_FORGOT_PASSWORD
             ),
+            # Authed, but this runs before the route's dependencies resolve, so
+            # it is what stops a flood from making us decode megabyte bodies.
+            # The per-user window and daily ceiling live in the route itself.
+            ("POST", "/api/ai/meal-photo"): parse_rule(
+                settings.RATE_LIMIT_MEAL_PHOTO
+            ),
             # Both take the current password, so both are guessing oracles.
             ("PATCH", "/api/users/me"): parse_rule(settings.RATE_LIMIT_LOGIN),
             ("DELETE", "/api/users/me"): parse_rule(settings.RATE_LIMIT_LOGIN),

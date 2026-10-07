@@ -1,0 +1,18 @@
+{
+  "recognized": true,
+  "name": "Chicken burrito bowl",
+  "ingredients": [
+    { "name": "chicken", "cookMethod": "grilled" },
+    { "name": "black beans", "cookMethod": null }
+  ],
+  "mealCategory": "Lunch",
+  "containsGluten": false,
+  "containsDairy": true,
+  "containsGrains": true,
+  "containsSugar": false,
+  "containsNuts": false,
+  "confidence": "high",
+  "kind": "meal",
+  "model": "claude-opus-5-5",
+  "message": null
+}

@@ -107,3 +107,126 @@ final class AccountDeletionTests: XCTestCase {
         XCTAssertEqual(body?["password"], "a pass phrase")
     }
 }
+
+final class MealPhotoTests: XCTestCase {
+    var transport: MockTransport!
+    var client: APIClient!
+
+    override func setUp() {
+        transport = MockTransport()
+        client = APIClient(baseURL: URL(string: "https://api.example")!, transport: transport, tokenProvider: StaticTokenProvider("tt_test"))
+    }
+
+    func testDecodesARecognitionIntoTheTypesTheEditorAlreadyUses() async throws {
+        try transport.stub("POST", "/api/ai/meal-photo", fixture: "mealPhoto")
+        let jpeg = Data([0xFF, 0xD8, 0xFF, 0x00, 0x01])
+
+        let read = try await client.recognizeMealPhoto(jpeg: jpeg, kind: .meal, mealType: .lunch, hint: "burrito")
+
+        XCTAssertTrue(read.recognized)
+        XCTAssertEqual(read.name, "Chicken burrito bowl")
+        // The existing types, so this goes straight into IngredientEditor
+        XCTAssertEqual(read.ingredients, [
+            IngredientDetail(name: "chicken", cookMethod: "grilled"),
+            IngredientDetail(name: "black beans", cookMethod: nil),
+        ])
+        XCTAssertEqual(read.mealCategory, .lunch)
+        XCTAssertEqual(read.confidence, "high")
+        XCTAssertEqual(read.model, "claude-opus-5-5")
+        XCTAssertNil(read.message)
+        XCTAssertTrue(read.containsDairy && read.containsGrains)
+    }
+
+    func testSendsTheImageAsBase64WithTheKindAndHint() async throws {
+        try transport.stub("POST", "/api/ai/meal-photo", fixture: "mealPhoto")
+        let jpeg = Data([0xFF, 0xD8, 0xFF, 0x0A, 0x0B, 0x0C])
+
+        _ = try await client.recognizeMealPhoto(jpeg: jpeg, kind: .label, mealType: nil, hint: "  pasta  ")
+
+        let request = transport.requests[0]
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer tt_test")
+        let body = try JSONSerialization.jsonObject(with: request.httpBody!) as? [String: Any]
+        XCTAssertEqual(body?["imageBase64"] as? String, jpeg.base64EncodedString())
+        XCTAssertEqual(body?["kind"] as? String, "label")
+        XCTAssertEqual(body?["hint"] as? String, "pasta", "the hint is trimmed before it is sent")
+        XCTAssertNil(body?["mealType"] ?? nil)
+    }
+
+    func testAnEmptyHintIsOmittedRatherThanSentBlank() async throws {
+        try transport.stub("POST", "/api/ai/meal-photo", fixture: "mealPhoto")
+        _ = try await client.recognizeMealPhoto(jpeg: Data([0xFF, 0xD8, 0xFF]), hint: "   ")
+
+        let body = try JSONSerialization.jsonObject(with: transport.requests[0].httpBody!) as? [String: Any]
+        XCTAssertNil(body?["hint"] ?? nil)
+    }
+
+    func testAnUnreadablePhotoDecodesAsAMessageRatherThanAnError() async throws {
+        transport.stub("POST", "/api/ai/meal-photo", json: #"""
+        {"recognized":false,"name":"","ingredients":[],"mealCategory":null,
+         "containsGluten":false,"containsDairy":false,"containsGrains":false,
+         "containsSugar":false,"containsNuts":false,"confidence":"low",
+         "kind":"meal","model":"claude-opus-5-5",
+         "message":"We couldn't read that photo. Type the meal in instead."}
+        """#)
+
+        let read = try await client.recognizeMealPhoto(jpeg: Data([0xFF, 0xD8, 0xFF]))
+
+        XCTAssertFalse(read.recognized)
+        XCTAssertTrue(read.ingredients.isEmpty)
+        XCTAssertEqual(read.message, "We couldn't read that photo. Type the meal in instead.")
+        XCTAssertFalse(read.containsDairy)
+    }
+
+    func testBeingSwitchedOffSurfacesTheServersMessage() async throws {
+        transport.stub("POST", "/api/ai/meal-photo", status: 503, json: #"{"detail":"Photo recognition isn't available right now. Type the meal in instead."}"#)
+
+        do {
+            _ = try await client.recognizeMealPhoto(jpeg: Data([0xFF, 0xD8, 0xFF]))
+            XCTFail("a 503 should throw so the view model can show the message")
+        } catch let error as APIError {
+            guard case .server(let status, let message) = error else {
+                return XCTFail("expected a server error, got \(error)")
+            }
+            XCTAssertEqual(status, 503)
+            XCTAssertEqual(
+                message,
+                "Photo recognition isn't available right now. Type the meal in instead.",
+                "FastAPI puts the text in `detail`; dropping it leaves only \"Request failed\""
+            )
+        }
+    }
+}
+
+final class ServerErrorMessageTests: XCTestCase {
+    private func error(status: Int, json: String) async -> APIError? {
+        let transport = MockTransport()
+        let client = APIClient(baseURL: URL(string: "https://api.example")!, transport: transport, tokenProvider: StaticTokenProvider("tt_test"))
+        transport.stub("GET", "/api/coverage", status: status, json: json)
+        do {
+            _ = try await client.coverage(on: "2026-09-11", tz: "America/Los_Angeles")
+            return nil
+        } catch let error as APIError {
+            return error
+        } catch {
+            return nil
+        }
+    }
+
+    func testFastAPIDetailReachesTheScreen() async throws {
+        let error = await self.error(status: 429, json: #"{"detail":"Give it a few seconds."}"#)
+        XCTAssertEqual(error?.message, "Give it a few seconds.")
+    }
+
+    func testTheOlderMessageKeyStillWorks() async throws {
+        let error = await self.error(status: 400, json: #"{"message":"Something specific."}"#)
+        XCTAssertEqual(error?.message, "Something specific.")
+    }
+
+    func testAValidationErrorFallsBackRatherThanShowingFieldNoise() async throws {
+        // FastAPI makes `detail` an array here, with nothing worth showing.
+        let body = #"{"detail":[{"loc":["body","imageBase64"],"msg":"too long","type":"string_too_long"}]}"#
+        let error = await self.error(status: 422, json: body)
+        XCTAssertEqual(error?.message, "Request failed (422).")
+    }
+}

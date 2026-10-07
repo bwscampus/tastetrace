@@ -15,7 +15,10 @@ export default defineRailway(() => {
     build: { buildEnvironment: "V3", builder: "RAILPACK", watchPatterns: ["/api/**"] },
     healthcheck: "/api/health",
     replicas: { "us-west2": 1 },
-    env: { ALLOWED_HOSTS: preserve(), APP_NAME: preserve(), DATABASE_URL: preserve(), ENVIRONMENT: preserve(), PASSWORD_RESET_ENABLED: preserve(), PUBLIC_BASE_URL: preserve(), SECRET_KEY: preserve() },
+    // preserve() means "set in the dashboard, don't clobber from here" — which
+    // is what secrets need, and what gives the owner a kill switch on the photo
+    // flag without a deploy.
+    env: { ALLOWED_HOSTS: preserve(), ANTHROPIC_API_KEY: preserve(), APP_NAME: preserve(), DATABASE_URL: preserve(), ENVIRONMENT: preserve(), PASSWORD_RESET_ENABLED: preserve(), PHOTO_RECOGNITION_ENABLED: preserve(), PUBLIC_BASE_URL: preserve(), RESEND_API_KEY: preserve(), SECRET_KEY: preserve() },
   });
   const tastetrace = service("tastetrace", {
     source: github("bwscampus/tastetrace", { checkSuites: true, rootDirectory: "/app" }),

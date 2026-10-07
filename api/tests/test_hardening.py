@@ -3,6 +3,7 @@
 import uuid
 
 from app.ai import synthesis
+from app.ai.throttle import Throttle
 from app.services.export import csv_cell
 
 
@@ -17,28 +18,45 @@ def test_csv_cells_that_would_run_as_formulas_are_neutralised():
     assert csv_cell("=1,2") == "\"'=1,2\""
 
 
-def test_ai_throttle_blocks_a_second_call_within_the_window(monkeypatch):
-    monkeypatch.setattr(synthesis, "_last_generated", {})
-    monkeypatch.setattr(synthesis.settings, "SYNTHESIS_RATE_LIMIT_SECONDS", 30)
+def test_ai_throttle_blocks_a_second_call_within_the_window():
+    throttle = Throttle(lambda: 30)
     user = uuid.uuid4()
-    assert not synthesis._is_throttled(user, 1000.0)
-    synthesis._record_call(user, 1000.0)
-    assert synthesis._is_throttled(user, 1010.0)
-    assert not synthesis._is_throttled(user, 1031.0)
+    assert not throttle.is_throttled(user, 1000.0)
+    throttle.record(user, 1000.0)
+    assert throttle.is_throttled(user, 1010.0)
+    assert not throttle.is_throttled(user, 1031.0)
 
 
-def test_ai_throttle_memory_is_bounded(monkeypatch):
-    monkeypatch.setattr(synthesis, "_last_generated", {})
-    monkeypatch.setattr(synthesis.settings, "SYNTHESIS_RATE_LIMIT_SECONDS", 30)
-    monkeypatch.setattr(synthesis, "MAX_THROTTLE_ENTRIES", 100)
+def test_ai_throttle_reports_when_the_caller_may_retry():
+    throttle = Throttle(lambda: 30)
+    user = uuid.uuid4()
+    assert throttle.retry_after(user, 1000.0) == 0  # never called
+    throttle.record(user, 1000.0)
+    assert throttle.retry_after(user, 1010.0) == 21  # rounded up, so never 0 too early
+    assert throttle.retry_after(user, 1031.0) == 0
+
+
+def test_ai_throttle_memory_is_bounded():
+    throttle = Throttle(lambda: 30, max_entries=100)
 
     # Stale entries are dropped as soon as anyone makes a new call.
     for i in range(50):
-        synthesis._record_call(uuid.uuid4(), float(i))
-    synthesis._record_call(uuid.uuid4(), 10_000.0)
-    assert len(synthesis._last_generated) == 1
+        throttle.record(uuid.uuid4(), float(i))
+    throttle.record(uuid.uuid4(), 10_000.0)
+    assert len(throttle) == 1
 
     # A burst of distinct users inside the window never exceeds the cap.
     for i in range(500):
-        synthesis._record_call(uuid.uuid4(), 20_000.0 + i * 0.001)
-    assert len(synthesis._last_generated) <= 100
+        throttle.record(uuid.uuid4(), 20_000.0 + i * 0.001)
+    assert len(throttle) <= 100
+
+
+def test_each_caller_gets_an_independent_throttle():
+    """The photo path must not be blocked by a digest summary, or vice versa."""
+    user = uuid.uuid4()
+    synthesis.throttle.clear()
+    other = Throttle(lambda: 30)
+    synthesis.throttle.record(user, 1000.0)
+    assert synthesis.throttle.is_throttled(user, 1001.0)
+    assert not other.is_throttled(user, 1001.0)
+    synthesis.throttle.clear()

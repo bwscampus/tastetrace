@@ -82,7 +82,56 @@ do {
     let synthesis = try await client.synthesis(weekStart: weekStart, symptom: nil, tz: tz)
     check("synthesis returns text (\(synthesis.source))", synthesis.text.count > 20 && ["claude", "rules"].contains(synthesis.source))
     let again = try await client.synthesis(weekStart: weekStart, symptom: nil, tz: tz)
-    check("synthesis is cached on repeat", again.cached && again.text == synthesis.text)
+    // Only the model's prose is cached. The template repeats because it is
+    // deterministic, but it is never stored, which is what leaves the door open
+    // for the model to be asked once a key exists.
+    if synthesis.source == "claude" {
+        check("claude synthesis is cached on repeat", again.cached && again.text == synthesis.text)
+    } else {
+        check("template synthesis repeats but is not cached", !again.cached && again.text == synthesis.text)
+    }
+
+    // A 1x1 grey JPEG: enough to prove the endpoint is wired and the guards are
+    // live, without asserting the model recognised anything.
+    let tinyJPEG = Data(base64Encoded: """
+    /9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a\
+    HBwcJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPDI0Mv/AABEIAAEAAQMBIgACEQEDEQH/xAAfAAAB\
+    BQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiEx\
+    QQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjU2Nzg5OkNERUZHSElKU1RV\
+    VldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrC\
+    w8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/aAAwDAQACEQMRAD8A9/ooooA/\
+    /9k=
+    """.replacingOccurrences(of: "\n", with: "")) ?? Data()
+
+    // Neither of these rethrows: a server that predates the feature should
+    // report one clear failure, not abort the exports and everything after them.
+    //
+    // The refused file goes first on purpose. A refused photo is designed not to
+    // charge the rate limiter, so this leaves the real read below still allowed;
+    // the other order gets a 429 and never reaches the format check at all.
+    do {
+        _ = try await client.recognizeMealPhoto(jpeg: Data(repeating: 0, count: 2048), kind: .meal)
+        check("a file that isn't an image is refused", false)
+    } catch let error as APIError {
+        if case let .server(status, _) = error {
+            // 503 when no key is configured: that gate sits in front of the decode.
+            check("a file that isn't an image is refused (\(status))", status == 415 || status == 503)
+        } else {
+            check("a file that isn't an image is refused: \(error.message)", false)
+        }
+    }
+
+    do {
+        let read = try await client.recognizeMealPhoto(jpeg: tinyJPEG, kind: .meal)
+        // A grey pixel is not food, so the honest answer is "I can't read this".
+        check("meal photo read answers without claiming to see food", !read.recognized && read.message != nil)
+    } catch let error as APIError {
+        if case let .server(status, _) = error, status == 503 {
+            check("meal photo reports itself unavailable without a key", error.message.contains("Type the meal in"))
+        } else {
+            check("meal photo read: \(error.message)", false)
+        }
+    }
 
     let today = DayFormatter.string(from: Date(), tz: tz)
     let csv = String(decoding: try await client.csvExport(from: weekStart, to: today, tz: tz), as: UTF8.self)

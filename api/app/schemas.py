@@ -19,6 +19,8 @@ from pydantic import (
 )
 from pydantic.alias_generators import to_camel
 
+from app.config import settings
+
 
 def _iso_millis_z(value: datetime) -> str:
     """ISO-8601 with exactly three fractional digits and a Z suffix.
@@ -375,3 +377,40 @@ class SynthesisRead(CamelModel):
     cached: bool
     generated_at: UtcDatetime
     suggested_watchlist: list[str] = Field(default_factory=list)
+
+
+# ── Meal photo ──────────────────────────────────────────────────────────────
+
+# base64 is 4 characters per 3 bytes, plus a little slack for padding. Pydantic
+# rejecting an over-long string is cheaper than decoding it to find out.
+MAX_PHOTO_B64_CHARS = 4 * ((settings.MAX_PHOTO_BYTES + 2) // 3) + 16
+
+
+class MealPhotoRequest(CamelModel):
+    # base64, no data-URI prefix. The ceiling here is a cheap first line of
+    # defence; the decoded length is checked again, and the real media type is
+    # read from the bytes rather than taken on trust.
+    image_base64: Annotated[str, StringConstraints(min_length=16, max_length=MAX_PHOTO_B64_CHARS)]
+    kind: Literal["meal", "label"] = "meal"
+    meal_type: MealTypeName | None = None
+    # Whatever the person already typed, so the model has a nudge.
+    hint: Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)] | None = None
+
+
+class MealPhotoRead(CamelModel):
+    """Deliberately the shape MealCreate accepts, so the client needs no mapping."""
+
+    recognized: bool
+    name: str = ""
+    ingredients: list[IngredientDetail] = Field(default_factory=list)
+    meal_category: MealTypeName | None = None
+    contains_gluten: bool = False
+    contains_dairy: bool = False
+    contains_grains: bool = False
+    contains_sugar: bool = False
+    contains_nuts: bool = False
+    confidence: Literal["high", "medium", "low"] = "low"
+    kind: Literal["meal", "label"] = "meal"
+    model: str | None = None
+    # Set whenever recognized is false, so the screen always has something to say.
+    message: str | None = None

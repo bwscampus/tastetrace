@@ -71,15 +71,37 @@ class Settings(BaseSettings):
     SESSION_LIFETIME_SECONDS: int = 60 * 60 * 24 * 14  # 14 days
     RESET_TOKEN_LIFETIME_SECONDS: int = 60 * 60  # 1 hour
 
-    # Optional: without it the AI summary falls back to a written template.
+    # Optional. Without it the AI summary falls back to a written template and
+    # photo recognition reports itself unavailable. Deliberately not required in
+    # production: the product has to keep working without a model.
     ANTHROPIC_API_KEY: str | None = None
-    SYNTHESIS_MODEL: str = "claude-opus-5"
+    SYNTHESIS_MODEL: str = "claude-opus-5-5"
     SYNTHESIS_TIMEOUT_SECONDS: float = 8.0
     SYNTHESIS_RATE_LIMIT_SECONDS: int = 30
+
+    # Reading a meal photo. The model is named separately from the summary's
+    # because ai_syntheses records which model wrote each summary, and the two
+    # should be able to move apart.
+    # Off by default, deliberately. docs/SECURITY-GAPS.md carries PRIV-1 as an
+    # open High: no privacy policy, while this collects health data. A camera
+    # that sends meal photos to a third party widens that, so the route answers
+    # 503 until someone turns this on, and nothing can expose it by accident.
+    PHOTO_RECOGNITION_ENABLED: bool = False
+    PHOTO_MODEL: str = "claude-opus-5-5"
+    # Vision plus a structured reply is slower than the summary's 8s, and still
+    # well inside URLSession's 60s default on the phone.
+    PHOTO_TIMEOUT_SECONDS: float = 20.0
+    PHOTO_RATE_LIMIT_SECONDS: int = 10
+    PHOTO_DAILY_LIMIT: int = 40
+    # 4 MiB of image. A 1568px JPEG from the app is a few hundred KB, so this is
+    # generous; it exists to bound what we are willing to decode.
+    MAX_PHOTO_BYTES: int = 4 * 1024 * 1024
 
     RATE_LIMIT_LOGIN: str = "10/minute"
     RATE_LIMIT_FORGOT_PASSWORD: str = "5/hour"
     RATE_LIMIT_REGISTER: str = "10/hour"
+    # Per IP, in middleware, so a flood never reaches the body decode.
+    RATE_LIMIT_MEAL_PHOTO: str = "20/hour"
 
     # Extra CSP sources a project needs on top of the strict 'self' baseline.
     CSP_ALLOW_INLINE_STYLES: bool = False
