@@ -32,6 +32,7 @@ public enum AppSheet: Identifiable, Hashable {
     case editMeal(id: Int)
     case editSymptom(id: Int)
     case export(kind: String?, weekStart: Date?)
+    case paywall(PaywallReason)
 
     public var id: String {
         switch self {
@@ -42,6 +43,7 @@ public enum AppSheet: Identifiable, Hashable {
         case .editMeal(let id): return "editMeal-\(id)"
         case .editSymptom(let id): return "editSymptom-\(id)"
         case .export(let kind, _): return "export-\(kind ?? "csv")"
+        case .paywall: return "paywall"
         }
     }
 }

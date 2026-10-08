@@ -65,12 +65,17 @@ struct ExportView: View {
     let kind: ReportKind?
     let weekStart: Date?
     @State private var model: ExportViewModel
+    private let plus: PlusStore
 
     init(env: AppEnvironment, kind: ReportKind?, weekStart: Date? = nil) {
         self.kind = kind
         self.weekStart = weekStart
         _model = State(initialValue: ExportViewModel(env: env))
+        plus = env.plus
     }
+
+    /// PDF reports are part of Plus; the raw CSV stays free.
+    private var isLocked: Bool { kind != nil && !plus.isPlus }
 
     var body: some View {
         @Bindable var model = model
@@ -78,7 +83,9 @@ struct ExportView: View {
             InfoBanner(emoji: "📄", title: kind?.rawValue ?? "Raw Data (CSV)",
                        message: kind == nil ? "Every meal and symptom in the range, one row each, with ingredients and cook methods."
                                             : "A shareable summary of your logs and the associations TasteTrace observed, formatted for a dietitian or gastroenterologist.")
-            if weekStart == nil {
+            if isLocked {
+                PlusLockedCard(reason: .export)
+            } else if weekStart == nil {
                 TTCard {
                     VStack(alignment: .leading, spacing: 10) {
                         SectionLabel("Date range")
@@ -103,10 +110,12 @@ struct ExportView: View {
             }
             ErrorText(model.error)
         } bottom: {
-            PinnedBottomBar {
-                PrimaryButton(model.fileURL == nil ? "Generate" : "Regenerate", systemImage: "doc.badge.gearshape", isLoading: model.isBusy) {
-                    Task {
-                        if let kind { await model.exportPDF(kind, weekStart: weekStart) } else { await model.exportCSV() }
+            if !isLocked {
+                PinnedBottomBar {
+                    PrimaryButton(model.fileURL == nil ? "Generate" : "Regenerate", systemImage: "doc.badge.gearshape", isLoading: model.isBusy) {
+                        Task {
+                            if let kind { await model.exportPDF(kind, weekStart: weekStart) } else { await model.exportCSV() }
+                        }
                     }
                 }
             }

@@ -16,6 +16,8 @@ final class TriggerInsightsViewModel {
     var symptom: String?
     var insights: TriggerInsights?
     var minConfidence: Int?
+    /// Days since the first log, for the free preview insight.
+    var loggingDays: Int?
     var isLoading = false
     var error: String?
 
@@ -23,9 +25,15 @@ final class TriggerInsightsViewModel {
     init(env: AppEnvironment) { self.env = env }
     var math: DateMath { env.dateMath }
 
+    /// Free accounts get one preview insight after a week of logging.
+    var previewUnlocked: Bool { (loggingDays ?? 0) >= PlusStore.insightPreviewDays }
+
     func load() async {
         isLoading = insights == nil
         defer { isLoading = false }
+        if loggingDays == nil || !previewUnlocked, let profile = try? await env.run({ try await env.api.profile() }) {
+            loggingDays = profile.firstLogAt == nil ? 0 : profile.journalerDays
+        }
         do {
             insights = try await env.run { try await env.api.triggerInsights(dimension: dimension.rawValue, symptom: symptom, minConfidence: minConfidence) }
             error = nil
@@ -36,9 +44,11 @@ final class TriggerInsightsViewModel {
 struct TriggerInsightsView: View {
     @Environment(Router.self) private var router
     @State private var model: TriggerInsightsViewModel
+    private let plus: PlusStore
 
     init(env: AppEnvironment) {
         _model = State(initialValue: TriggerInsightsViewModel(env: env))
+        plus = env.plus
     }
 
     var body: some View {
@@ -91,8 +101,12 @@ struct TriggerInsightsView: View {
                                    actionTitle: "Go to History") { router.showHistory(on: Date()) }
                         .frame(minHeight: 360)
                 }
-                ForEach(insights.cards) { card in
+                let shown = plus.isPlus ? insights.cards : model.previewUnlocked ? Array(insights.cards.prefix(1)) : []
+                ForEach(shown) { card in
                     TriggerCard(card: card, math: model.math)
+                }
+                if !plus.isPlus && !insights.cards.isEmpty {
+                    lockedInsights(total: insights.cards.count, shown: shown.count)
                 }
                 if insights.hiddenBelowThreshold > 0 && !insights.cards.isEmpty {
                     Text("\(insights.hiddenBelowThreshold) weaker association\(insights.hiddenBelowThreshold == 1 ? "" : "s") hidden below \(insights.minConfidence)% confidence.")
@@ -102,14 +116,30 @@ struct TriggerInsightsView: View {
             if let error = model.error { InfoBanner(emoji: "⚠️", message: error, tone: .warning) }
         } bottom: {
             PinnedBottomBar {
-                PrimaryButton("Export Doctor Evidence Ledger (PDF)", systemImage: "doc.richtext") {
-                    router.sheet = .export(kind: ReportKind.evidenceLedger.rawValue, weekStart: nil)
+                PrimaryButton("Export Doctor Evidence Ledger (PDF)", systemImage: plus.isPlus ? "doc.richtext" : "lock.fill") {
+                    router.requirePlus(plus, .export) {
+                        router.sheet = .export(kind: ReportKind.evidenceLedger.rawValue, weekStart: nil)
+                    }
                 }
             }
         }
         .navigationBarHidden()
         .task { await model.load() }
         .refreshable { await model.load() }
+    }
+
+    @ViewBuilder
+    private func lockedInsights(total: Int, shown: Int) -> some View {
+        if shown == 0 {
+            let daysLeft = max(PlusStore.insightPreviewDays - (model.loggingDays ?? 0), 1)
+            PlusLockedCard(reason: .insights,
+                           title: "Your first insight unlocks in \(daysLeft) day\(daysLeft == 1 ? "" : "s")",
+                           message: "TasteTrace has spotted \(total) possible suspect\(total == 1 ? "" : "s"). Keep logging for \(PlusStore.insightPreviewDays) days for a free preview, or unlock every insight now with Plus.")
+        } else if total > shown {
+            PlusLockedCard(reason: .insights,
+                           title: "\(total - shown) more suspect\(total - shown == 1 ? "" : "s") found",
+                           message: "That was your free preview. Plus shows every suspect, updated weekly.")
+        }
     }
 }
 

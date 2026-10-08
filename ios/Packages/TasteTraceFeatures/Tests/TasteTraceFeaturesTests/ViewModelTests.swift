@@ -48,3 +48,35 @@ final class ReminderSchedulerTests: XCTestCase {
         XCTAssertEqual([settings.breakfastTime, settings.lunchTime, settings.dinnerTime], ["09:00", "13:00", "19:00"])
     }
 }
+
+final class PlusStoreTests: XCTestCase {
+    func testPromoCodesAreRecognisedLooselyAndOthersRejected() {
+        XCTAssertEqual(PromoCode.match(" tastetrace20 ")?.percentOff, 20)
+        XCTAssertEqual(PromoCode.match("TTWAITLIST")?.percentOff, 10)
+        XCTAssertNil(PromoCode.match("TASTETRACE50"))
+        XCTAssertNil(PromoCode.match(""))
+    }
+
+    @MainActor
+    func testFallbackPricesAndDiscounts() {
+        let store = PlusStore()
+        XCTAssertEqual(store.price(.monthly), "$5.00")
+        XCTAssertEqual(store.price(.annual), "$30.00")
+        XCTAssertEqual(store.monthlyEquivalent(), "$2.50")
+        XCTAssertEqual(store.price(.annual, percentOff: 20), "$24.00")
+        XCTAssertEqual(store.price(.annual, percentOff: 10), "$27.00")
+        XCTAssertNil(store.offerCodeURL("TTWAITLIST"), "No App Store ID yet")
+        XCTAssertEqual(PlusStore(appStoreID: "123").offerCodeURL("TTWAITLIST")?.absoluteString,
+                       "https://apps.apple.com/redeem?ctx=offercodes&id=123&code=TTWAITLIST")
+    }
+
+    @MainActor
+    func testFreeAccountsOpenTheLastFourteenDays() {
+        let store = PlusStore()
+        let math = DateMath(timeZone: TimeZone(identifier: "UTC")!)
+        let today = math.startOfDay(Date())
+        XCTAssertTrue(store.canOpen(day: today, math: math))
+        XCTAssertTrue(store.canOpen(day: math.addingDays(-13, to: today), math: math))
+        XCTAssertFalse(store.canOpen(day: math.addingDays(-14, to: today), math: math))
+    }
+}

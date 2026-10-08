@@ -96,6 +96,8 @@ struct ProfileView: View {
                     }
                 }
 
+                PlusMembershipCard()
+
                 TTCard {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
@@ -313,8 +315,11 @@ struct TrackingRulesView: View {
 }
 
 /// Nudge time and meal check-in toggles; schedules local notifications.
+/// Free accounts get the post-dinner nudge at its default time; custom times
+/// and meal check-ins are part of Plus.
 struct RemindersView: View {
     @Environment(AppEnvironment.self) private var env
+    @Environment(Router.self) private var router
     let model: ProfileViewModel
     @State private var nudgesEnabled = true
     @State private var nudgeTime = Date()
@@ -324,18 +329,35 @@ struct RemindersView: View {
     @State private var dinnerTime = Date()
     @State private var permissionDenied = false
 
+    private var custom: Bool { env.plus.isPlus }
+
     var body: some View {
         TTScreen {
             InfoBanner(emoji: "🔔", message: "Reminders are scheduled on this device from your saved preferences.")
             TTCard {
                 VStack(alignment: .leading, spacing: 14) {
                     Toggle("Post-dinner nudge", isOn: $nudgesEnabled).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
-                    DatePicker("Nudge time", selection: $nudgeTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!nudgesEnabled)
-                    Toggle("Meal check-ins", isOn: $checkIns).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
-                    DatePicker("Breakfast", selection: $breakfastTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!checkIns)
-                    DatePicker("Lunch", selection: $lunchTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!checkIns)
-                    DatePicker("Dinner", selection: $dinnerTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!checkIns)
-                    Text("Each check-in arrives \(ReminderScheduler.checkInDelayMinutes) minutes after the meal time.").font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                    DatePicker("Nudge time", selection: $nudgeTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!nudgesEnabled || !custom)
+                    if custom {
+                        Toggle("Meal check-ins", isOn: $checkIns).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
+                        DatePicker("Breakfast", selection: $breakfastTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!checkIns)
+                        DatePicker("Lunch", selection: $lunchTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!checkIns)
+                        DatePicker("Dinner", selection: $dinnerTime, displayedComponents: .hourAndMinute).font(TTFont.body).disabled(!checkIns)
+                        Text("Each check-in arrives \(ReminderScheduler.checkInDelayMinutes) minutes after the meal time.").font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                    } else {
+                        Button { router.sheet = .paywall(.reminders) } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "lock.fill").foregroundStyle(TTColor.primary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Custom reminders").font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
+                                    Text("Your own nudge time and meal check-ins come with TasteTrace Plus.").font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                                }
+                                Spacer()
+                                StatusBadge("Plus", tone: .primary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
                     if permissionDenied {
                         Text("Notifications are turned off for TasteTrace in Settings.").font(TTFont.caption).foregroundStyle(TTColor.danger)
                     }
@@ -368,6 +390,39 @@ struct RemindersView: View {
                 breakfastTime = ReminderScheduler.date(fromHHMM: s.breakfastTime, math: env.dateMath)
                 lunchTime = ReminderScheduler.date(fromHHMM: s.lunchTime, math: env.dateMath)
                 dinnerTime = ReminderScheduler.date(fromHHMM: s.dinnerTime, math: env.dateMath)
+            }
+        }
+    }
+}
+
+/// Plus status in the profile: upgrade, or manage an active subscription.
+struct PlusMembershipCard: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(Router.self) private var router
+
+    var body: some View {
+        let plus = env.plus
+        TTCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Label("TasteTrace Plus", systemImage: "sparkles").font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
+                    Spacer()
+                    StatusBadge(plus.isPlus ? (plus.activePlan == .monthly ? "Monthly" : "Annual") : "Free", tone: plus.isPlus ? .success : .neutral, uppercased: true)
+                }
+                if plus.isPlus {
+                    Text("Full history, every insight, PDF reports and custom reminders are unlocked.")
+                        .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
+                    Link(destination: URL(string: "https://apps.apple.com/account/subscriptions")!) {
+                        Label("Manage Subscription", systemImage: "arrow.up.forward.app").font(TTFont.bodySemibold).foregroundStyle(TTColor.primary)
+                    }
+                } else {
+                    Text("Logging is free. Plus unlocks your full history, every pattern insight, PDF reports and custom reminders. \(plus.price(.monthly))/month or \(plus.price(.annual))/year.")
+                        .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
+                    PrimaryButton("Upgrade to Plus", systemImage: "sparkles") { router.sheet = .paywall(.upgrade) }
+                    Button("Restore Purchases") { Task { await plus.restore() } }
+                        .font(TTFont.bodySemibold).foregroundStyle(TTColor.primary).frame(maxWidth: .infinity)
+                    ErrorText(plus.purchaseError)
+                }
             }
         }
     }

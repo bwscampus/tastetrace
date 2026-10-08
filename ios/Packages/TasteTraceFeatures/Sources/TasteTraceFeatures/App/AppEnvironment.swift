@@ -13,21 +13,24 @@ public final class AppEnvironment {
     public let dishes: DishRepository
     public let watchlist: WatchlistStore
     public let reminders: ReminderScheduler
+    public let plus: PlusStore
     public var dateMath: DateMath
 
     public var api: APIClient { session.api }
 
-    public init(session: AuthSession, dateMath: DateMath = DateMath()) {
+    public init(session: AuthSession, dateMath: DateMath = DateMath(), appStoreID: String? = nil) {
         self.session = session
         self.entries = EntriesRepository(client: session.api)
         self.dishes = DishRepository(client: session.api)
         self.watchlist = WatchlistStore()
         self.reminders = ReminderScheduler()
+        self.plus = PlusStore(appStoreID: appStoreID)
         self.dateMath = dateMath
     }
 
     public static func live(baseURL: URL) -> AppEnvironment {
-        AppEnvironment(session: .make(baseURL: baseURL, tokenStore: KeychainTokenStore()))
+        AppEnvironment(session: .make(baseURL: baseURL, tokenStore: KeychainTokenStore()),
+                       appStoreID: Bundle.main.object(forInfoDictionaryKey: "APP_STORE_ID") as? String)
     }
 
     /// Reads API_BASE_URL from Info.plist (set per configuration by xcconfig).
