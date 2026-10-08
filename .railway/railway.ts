@@ -16,7 +16,7 @@ export default defineRailway(() => {
     // preserve() means "set in the dashboard, don't clobber from here" — which
     // is what secrets need, and what gives the owner a kill switch on the photo
     // flag without a deploy.
-    env: { ALLOWED_HOSTS: preserve(), ANTHROPIC_API_KEY: preserve(), APP_NAME: preserve(), DATABASE_URL: preserve(), ENVIRONMENT: preserve(), PASSWORD_RESET_ENABLED: preserve(), PHOTO_RECOGNITION_ENABLED: preserve(), PUBLIC_BASE_URL: preserve(), RESEND_API_KEY: preserve(), SECRET_KEY: preserve() },
+    env: { ALLOWED_HOSTS: preserve(), OPENAI_API_KEY: preserve(), APP_NAME: preserve(), DATABASE_URL: preserve(), ENVIRONMENT: preserve(), PASSWORD_RESET_ENABLED: preserve(), PHOTO_RECOGNITION_ENABLED: preserve(), PUBLIC_BASE_URL: preserve(), RESEND_API_KEY: preserve(), SECRET_KEY: preserve() },
   });
 
   return project("tastetrace", {

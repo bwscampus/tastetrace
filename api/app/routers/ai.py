@@ -57,7 +57,7 @@ async def meal_photo(body: MealPhotoRequest, request: Request, user: CurrentUser
     the screen must always have something to show. Only the guards below, which
     happen before the model is reached, answer an error status.
     """
-    if not (app_settings.PHOTO_RECOGNITION_ENABLED and app_settings.ANTHROPIC_API_KEY):
+    if not (app_settings.PHOTO_RECOGNITION_ENABLED and app_settings.OPENAI_API_KEY):
         # 503 rather than an unmounted route: a shipped build has to tell
         # "switched off" apart from "talking to an older server", and a 404
         # cannot say which.

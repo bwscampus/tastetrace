@@ -61,7 +61,7 @@ product was designed around.
   calendar day an entry belongs to, derived server-side from the timestamp and
   the request's `tz`; the analytics bucket by it.
 - **Ownership.** Every query filters on the user; someone else's row is a 404.
-- **AI.** `ANTHROPIC_API_KEY` is optional. Without it — or on a timeout, error
+- **AI.** `OPENAI_API_KEY` is optional. Without it — or on a timeout, error
   or refusal — the Food Suspect Digest summary is written from a template
   instead, and the endpoint still succeeds.
 
@@ -92,7 +92,7 @@ railway variables --service tastetrace-api \
   --set ALLOWED_HOSTS=<host>,healthcheck.railway.app,<service>.railway.internal \
   --set SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')" \
   --set PASSWORD_RESET_ENABLED=false \
-  --set ANTHROPIC_API_KEY=sk-ant-xxx        # optional; without it the digest
+  --set OPENAI_API_KEY=sk-xxx               # optional; without it the digest
                                             # summary uses the written template
 ```
 

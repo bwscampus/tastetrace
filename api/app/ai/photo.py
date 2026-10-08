@@ -19,7 +19,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 
-import anthropic
+import openai
 
 from app.ai.throttle import Throttle
 from app.config import settings
@@ -138,10 +138,10 @@ class Recognition:
 throttle = Throttle(lambda: settings.PHOTO_RATE_LIMIT_SECONDS)
 
 
-def _client_factory() -> anthropic.AsyncAnthropic:
+def _client_factory() -> openai.AsyncOpenAI:
     """Seam for the tests: the only place the SDK client is constructed."""
-    return anthropic.AsyncAnthropic(
-        api_key=settings.ANTHROPIC_API_KEY,
+    return openai.AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
         timeout=settings.PHOTO_TIMEOUT_SECONDS,
         max_retries=1,
     )
@@ -232,38 +232,41 @@ async def read_photo(
     hint: str | None = None,
 ) -> Recognition:
     """Ask the model what the photo shows. Never raises; degrades instead."""
-    if not settings.ANTHROPIC_API_KEY:
+    if not settings.OPENAI_API_KEY:
         return Recognition(message=UNAVAILABLE)
 
     model = settings.PHOTO_MODEL
     client = _client_factory()
     try:
-        response = await client.beta.messages.create(
+        response = await client.responses.create(
             model=model,
-            max_tokens=MAX_TOKENS,
-            output_config={
-                "effort": "low",
-                "format": {"type": "json_schema", "schema": response_schema()},
+            max_output_tokens=MAX_TOKENS,
+            # Reading a label is closer to transcription than deliberation, and
+            # the schema does the structuring, so a little reasoning goes far.
+            reasoning={"effort": "low"},
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "meal_photo",
+                    "schema": response_schema(),
+                    # Without strict the schema is a hint, not a guarantee.
+                    "strict": True,
+                }
             },
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
-            system=SYSTEM_PROMPT,
-            messages=[
+            instructions=SYSTEM_PROMPT,
+            input=[
                 {
                     "role": "user",
-                    # The image goes before the text, which is what the API
-                    # expects when a question is being asked about it.
                     "content": [
                         {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": media_type,
-                                "data": base64.standard_b64encode(raw).decode(),
-                            },
+                            "type": "input_image",
+                            # A data URL, with the media type taken from the
+                            # bytes rather than from what the caller claimed.
+                            "image_url": f"data:{media_type};base64,"
+                            + base64.standard_b64encode(raw).decode(),
                         },
                         {
-                            "type": "text",
+                            "type": "input_text",
                             "text": json.dumps(
                                 _context(kind, meal_type, hint), separators=(",", ":")
                             ),
@@ -272,13 +275,13 @@ async def read_photo(
                 }
             ],
         )
-    except anthropic.APITimeoutError:
+    except openai.APITimeoutError:
         logger.warning("Photo read timed out after %ss", settings.PHOTO_TIMEOUT_SECONDS)
         return Recognition(message=CANNOT_READ)
-    except anthropic.APIConnectionError as error:
+    except openai.APIConnectionError as error:
         logger.warning("Photo read could not reach the API: %s", error)
         return Recognition(message=CANNOT_READ)
-    except anthropic.APIStatusError as error:
+    except openai.APIStatusError as error:
         logger.warning("Photo read API error %s: %s", error.status_code, error.message)
         return Recognition(message=CANNOT_READ)
     except Exception:  # never let the screen fail because of the model
@@ -287,17 +290,17 @@ async def read_photo(
     finally:
         await client.close()
 
-    # stop_reason before content: on a refusal there is nothing to read, and
-    # stop_details is null for every other reason, so it has to be guarded.
-    if response.stop_reason == "refusal":
-        category = getattr(response.stop_details, "category", None)
-        logger.warning("Photo read declined by the model (%s)", category or "no category")
+    # Both checked before the text is read. A refusal arrives as a content item
+    # rather than a status, and an incomplete response holds JSON cut mid-object.
+    if refusal := _refusal_of(response):
+        logger.warning("Photo read declined by the model (%s)", refusal)
         return Recognition(model=model, message=CANNOT_READ)
-    if response.stop_reason == "max_tokens":
-        logger.warning("Photo read hit the %s-token ceiling; the JSON would be truncated", MAX_TOKENS)
+    if response.status == "incomplete":
+        reason = getattr(response.incomplete_details, "reason", None)
+        logger.warning("Photo read came back incomplete (%s); the JSON would be cut off", reason or "no reason")
         return Recognition(model=model, message=CANNOT_READ)
 
-    text = "".join(block.text for block in response.content if block.type == "text").strip()
+    text = (response.output_text or "").strip()
     try:
         payload = json.loads(text)
     except json.JSONDecodeError:
@@ -308,3 +311,18 @@ async def read_photo(
         return Recognition(model=model, message=CANNOT_READ)
 
     return recognition_from_model(payload, model)
+
+
+def _refusal_of(response) -> str | None:
+    """The refusal text, if the model declined.
+
+    Refusals arrive as a content item inside an output message rather than as a
+    top-level field, so every message's content has to be walked.
+    """
+    for item in getattr(response, "output", None) or []:
+        if getattr(item, "type", None) != "message":
+            continue
+        for part in getattr(item, "content", None) or []:
+            if getattr(part, "type", None) == "refusal":
+                return getattr(part, "refusal", None) or "no reason given"
+    return None

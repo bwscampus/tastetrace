@@ -373,7 +373,9 @@ class SynthesisRequest(CamelModel):
 
 class SynthesisRead(CamelModel):
     text: str
-    source: Literal["claude", "rules"]
+    # "model" rather than a provider name: the badge should not lie if the
+    # provider changes, and it has changed once already.
+    source: Literal["model", "rules"]
     model: str | None = None
     cached: bool
     generated_at: UtcDatetime

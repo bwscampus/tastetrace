@@ -31,19 +31,24 @@ GOOD_REPLY = {
 }
 
 
-class TextBlock:
-    type = "text"
+class TextPart:
+    type = "output_text"
 
-    def __init__(self, text: str) -> None:
-        self.text = text
+
+class Message:
+    type = "message"
+
+    def __init__(self, content) -> None:
+        self.content = content
 
 
 class FakeResponse:
-    stop_reason = "end_turn"
-    stop_details = None
+    status = "completed"
+    incomplete_details = None
 
     def __init__(self, payload) -> None:
-        self.content = [TextBlock(json.dumps(payload))]
+        self.output_text = json.dumps(payload)
+        self.output = [Message([TextPart()])]
 
 
 class FakeClient:
@@ -52,11 +57,7 @@ class FakeClient:
         self.calls: list[dict] = []
 
     @property
-    def beta(self):
-        return self
-
-    @property
-    def messages(self):
+    def responses(self):
         return self
 
     async def create(self, **kwargs):
@@ -81,7 +82,7 @@ def reset_limits():
 
 @pytest.fixture
 def model_on(monkeypatch):
-    monkeypatch.setattr(photo.settings, "ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setattr(photo.settings, "OPENAI_API_KEY", "sk-test")
     monkeypatch.setattr(photo.settings, "PHOTO_RECOGNITION_ENABLED", True)
 
     def use(result=None) -> FakeClient:
@@ -112,7 +113,7 @@ async def test_without_a_key_it_reports_itself_unavailable(client):
 
 async def test_the_flag_turns_it_off_without_removing_the_route(client, monkeypatch):
     """A 404 could not tell a shipped app "off" from "older server"."""
-    monkeypatch.setattr(photo.settings, "ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setattr(photo.settings, "OPENAI_API_KEY", "sk-test")
     monkeypatch.setattr(photo.settings, "PHOTO_RECOGNITION_ENABLED", False)
     auth = await register_and_login(client, "taylor@example.com")
     response = await post(client, auth)

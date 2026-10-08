@@ -1,13 +1,13 @@
 """The model call behind the digest summary.
 
-Nothing covered `_ask_claude` before this file: not the refusal branch, not the
+Nothing covered the model call before this file: not the refusal branch, not the
 error branches, not the path that stores the model's prose. All of it is reached
 here through `_client_factory`, which exists so a fake can be injected without
 monkeypatching the SDK's import site.
 """
 
-import anthropic
 import httpx
+import openai
 import pytest
 from sqlalchemy import func, select
 
@@ -20,51 +20,56 @@ TZ = "America/Los_Angeles"
 WEEK = "2026-09-11"
 
 
-class TextBlock:
-    type = "text"
-
-    def __init__(self, text: str) -> None:
-        self.text = text
+class RefusalPart:
+    type = "refusal"
+    refusal = "I can't help with that."
 
 
-class ThinkingBlock:
-    """Empty by default on current models; the prose must be picked out around it."""
+class TextPart:
+    type = "output_text"
 
-    type = "thinking"
-    thinking = ""
+
+class Message:
+    type = "message"
+
+    def __init__(self, content):
+        self.content = content
 
 
 class FakeResponse:
-    def __init__(self, text="A short paragraph about sourdough bread.", stop_reason="end_turn"):
-        self._blocks = [ThinkingBlock(), TextBlock(text)]
-        self.stop_reason = stop_reason
-        self.stop_details = None
+    """The slice of a Responses API result that synthesis.py reads."""
 
-    @property
-    def content(self):
-        return self._blocks
+    def __init__(self, text="A short paragraph about sourdough bread.", status="completed"):
+        self.output_text = text
+        self.status = status
+        self.incomplete_details = None
+        self.output = [Message([TextPart()])]
 
 
 class RefusedResponse:
-    """Reading content on a refusal is the bug this shape catches."""
+    """Reading the text on a refusal is the bug this shape catches."""
 
-    stop_reason = "refusal"
+    status = "completed"
+    incomplete_details = None
 
-    class stop_details:  # noqa: N801 - mimicking the SDK's attribute access
-        category = "general_harms"
+    def __init__(self):
+        self.output = [Message([RefusalPart()])]
 
     @property
-    def content(self):
-        raise AssertionError("content must not be read when the model refused")
+    def output_text(self):
+        raise AssertionError("output_text must not be read when the model refused")
 
 
 class TruncatedResponse:
-    stop_reason = "max_tokens"
-    stop_details = None
+    status = "incomplete"
+    output = []
+
+    class incomplete_details:  # noqa: N801 - mimicking SDK attribute access
+        reason = "max_output_tokens"
 
     @property
-    def content(self):
-        return [TextBlock("Half a sent")]
+    def output_text(self):
+        return "Half a sent"
 
 
 class FakeClient:
@@ -76,11 +81,7 @@ class FakeClient:
         self.closed = False
 
     @property
-    def beta(self):
-        return self
-
-    @property
-    def messages(self):
+    def responses(self):
         return self
 
     async def create(self, **kwargs):
@@ -96,7 +97,7 @@ class FakeClient:
 @pytest.fixture
 def fake_model(monkeypatch):
     """Installs a fake client and a key, and returns a setter for the result."""
-    monkeypatch.setattr(synthesis.settings, "ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setattr(synthesis.settings, "OPENAI_API_KEY", "sk-test")
     synthesis.throttle.clear()
     holder: dict[str, FakeClient] = {}
 
@@ -129,7 +130,7 @@ async def test_the_model_writes_the_summary_and_it_is_cached_afterwards(client, 
     fake = fake_model(FakeResponse())
 
     first = await _ask(client, auth)
-    assert first["source"] == "claude"
+    assert first["source"] == "model"
     assert first["model"] == synthesis.settings.SYNTHESIS_MODEL
     assert first["cached"] is False
     assert first["text"] == "A short paragraph about sourdough bread."
@@ -149,17 +150,13 @@ async def test_the_call_parameters_are_current(client, fake_model):
     await _ask(client, auth)
 
     sent = fake.calls[0]
-    assert sent["model"] == "claude-opus-5-5"
-    # Effort is pinned because this model defaults to medium, not high.
-    assert sent["output_config"] == {"effort": "low"}
-    # The scalar fallback form must pair with the 07-01 header; crossing them 400s.
-    assert sent["betas"] == ["server-side-fallback-2026-07-01"]
-    assert sent["fallbacks"] == "default"
-    # All four of these are 400s on this model.
-    assert "thinking" not in sent
-    assert "budget_tokens" not in sent
-    assert "tool_choice" not in sent
-    assert sent["messages"][-1]["role"] == "user"
+    assert sent["model"] == "gpt-6-luna"
+    # No deliberation needed to write 90 words off numbers that are already
+    # computed, and reasoning tokens are billed.
+    assert sent["reasoning"] == {"effort": "none"}
+    # The system prompt goes in `instructions`, not into the input.
+    assert sent["instructions"].startswith("You summarise")
+    assert sent["max_output_tokens"] == synthesis.MAX_TOKENS
 
 
 async def test_a_failed_call_is_not_cached_and_is_retried_once_the_model_works(
@@ -174,7 +171,7 @@ async def test_a_failed_call_is_not_cached_and_is_retried_once_the_model_works(
     auth = await register_and_login(client, "taylor@example.com")
     await seed_week(client, auth)
 
-    fake_model(anthropic.APITimeoutError(request=httpx.Request("POST", "http://x")))
+    fake_model(openai.APITimeoutError(request=httpx.Request("POST", "http://x")))
     failed = await _ask(client, auth)
     assert failed["source"] == "rules"
     assert failed["cached"] is False
@@ -183,7 +180,7 @@ async def test_a_failed_call_is_not_cached_and_is_retried_once_the_model_works(
     synthesis.throttle.clear()  # stand in for the window elapsing
     fake_model(FakeResponse())
     recovered = await _ask(client, auth)
-    assert recovered["source"] == "claude"
+    assert recovered["source"] == "model"
     assert await _stored_rows(engine) == 1
 
 
@@ -212,9 +209,9 @@ async def test_truncated_output_is_discarded_rather_than_shown(client, engine, f
 @pytest.mark.parametrize(
     "error",
     [
-        anthropic.APITimeoutError(request=httpx.Request("POST", "http://x")),
-        anthropic.APIConnectionError(request=httpx.Request("POST", "http://x")),
-        anthropic.APIStatusError(
+        openai.APITimeoutError(request=httpx.Request("POST", "http://x")),
+        openai.APIConnectionError(request=httpx.Request("POST", "http://x")),
+        openai.APIStatusError(
             "boom",
             response=httpx.Response(500, request=httpx.Request("POST", "http://x")),
             body=None,
@@ -237,7 +234,7 @@ async def test_every_failure_degrades_to_the_template(client, fake_model, error)
 async def test_without_a_key_the_model_is_never_constructed(client, monkeypatch):
     auth = await register_and_login(client, "taylor@example.com")
     await seed_week(client, auth)
-    monkeypatch.setattr(synthesis.settings, "ANTHROPIC_API_KEY", None)
+    monkeypatch.setattr(synthesis.settings, "OPENAI_API_KEY", None)
 
     def explode():
         raise AssertionError("no client should be built without a key")
@@ -250,7 +247,7 @@ async def test_without_a_key_the_model_is_never_constructed(client, monkeypatch)
 async def test_the_throttle_keeps_a_second_view_off_the_model(client, fake_model):
     auth = await register_and_login(client, "taylor@example.com")
     await seed_week(client, auth)
-    fake = fake_model(anthropic.APITimeoutError(request=httpx.Request("POST", "http://x")))
+    fake = fake_model(openai.APITimeoutError(request=httpx.Request("POST", "http://x")))
 
     await _ask(client, auth)
     await _ask(client, auth)

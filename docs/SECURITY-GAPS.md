@@ -23,7 +23,7 @@ the database, API routes, rendering, or deploy config. It re-checks these rules.
 - Every API query is scoped to its owner and returns 404 for foreign rows (`api/app/deps.py`), with tests.
 - The API sends a strict CSP, HSTS and nosniff, has a CORS allowlist, hides its docs in prod, and returns generic 500s with a request ID.
 - The API refuses to boot in production with a placeholder secret, wildcard hosts or an http base URL.
-- The Anthropic key never leaves the server.
+- The model provider's API key never leaves the server.
 - No secrets are committed, and `.env` is gitignored.
 
 ## Fixed in this branch
@@ -50,6 +50,15 @@ the database, API routes, rendering, or deploy config. It re-checks these rules.
 | OPS-1 | Med | `.github/workflows/ci.yml` | No CI for `api/` or `app/`. Added pytest, alembic on real Postgres and pip-audit; tsc, vitest (DB-backed), build and npm audit. |
 | OPS-2 | Low | `.github/dependabot.yml` | Weekly update PRs for uv, npm and Actions. Patched pyjwt (PYSEC-2026-4141) and ran `npm audit fix`. |
 | | Low | `app/server/replitAuth.ts` (deleted) | Unused auth module, removed. Pre-existing type errors fixed so `npm run check` is a usable gate. |
+
+## Changed: model provider is OpenAI, not Anthropic (2026-10-08)
+
+| Rule | Where | What changed |
+|---|---|---|
+| — | `api/app/ai/synthesis.py`, `api/app/ai/photo.py` | Both model calls moved from the Anthropic SDK to the OpenAI Responses API. `ANTHROPIC_API_KEY` became `OPENAI_API_KEY`; the dependency was swapped, not added alongside. |
+| — | `api/app/config.py` | A model per feature: the digest summary runs on `gpt-6-luna` at effort `none`, because it writes 90 words from numbers already computed. Photo reading runs on `gpt-6-astra`, because a misread ingredient becomes a wrong suspect in the digest weeks later. |
+| — | `api/app/schemas.py` and the iOS digest view | The wire value `source: "claude"` became `"model"`, and the badge no longer names a provider. A "Claude" badge over OpenAI output would have been a lie to the user, and the rename was free: no cached row carried the old value. |
+| — | — | **Capability lost in the move:** Anthropic's server-side refusal fallback, which retried a declined request on another model inside the same call. OpenAI has no equivalent, so a refusal now degrades straight to the written template. The refusal path is still detected and tested; it just has nowhere to fall back to. |
 
 ## Fixed by retiring the Express web app
 
@@ -107,7 +116,7 @@ Out of scope for round 1 (still open above): email verification, Drizzle migrati
 
 | Rule | Sev | Where | Problem | Suggested fix |
 |---|---|---|---|---|
-| PRIV-1 / PRIV-3 | **High** | `landing/index.html`, App Store listing | There's no privacy policy, though the product collects emails and **health data** (symptoms, sensitivities). App Store submission needs a privacy-policy URL. **Meal photo recognition is gated behind this:** `PHOTO_RECOGNITION_ENABLED` defaults to false and the route answers 503, so no photo leaves a device until the policy is live. | **Owner action (teacher):** approve wording. Then link it from the landing page, the web sign-up and the iOS sign-up, and only then set `PHOTO_RECOGNITION_ENABLED=true` on `tastetrace-api`. The wording needs to say photos are sent to Anthropic to be read, are never stored by us, are deleted by them after processing and not used for training, and that the resulting text is an ordinary meal entry covered by account deletion. |
+| PRIV-1 / PRIV-3 | **High** | `landing/index.html`, App Store listing | There's no privacy policy, though the product collects emails and **health data** (symptoms, sensitivities). App Store submission needs a privacy-policy URL. **Meal photo recognition is gated behind this:** `PHOTO_RECOGNITION_ENABLED` defaults to false and the route answers 503, so no photo leaves a device until the policy is live. | **Owner action (teacher):** approve wording. Then link it from the landing page, the web sign-up and the iOS sign-up, and only then set `PHOTO_RECOGNITION_ENABLED=true` on `tastetrace-api`. The wording needs to name the model provider (OpenAI) that photos are sent to, are never stored by us, state their retention and training terms — **re-check those against OpenAI's current policy, since this moved off Anthropic on 2026-10-08 and the old wording described Anthropic's terms** — and that the resulting text is an ordinary meal entry covered by account deletion. |
 | AUTH-2 | Med | `api/` | Emails are never verified. | fastapi-users has a verify router. Require verification before data sharing or export. |
 | OPS-5 | Med | `ios/Config/Debug.xcconfig:9` | Debug builds talk to the **production** API, so test data lands in prod. | Point Debug at a staging API (a Railway `staging` environment). |
 | DB-4 | Low | `api/app/db.py` | No explicit TLS. | Confirm `DATABASE_URL` uses `*.railway.internal`. |
@@ -127,9 +136,9 @@ Out of scope for round 1 (still open above): email verification, Drizzle migrati
 | OPS-6 | Sentry (free tier) and an uptime monitor | Error tracking, plus a monitor on `/api/health`. |
 | DB-6 | Railway → `tastetrace-api` | ✅ Done: the API connects as `app_rw_login`, not a superuser — verified in production (`select current_user` returns it, `usesuper` is false, and a `create table` is refused). Still to do: confirm `APP_DB_PASSWORD` is a **sealed** variable. |
 | PRIV-1 | Teacher / school | Approve the privacy-policy text (health data). |
-| — | Railway env (`api`) | ✅ Done: `ANTHROPIC_API_KEY`, `RESEND_API_KEY` and `PHOTO_RECOGNITION_ENABLED` are now `preserve()`d in `railway.ts` alongside `PASSWORD_RESET_ENABLED`, so they are documented without their values leaving the dashboard. |
+| — | Railway env (`api`) | ✅ Done: `OPENAI_API_KEY`, `RESEND_API_KEY` and `PHOTO_RECOGNITION_ENABLED` are now `preserve()`d in `railway.ts` alongside `PASSWORD_RESET_ENABLED`, so they are documented without their values leaving the dashboard. |
 | PRIV-3 | Railway → project buckets | ✅ Done 2026-10-07: `roomy-tote-_PDC`, the retired web database's point-in-time-recovery bucket, is deleted, so that health data is no longer recoverable. ⚠️ **Note for next time: the bucket names mislead.** `Postgres-PITR` is named after the *deleted* `Postgres` service but backs the **live** `tastetrace-api-db`. Identified by object count over 45 minutes — `Postgres-PITR` grew 4,631 → 4,650 while `roomy-tote-_PDC` stayed frozen at 4,587, and the API database is the only one running. Deleting by name would have destroyed the surviving database's recovery. After the deletion the live database's PITR still reports enabled, wired and archiving, and its rows are intact. |
 | PRIV-3 | Railway → project volumes | The detached 50 GB `postgres-volume` outlived its deleted service and still holds the old database's data files. `volumeDelete` returned success twice and it still lists, with no service attached and no `deletedAt` field to check, so it may be soft-deleted awaiting reaping or may need removing from the dashboard. Worth confirming, for the data and because it may be billable. |
 | — | Railway → project volumes | The detached `postgres-volume` (50 GB) outlived its deleted service. `volumeDelete` returns success but it still lists; it may need removing from the dashboard, and it may be billable until it goes. |
-| — | Anthropic Console → Limits | **Set a monthly spend limit.** There is none by default. Reading a photo costs roughly 2–3 cents, and the app will call it once per logged meal, so an unbounded key is the real cost backstop — not the per-user daily ceiling in the code. |
+| — | OpenAI Platform → Limits | **Set a monthly spend limit.** There is none by default. Reading a photo runs on the flagship model once per logged meal, so an unbounded key is the real cost backstop — not the per-user daily ceiling in the code. The digest summary runs on the cheap model and is cached, so it is not the thing to watch. |
 | PRIV-1 | Railway env (`api`) | Leave `PHOTO_RECOGNITION_ENABLED` unset or false until the privacy policy is live. The code defaults to false, so this is only a reminder not to turn it on early. |

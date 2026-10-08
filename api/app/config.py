@@ -74,8 +74,10 @@ class Settings(BaseSettings):
     # Optional. Without it the AI summary falls back to a written template and
     # photo recognition reports itself unavailable. Deliberately not required in
     # production: the product has to keep working without a model.
-    ANTHROPIC_API_KEY: str | None = None
-    SYNTHESIS_MODEL: str = "claude-opus-5-5"
+    OPENAI_API_KEY: str | None = None
+    # A short paragraph off numbers that are already computed, so the cheap
+    # model is the right one. It also supports effort "none", which this uses.
+    SYNTHESIS_MODEL: str = "gpt-6-luna"
     SYNTHESIS_TIMEOUT_SECONDS: float = 8.0
     SYNTHESIS_RATE_LIMIT_SECONDS: int = 30
 
@@ -87,7 +89,10 @@ class Settings(BaseSettings):
     # that sends meal photos to a third party widens that, so the route answers
     # 503 until someone turns this on, and nothing can expose it by accident.
     PHOTO_RECOGNITION_ENABLED: bool = False
-    PHOTO_MODEL: str = "claude-opus-5-5"
+    # The flagship instead, deliberately. Misreading a plate puts a wrong
+    # ingredient into the correlation engine, where it becomes a wrong suspect
+    # weeks later — the one place here where accuracy is worth paying for.
+    PHOTO_MODEL: str = "gpt-6-astra"
     # Vision plus a structured reply is slower than the summary's 8s, and still
     # well inside URLSession's 60s default on the phone.
     PHOTO_TIMEOUT_SECONDS: float = 20.0

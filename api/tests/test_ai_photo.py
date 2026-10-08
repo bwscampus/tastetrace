@@ -6,8 +6,8 @@ The route is covered in test_api_photo.py; this file is the module on its own.
 import base64
 import json
 
-import anthropic
 import httpx
+import openai
 import pytest
 
 from app.ai import photo
@@ -114,7 +114,7 @@ def _payload(**overrides) -> dict:
 
 
 def test_a_good_reply_maps_onto_the_meal_fields():
-    result = photo.recognition_from_model(_payload(), "claude-opus-5-5")
+    result = photo.recognition_from_model(_payload(), "gpt-6-astra")
     assert result.recognized
     assert result.name == "Chicken burrito bowl"
     assert result.ingredients == [{"name": "chicken", "cook_method": "grilled"}]
@@ -122,7 +122,7 @@ def test_a_good_reply_maps_onto_the_meal_fields():
     assert result.contains_dairy and result.contains_grains
     assert not result.contains_gluten
     assert result.confidence == "high"
-    assert result.model == "claude-opus-5-5"
+    assert result.model == "gpt-6-astra"
 
 
 def test_an_unknown_cook_method_is_dropped_rather_than_echoed():
@@ -190,43 +190,56 @@ def test_a_reply_missing_fields_entirely_does_not_raise():
 # ── The model call ──────────────────────────────────────────────────────────
 
 
-class TextBlock:
-    type = "text"
+class RefusalPart:
+    type = "refusal"
+    refusal = "I can't help with that."
 
-    def __init__(self, text: str) -> None:
-        self.text = text
+
+class TextPart:
+    type = "output_text"
+
+
+class Message:
+    type = "message"
+
+    def __init__(self, content):
+        self.content = content
 
 
 class FakeResponse:
-    def __init__(self, payload, stop_reason="end_turn"):
-        body = payload if isinstance(payload, str) else json.dumps(payload)
-        self._blocks = [TextBlock(body)]
-        self.stop_reason = stop_reason
-        self.stop_details = None
+    """The slice of a Responses API result that photo.py reads."""
 
-    @property
-    def content(self):
-        return self._blocks
+    def __init__(self, payload, status="completed"):
+        self.output_text = payload if isinstance(payload, str) else json.dumps(payload)
+        self.status = status
+        self.incomplete_details = None
+        self.output = [Message([TextPart()])]
 
 
 class RefusedResponse:
-    stop_reason = "refusal"
+    status = "completed"
+    incomplete_details = None
 
-    class stop_details:  # noqa: N801 - mimicking SDK attribute access
-        category = "general_harms"
+    def __init__(self):
+        self.output = [Message([RefusalPart()])]
 
     @property
-    def content(self):
-        raise AssertionError("content must not be read when the model refused")
+    def output_text(self):
+        raise AssertionError("output_text must not be read when the model refused")
 
 
 class TruncatedResponse:
-    stop_reason = "max_tokens"
-    stop_details = None
+    """Structured output cut mid-object; parsing it would raise."""
+
+    status = "incomplete"
+    output = []
+
+    class incomplete_details:  # noqa: N801 - mimicking SDK attribute access
+        reason = "max_output_tokens"
 
     @property
-    def content(self):
-        return [TextBlock('{"recognized": true, "name": "Chick')]
+    def output_text(self):
+        return '{"recognized": true, "name": "Chick'
 
 
 class FakeClient:
@@ -236,11 +249,7 @@ class FakeClient:
         self.closed = False
 
     @property
-    def beta(self):
-        return self
-
-    @property
-    def messages(self):
+    def responses(self):
         return self
 
     async def create(self, **kwargs):
@@ -255,7 +264,7 @@ class FakeClient:
 
 @pytest.fixture
 def fake_model(monkeypatch):
-    monkeypatch.setattr(photo.settings, "ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setattr(photo.settings, "OPENAI_API_KEY", "sk-test")
 
     def use(result) -> FakeClient:
         client = FakeClient(result)
@@ -270,10 +279,12 @@ async def test_the_image_is_sent_before_the_text_with_the_sniffed_type(fake_mode
     result = await photo.read_photo(JPEG, "image/jpeg", kind="label", meal_type="Lunch", hint="pasta")
     assert result.recognized
 
-    blocks = fake.calls[0]["messages"][0]["content"]
-    assert [block["type"] for block in blocks] == ["image", "text"]
-    assert blocks[0]["source"]["media_type"] == "image/jpeg"
-    assert base64.standard_b64decode(blocks[0]["source"]["data"]) == JPEG
+    blocks = fake.calls[0]["input"][0]["content"]
+    assert [block["type"] for block in blocks] == ["input_image", "input_text"]
+    # A data URL whose media type came from the sniff, not from the caller
+    prefix, _, data = blocks[0]["image_url"].partition(",")
+    assert prefix == "data:image/jpeg;base64"
+    assert base64.standard_b64decode(data) == JPEG
     context = json.loads(blocks[1]["text"])
     assert context == {"kind": "label", "mealType": "Lunch", "hint": "pasta"}
 
@@ -283,15 +294,15 @@ async def test_the_call_parameters_are_current(fake_model):
     await photo.read_photo(JPEG, "image/jpeg")
 
     sent = fake.calls[0]
-    assert sent["model"] == "claude-opus-5-5"
-    assert sent["output_config"]["effort"] == "low"
-    assert sent["output_config"]["format"]["type"] == "json_schema"
-    assert sent["betas"] == ["server-side-fallback-2026-07-01"]
-    assert sent["fallbacks"] == "default"
-    # Each of these is a 400 on this model.
-    assert "thinking" not in sent
-    assert "budget_tokens" not in sent
-    assert "tool_choice" not in sent
+    assert sent["model"] == "gpt-6-astra"
+    assert sent["reasoning"] == {"effort": "low"}
+    fmt = sent["text"]["format"]
+    assert fmt["type"] == "json_schema"
+    assert fmt["name"]  # required by the API
+    # Without strict the schema is a hint rather than a guarantee
+    assert fmt["strict"] is True
+    assert fmt["schema"] == photo.response_schema()
+    assert sent["instructions"].startswith("You read one photo")
 
 
 async def test_a_refusal_degrades_without_reading_the_response(fake_model):
@@ -301,7 +312,7 @@ async def test_a_refusal_degrades_without_reading_the_response(fake_model):
     assert result.message == photo.CANNOT_READ
 
 
-async def test_truncated_json_degrades_rather_than_raising(fake_model):
+async def test_an_incomplete_response_degrades_rather_than_raising(fake_model):
     fake_model(TruncatedResponse())
     result = await photo.read_photo(JPEG, "image/jpeg")
     assert not result.recognized
@@ -321,9 +332,9 @@ async def test_a_reply_that_is_not_an_object_degrades(fake_model, body):
 @pytest.mark.parametrize(
     "error",
     [
-        anthropic.APITimeoutError(request=httpx.Request("POST", "http://x")),
-        anthropic.APIConnectionError(request=httpx.Request("POST", "http://x")),
-        anthropic.APIStatusError(
+        openai.APITimeoutError(request=httpx.Request("POST", "http://x")),
+        openai.APIConnectionError(request=httpx.Request("POST", "http://x")),
+        openai.APIStatusError(
             "boom",
             response=httpx.Response(500, request=httpx.Request("POST", "http://x")),
             body=None,
@@ -347,7 +358,7 @@ async def test_the_client_is_closed_on_the_happy_path_too(fake_model):
 
 
 async def test_without_a_key_no_client_is_built(monkeypatch):
-    monkeypatch.setattr(photo.settings, "ANTHROPIC_API_KEY", None)
+    monkeypatch.setattr(photo.settings, "OPENAI_API_KEY", None)
 
     def explode():
         raise AssertionError("no client should be built without a key")
