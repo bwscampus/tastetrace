@@ -1,5 +1,6 @@
 """Auth over bearer tokens, the profile screen, and settings."""
 
+from app.domain.disclaimer import DISCLAIMER_VERSION
 from tests.conftest_project import PASSWORD, register_and_login
 
 
@@ -128,6 +129,7 @@ async def test_onboarding_answers_are_saved_and_completion_is_stamped(client):
         "/api/profile",
         headers=auth,
         json={"discoveryPurpose": "Find food triggers", "dataSharing": "practitioner",
+              "acceptDisclaimerVersion": DISCLAIMER_VERSION,
               "onboardingCompleted": True},
     )
     assert done.status_code == 200

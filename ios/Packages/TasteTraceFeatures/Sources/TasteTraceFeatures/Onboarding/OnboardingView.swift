@@ -34,6 +34,7 @@ struct OnboardingView: View {
             case .sharing: sharingStep
             case .meals: mealsStep
             case .triggers: triggersStep
+            case .disclaimer: disclaimerStep
             }
 
             ErrorText(model.error)
@@ -109,6 +110,61 @@ struct OnboardingView: View {
             .font(TTFont.bodySemibold)
             .foregroundStyle(TTColor.navy)
         }
+    }
+
+    private var disclaimerStep: some View {
+        TTCard {
+            VStack(alignment: .leading, spacing: 14) {
+                if let disclaimer = model.disclaimer {
+                    Text(disclaimer.text)
+                        .font(TTFont.body)
+                        .foregroundStyle(TTColor.inputText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Divider()
+
+                    // A tap, not a pre-ticked box: agreement has to be an action.
+                    Button {
+                        model.disclaimerAgreed.toggle()
+                    } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Image(systemName: model.disclaimerAgreed ? "checkmark.square.fill" : "square")
+                                .foregroundStyle(model.disclaimerAgreed ? TTColor.primary : TTColor.textSecondary)
+                                .font(.title3)
+                            Text("I have read and agree to the above.")
+                                .font(TTFont.bodySemibold)
+                                .foregroundStyle(TTColor.navy)
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(model.disclaimerAgreed ? [.isSelected] : [])
+
+                    Text("Version \(disclaimer.version)")
+                        .font(TTFont.caption)
+                        .foregroundStyle(TTColor.textSecondary)
+                } else if model.disclaimerLoadFailed {
+                    // No offline copy on purpose, so there is nothing to agree
+                    // to until the real text arrives.
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("We couldn't load the disclaimer.")
+                            .font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
+                        Text("You need to read it before you start, so this step can't be skipped. Check your connection and try again.")
+                            .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                        SecondaryButton("Try again") {
+                            Task { await model.loadDisclaimer() }
+                        }
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Loading…").font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                    }
+                }
+            }
+        }
+        .task { await model.loadDisclaimer() }
     }
 
     private var triggersStep: some View {

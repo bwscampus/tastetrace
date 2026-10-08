@@ -9,6 +9,11 @@ public extension APIClient {
         try await request(.patch, "/api/profile", body: patch)
     }
 
+    /// The medical disclaimer onboarding must show before it can finish.
+    func disclaimer() async throws -> Disclaimer {
+        try await request(.get, "/api/legal/disclaimer")
+    }
+
     func settings() async throws -> UserSettings {
         try await request(.get, "/api/settings")
     }

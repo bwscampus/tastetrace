@@ -49,6 +49,9 @@ public struct Profile: Codable, Equatable, Sendable {
     public var discoveryPurpose: String?
     public var sensitivityTags: [String]
     public var dataSharing: String?
+    /// Which disclaimer wording this account agreed to, and when.
+    public var disclaimerVersion: String?
+    public var disclaimerAcceptedAt: Date?
     public var onboardingCompletedAt: Date?
     public let createdAt: Date?
     public let journalerDays: Int
@@ -64,12 +67,33 @@ public struct ProfilePatch: Encodable, Sendable {
     public var sensitivityTags: [String]?
     /// "private", "practitioner" or "research".
     public var dataSharing: String?
-    /// True marks onboarding as done; the server stamps the time.
+    /// The version the app actually displayed. The server rejects anything but
+    /// the current wording, so a stale build cannot record a false acceptance.
+    public var acceptDisclaimerVersion: String?
+    /// True marks onboarding as done; the server stamps the time. It refuses
+    /// unless the current disclaimer has been accepted.
     public var onboardingCompleted: Bool?
-    public init(firstName: String? = nil, lastName: String? = nil, displayName: String? = nil, avatarEmoji: String? = nil, discoveryPurpose: String? = nil, sensitivityTags: [String]? = nil, dataSharing: String? = nil, onboardingCompleted: Bool? = nil) {
+    public init(firstName: String? = nil, lastName: String? = nil, displayName: String? = nil, avatarEmoji: String? = nil, discoveryPurpose: String? = nil, sensitivityTags: [String]? = nil, dataSharing: String? = nil, acceptDisclaimerVersion: String? = nil, onboardingCompleted: Bool? = nil) {
         self.firstName = firstName; self.lastName = lastName; self.displayName = displayName
         self.avatarEmoji = avatarEmoji; self.discoveryPurpose = discoveryPurpose; self.sensitivityTags = sensitivityTags
-        self.dataSharing = dataSharing; self.onboardingCompleted = onboardingCompleted
+        self.dataSharing = dataSharing; self.acceptDisclaimerVersion = acceptDisclaimerVersion
+        self.onboardingCompleted = onboardingCompleted
     }
 }
 
+
+
+/// `GET /api/legal/disclaimer`
+///
+/// Fetched rather than bundled, deliberately: a copy in the app could drift
+/// from the server's, and then an acceptance would point at wording the person
+/// never actually read.
+public struct Disclaimer: Codable, Equatable, Sendable {
+    public let version: String
+    public let text: String
+
+    public init(version: String, text: String) {
+        self.version = version
+        self.text = text
+    }
+}

@@ -39,7 +39,7 @@ enum DataSharingChoice: String, CaseIterable, Identifiable {
 @MainActor
 final class OnboardingViewModel {
     enum Step: Int, CaseIterable {
-        case about, purpose, sharing, meals, triggers
+        case about, purpose, sharing, meals, triggers, disclaimer
 
         var title: String {
             switch self {
@@ -48,6 +48,7 @@ final class OnboardingViewModel {
             case .sharing: return "How should your data be shared?"
             case .meals: return "When do you usually eat?"
             case .triggers: return "How sure before we flag a trigger?"
+            case .disclaimer: return "Before you start"
             }
         }
 
@@ -58,6 +59,7 @@ final class OnboardingViewModel {
             case .sharing: return "You can change this anytime in your profile."
             case .meals: return "We'll nudge you to log each meal shortly after you eat."
             case .triggers: return "The minimum number of flares before a food can be called a trigger."
+            case .disclaimer: return "Please read this and agree before you begin."
             }
         }
     }
@@ -85,6 +87,12 @@ final class OnboardingViewModel {
     var minTriggerCount = UserSettings().minTriggerCount
     var isSaving = false
     var error: String?
+
+    // The disclaimer is fetched, never bundled: a copy here could drift from the
+    // server's, and then someone would be agreeing to wording they never saw.
+    var disclaimer: Disclaimer?
+    var disclaimerLoadFailed = false
+    var disclaimerAgreed = false
 
     private let env: AppEnvironment
 
@@ -127,6 +135,22 @@ final class OnboardingViewModel {
         case .purpose: return !resolvedPurpose.isEmpty
         case .sharing: return sharing != nil
         case .meals, .triggers: return true
+        // Both conditions matter: the text has to have loaded, so nobody can
+        // agree to something the app could not display.
+        case .disclaimer: return disclaimer != nil && disclaimerAgreed
+        }
+    }
+
+    /// Loads the wording. Called when the step appears, and again on retry.
+    func loadDisclaimer() async {
+        guard disclaimer == nil else { return }
+        disclaimerLoadFailed = false
+        do {
+            disclaimer = try await env.run { try await env.api.disclaimer() }
+        } catch {
+            // Deliberately not recoverable by carrying on: there is nothing to
+            // agree to until this arrives.
+            disclaimerLoadFailed = true
         }
     }
 
@@ -168,6 +192,8 @@ final class OnboardingViewModel {
                     lastName: lastName.trimmingCharacters(in: .whitespaces),
                     discoveryPurpose: resolvedPurpose,
                     dataSharing: sharing?.rawValue,
+                    // The version actually shown, so the record matches the text.
+                    acceptDisclaimerVersion: disclaimer?.version,
                     onboardingCompleted: true
                 ))
             }

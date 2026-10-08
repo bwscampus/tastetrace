@@ -84,6 +84,8 @@ class ProfileRead(CamelModel):
     discovery_purpose: str | None = None
     sensitivity_tags: list[str] = Field(default_factory=list)
     data_sharing: str | None = None
+    disclaimer_version: str | None = None
+    disclaimer_accepted_at: UtcDatetime | None = None
     onboarding_completed_at: UtcDatetime | None = None
     created_at: UtcDatetime | None = None
     journaler_days: int
@@ -98,6 +100,9 @@ class ProfilePatch(CamelModel):
     discovery_purpose: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None = None
     sensitivity_tags: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]] | None = Field(default=None, max_length=20)
     data_sharing: DataSharing | None = None
+    # The version the app actually displayed. Sent rather than assumed, so a
+    # stale build cannot record agreement to wording it never showed.
+    accept_disclaimer_version: Annotated[str, StringConstraints(max_length=32)] | None = None
     # true stamps onboarding_completed_at (once); false clears it
     onboarding_completed: bool | None = None
 
@@ -444,3 +449,10 @@ class WaitlistRequest(CamelModel):
 
 class WaitlistRead(CamelModel):
     message: str
+
+
+class DisclaimerRead(CamelModel):
+    """The text the app must display, and the version it then sends back."""
+
+    version: str
+    text: str
