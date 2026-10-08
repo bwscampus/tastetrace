@@ -21,15 +21,7 @@ struct MealEntryCard: View {
                         Text("\(meal.mealType) (\(Formatting.time(meal.timestamp, math: math)))")
                             .font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
                             .lineLimit(1).minimumScaleFactor(0.8)
-                        // Only a food the Triggers page lists earns "Suspicious Trigger"; a
-                        // symptom merely following the meal is just noted.
-                        if meal.suspicion == "correlated" {
-                            StatusBadge("Suspicious Trigger", tone: .danger)
-                        } else if let followed = meal.suspiciousFor, !followed.isEmpty {
-                            StatusBadge("Symptom followed", tone: .warning)
-                        } else {
-                            StatusBadge("Logged", tone: .success)
-                        }
+                        MealStatusBadge(meals: [meal])
                     }
                     // Named so several foods logged for one meal can be told apart
                     Text(meal.ingredientNames.isEmpty ? meal.name : "\(meal.name): \(Formatting.joinedList(meal.ingredientNames))")
@@ -52,6 +44,86 @@ struct MealEntryCard: View {
                     .padding(.top, 10)
                 }
             }
+        }
+    }
+}
+
+/// One meal with all its foods ("Dinner": pasta, salad, bread); each food keeps
+/// its own edit and delete because each is its own entry on the server.
+struct MealGroupCard: View {
+    let group: MealGroup
+    let math: DateMath
+    var onEdit: ((Meal) -> Void)?
+    var onDelete: ((Meal) -> Void)?
+
+    var body: some View {
+        if group.meals.count == 1, let meal = group.meals.first {
+            let edit: (() -> Void)? = onEdit.map { handler in { handler(meal) } }
+            let delete: (() -> Void)? = onDelete.map { handler in { handler(meal) } }
+            MealEntryCard(meal: meal, math: math, onEdit: edit, onDelete: delete)
+        } else {
+            TTCard(padding: 14) {
+                HStack(alignment: .top, spacing: 12) {
+                    EmojiCircle(MealType(rawValue: group.mealType)?.emoji ?? "🍽️")
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Text("\(group.mealType) (\(Formatting.time(group.timestamp, math: math)))")
+                                .font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
+                                .lineLimit(1).minimumScaleFactor(0.8)
+                            MealStatusBadge(meals: group.meals)
+                        }
+                        ForEach(group.meals) { meal in
+                            foodRow(meal)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func foodRow(_ meal: Meal) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(meal.name).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy).lineLimit(1)
+                // A food added later in the meal shows its own time
+                let details = [Formatting.joinedList(meal.ingredientNames),
+                               meal.timestamp != group.timestamp ? Formatting.time(meal.timestamp, math: math) : ""]
+                    .filter { !$0.isEmpty }
+                if !details.isEmpty {
+                    Text(details.joined(separator: " • "))
+                        .font(TTFont.body).foregroundStyle(TTColor.textSecondary).lineLimit(2)
+                }
+            }
+            Spacer(minLength: 0)
+            HStack(spacing: 14) {
+                if let onDelete {
+                    Button { onDelete(meal) } label: { Image(systemName: "trash").foregroundStyle(TTColor.danger) }
+                        .buttonStyle(.plain).accessibilityLabel("Delete \(meal.name)")
+                }
+                if let onEdit {
+                    Button { onEdit(meal) } label: { Image(systemName: "square.and.pencil").foregroundStyle(TTColor.primary) }
+                        .buttonStyle(.plain).accessibilityLabel("Edit \(meal.name)")
+                }
+            }
+            .font(.system(size: 17, weight: .semibold))
+        }
+        .padding(.top, 6)
+        .overlay(alignment: .top) { Divider().overlay(TTColor.cardBorder) }
+    }
+}
+
+/// Only a food the Triggers page lists earns "Suspicious Trigger"; a symptom
+/// merely following the meal is just noted.
+struct MealStatusBadge: View {
+    let meals: [Meal]
+
+    var body: some View {
+        if meals.contains(where: { $0.suspicion == "correlated" }) {
+            StatusBadge("Suspicious Trigger", tone: .danger)
+        } else if meals.contains(where: { !($0.suspiciousFor ?? []).isEmpty }) {
+            StatusBadge("Symptom followed", tone: .warning)
+        } else {
+            StatusBadge("Logged", tone: .success)
         }
     }
 }

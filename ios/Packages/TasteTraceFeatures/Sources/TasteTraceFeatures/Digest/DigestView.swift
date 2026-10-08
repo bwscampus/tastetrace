@@ -51,7 +51,7 @@ struct DigestView: View {
             switch model.segment {
             case .trends: ScreenHeading("Weekly Health Digest", subtitle: "7-Day Summary", subtitleUppercased: true)
             case .symptoms: ScreenHeading("Weekly Symptom Digest", subtitle: "Symptom Occurrences", subtitleUppercased: true)
-            case .suspects: ScreenHeading("Food Suspect Digest", subtitle: "24h Window Roundup", subtitleUppercased: true)
+            case .suspects: ScreenHeading("Food Suspect Digest", subtitle: model.suspects.map { "\($0.windowHours)h Window Roundup" } ?? "Pre-Flare Roundup", subtitleUppercased: true)
             }
             Spacer()
             IconCircleButton(systemImage: "doc.richtext") { router.sheet = .export(kind: ReportKind.weeklyDigest.rawValue, weekStart: model.weekStart) }
@@ -141,7 +141,7 @@ struct TrendsView: View {
         }
 
         Button { withAnimation { model.segment = .suspects } } label: {
-            linkCard(icon: "fork.knife", tint: TTColor.warning, title: "View Food Suspect Digest", subtitle: "Ingredient frequency in 24h prior to flare-ups", border: TTColor.warning)
+            linkCard(icon: "fork.knife", tint: TTColor.warning, title: "View Food Suspect Digest", subtitle: "Ingredients logged in the hours before flare-ups", border: TTColor.warning)
         }
         .buttonStyle(.plain)
         Button { withAnimation { model.segment = .symptoms } } label: {

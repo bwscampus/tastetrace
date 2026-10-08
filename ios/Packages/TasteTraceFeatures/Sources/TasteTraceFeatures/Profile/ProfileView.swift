@@ -149,7 +149,7 @@ struct ProfileView: View {
                         Text("Journal Preferences").font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
                         NavigationLink { TrackingRulesView(model: model) } label: {
                             prefRow(icon: "slider.horizontal.3", tint: TTColor.primary, title: "Tracking Rules & Thresholds",
-                                    subtitle: "\(model.settings?.correlationWindowHours ?? 24)h correlation window & trigger counts")
+                                    subtitle: "\(model.settings?.correlationWindowHours ?? UserSettings.defaultCorrelationWindowHours)h correlation window & trigger counts")
                         }
                         NavigationLink { RemindersView(model: model) } label: {
                             prefRow(icon: "bell", tint: TTColor.warning, title: "Logging Nudges & Reminders", subtitle: "Meal times, check-ins and the evening nudge")
@@ -264,7 +264,7 @@ struct SensitivityTagsSheet: View {
 /// Correlation window, trigger counts, confidence floor, streak rule.
 struct TrackingRulesView: View {
     let model: ProfileViewModel
-    @State private var window = 24
+    @State private var window = UserSettings.defaultCorrelationWindowHours
     @State private var minTriggers = 2
     @State private var minConfidence = 50
     @State private var streakMeals = 2
@@ -274,7 +274,12 @@ struct TrackingRulesView: View {
             InfoBanner(emoji: "🧭", message: "These thresholds drive the digest, suspects and trigger insights. Changing the window recomputes your correlations.")
             TTCard {
                 VStack(alignment: .leading, spacing: 16) {
-                    stepper("Correlation window", value: $window, range: 1...72, unit: "h", help: "How long after a meal a symptom still counts.")
+                    stepper("Correlation window", value: $window, range: 1...72, unit: "h", help: "How long after a meal a symptom still counts. \(UserSettings.defaultCorrelationWindowHours)h unless you pick another.")
+                    HStack(spacing: 8) {
+                        ForEach([4, 6, 12, 24], id: \.self) { hours in
+                            TTChip("\(hours)h", selected: window == hours) { window = hours }
+                        }
+                    }
                     stepper("Minimum trigger count", value: $minTriggers, range: 1...20, unit: "×", help: "Flares needed before an item can pass the confidence floor.")
                     VStack(alignment: .leading, spacing: 6) {
                         HStack { Text("Confidence floor").font(TTFont.bodySemibold).foregroundStyle(TTColor.navy); Spacer(); Text("\(minConfidence)%").font(TTFont.bodySemibold).foregroundStyle(TTColor.primary) }

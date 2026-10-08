@@ -11,7 +11,7 @@ struct SuspectsDigestView: View {
         HeroGradientCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("24-HOUR PRE-FLARE CORRELATION").font(TTFont.captionSemibold).tracking(1).foregroundStyle(TTColor.successTint)
+                    Text("\(suspects.windowHours)-HOUR PRE-FLARE CORRELATION").font(TTFont.captionSemibold).tracking(1).foregroundStyle(TTColor.successTint)
                     Spacer()
                     StatusBadge("⟲ \(suspects.windowHours)h Lookback", tone: .primary).background(Color.white.opacity(0.15), in: Capsule())
                 }
@@ -78,7 +78,7 @@ struct SuspectsDigestView: View {
             Text("Suspect Breakdown Cards").font(TTFont.screenTitle).foregroundStyle(TTColor.navy).padding(.top, 6)
         }
         ForEach(suspects.ingredients) { suspect in
-            SuspectCard(suspect: suspect, math: model.math) { Task { await model.toggleWatchlist(suspect) } }
+            SuspectCard(suspect: suspect, windowHours: suspects.windowHours, math: model.math) { Task { await model.toggleWatchlist(suspect) } }
         }
     }
 
@@ -137,6 +137,7 @@ struct SynthesisCard: View {
 
 struct SuspectCard: View {
     let suspect: SuspectsDigest.Suspect
+    let windowHours: Int
     let math: DateMath
     let onWatchlist: () -> Void
 
@@ -150,7 +151,7 @@ struct SuspectCard: View {
                         Text("\(suspect.exposuresAllTime) logged exposure\(suspect.exposuresAllTime == 1 ? "" : "s") all-time").font(TTFont.body).foregroundStyle(TTColor.textSecondary)
                     }
                     Spacer()
-                    StatusBadge("\(Int((suspect.share * 100).rounded()))% \(math.tzIdentifier.isEmpty ? "" : "")24h Flare Rate", tone: .danger)
+                    StatusBadge("\(Int((suspect.share * 100).rounded()))% \(windowHours)h Flare Rate", tone: .danger)
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Recent Meals Before Flares:").font(TTFont.bodySemibold).foregroundStyle(TTColor.textSecondary)

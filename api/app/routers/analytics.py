@@ -148,6 +148,13 @@ async def trigger_insights(
 
     meals, symptoms = await load_history(session, user.id)
     rows = [correlation_row(c) for c in await load_correlations(session, user.id)]
+    # Rows built under an older window (e.g. before the default changed) are rebuilt
+    if any(row.window_hours not in (None, settings.correlation_window_hours) for row in rows):
+        from app.services.correlations import recompute_correlations
+
+        await recompute_correlations(session, user.id)
+        await session.commit()
+        rows = [correlation_row(c) for c in await load_correlations(session, user.id)]
 
     counts: dict[str, dict] = {}
     for entry in symptoms:

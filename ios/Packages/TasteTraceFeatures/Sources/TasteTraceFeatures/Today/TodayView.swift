@@ -179,18 +179,18 @@ struct TimelineSection: View {
                     ProgressView().frame(maxWidth: .infinity).padding()
                 }
 
-                ForEach(model.day?.timeline ?? []) { item in
+                ForEach(model.day?.groupedTimeline ?? []) { item in
                     HStack(alignment: .top, spacing: 10) {
                         TimelineRail(color: itemColor(item))
                         switch item {
-                        case .meal(let meal):
-                            MealEntryCard(meal: meal, math: model.math,
-                                          onEdit: { router.sheet = .editMeal(id: meal.id) },
-                                          onDelete: { onDelete(item) })
+                        case .meals(let group):
+                            MealGroupCard(group: group, math: model.math,
+                                          onEdit: { router.sheet = .editMeal(id: $0.id) },
+                                          onDelete: { onDelete(.meal($0)) })
                         case .symptom(let symptom):
                             SymptomEntryCard(symptom: symptom, math: model.math,
                                              onEdit: { router.sheet = .editSymptom(id: symptom.id) },
-                                             onDelete: { onDelete(item) })
+                                             onDelete: { onDelete(.symptom(symptom)) })
                         }
                     }
                 }
@@ -214,7 +214,7 @@ struct TimelineSection: View {
         }
     }
 
-    private func itemColor(_ item: TimelineItem) -> Color {
+    private func itemColor(_ item: DayItem) -> Color {
         if case .symptom = item { return TTColor.warning }
         return TTColor.primary
     }

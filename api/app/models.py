@@ -44,8 +44,9 @@ class UserSettings(Base):
         GUID, ForeignKey("users.id", ondelete="cascade"), primary_key=True
     )
     timezone: Mapped[str] = mapped_column(Text, nullable=False, default="UTC")
-    # How long after a meal a symptom still counts as following it
-    correlation_window_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=24)
+    # How long after a meal a symptom still counts as following it. 24 h only
+    # when the user picks it: a day-long window blames every meal of the day.
+    correlation_window_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=6)
     # Flares needed before an item may pass the confidence floor
     min_trigger_count: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
     min_confidence: Mapped[int] = mapped_column(Integer, nullable=False, default=50)

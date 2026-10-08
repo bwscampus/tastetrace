@@ -89,4 +89,21 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(json.contains(#""timestamp":"2026-09-10T"#), json)
         XCTAssertTrue(json.contains(#""mealType":"Snack""#))
     }
+
+    func testGroupedTimelinePutsAMealsFoodsTogether() throws {
+        func meal(_ id: Int, _ type: String, _ time: String) -> String {
+            #"{"id":\#(id),"name":"Food \#(id)","mealType":"\#(type)","timestamp":"2026-09-11T\#(time):00Z","date":"2026-09-11"}"#
+        }
+        let json = #"{"date":"2026-09-11","meals":["# + [
+            meal(1, "Dinner", "19:00"), meal(2, "Dinner", "19:00"), meal(3, "Dinner", "19:40"),
+            meal(4, "Snack", "10:00"), meal(5, "Snack", "16:00"), meal(6, "Snack", "16:00"),
+        ].joined(separator: ",") + #"],"symptoms":[{"id":9,"name":"Bloating","severity":"Mild","timestamp":"2026-09-11T20:00:00Z","date":"2026-09-11"}]}"#
+        let day = try JSONCoding.decoder.decode(DayEntries.self, from: Data(json.utf8))
+
+        XCTAssertEqual(day.groupedTimeline.map(\.id), ["meals-4", "meals-5", "meals-1", "symptom-9"])
+        guard case .meals(let dinner) = day.groupedTimeline[2] else { return XCTFail("expected dinner") }
+        XCTAssertEqual(dinner.meals.map(\.id), [1, 2, 3])
+        guard case .meals(let snacks) = day.groupedTimeline[1] else { return XCTFail("expected snacks") }
+        XCTAssertEqual(snacks.meals.map(\.id), [5, 6], "Snacks only group when logged together")
+    }
 }
