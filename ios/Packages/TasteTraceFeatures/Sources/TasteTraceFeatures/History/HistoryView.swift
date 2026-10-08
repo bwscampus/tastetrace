@@ -20,16 +20,16 @@ struct HistoryView: View {
             DayChips(model: model) { date in Task { await model.select(date) } }
             daySummary
             if model.isLoading { ProgressView().frame(maxWidth: .infinity).padding() }
-            ForEach(model.day?.timeline ?? []) { item in
+            ForEach(model.day?.groupedTimeline ?? []) { item in
                 switch item {
-                case .meal(let meal):
-                    MealEntryCard(meal: meal, math: model.math,
-                                  onEdit: { router.sheet = .editMeal(id: meal.id) },
-                                  onDelete: { pendingDelete = item })
+                case .meals(let group):
+                    MealGroupCard(group: group, math: model.math,
+                                  onEdit: { router.sheet = .editMeal(id: $0.id) },
+                                  onDelete: { pendingDelete = .meal($0) })
                 case .symptom(let symptom):
                     SymptomEntryCard(symptom: symptom, math: model.math,
                                      onEdit: { router.sheet = .editSymptom(id: symptom.id) },
-                                     onDelete: { pendingDelete = item })
+                                     onDelete: { pendingDelete = .symptom(symptom) })
                         .onTapGesture { router.sheet = .editSymptom(id: symptom.id) }
                 }
             }
@@ -40,7 +40,6 @@ struct HistoryView: View {
                 }
             }
             if let error = model.error { InfoBanner(emoji: "⚠️", message: error, tone: .warning) }
-            digestBanner
         }
         .navigationBarHidden()
         .task { await model.load() }
@@ -71,17 +70,8 @@ struct HistoryView: View {
             Spacer()
             ScreenHeading("Symptom & Food History", subtitle: Formatting.monthYear(model.selectedDate, math: model.math) + " 📅")
             Spacer()
-            Button {
-                router.showDigest(weekStart: model.math.addingDays(-6, to: model.selectedDate))
-            } label: {
-                HStack(spacing: 6) { Image(systemName: "chart.xyaxis.line"); Text("Digest") }
-                    .font(TTFont.bodySemibold)
-                    .padding(.horizontal, 12).padding(.vertical, 10)
-                    .foregroundStyle(TTColor.primary)
-                    .background(TTColor.infoTint, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(TTColor.cardBorder, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
+            // Balances the back button so the heading stays centred
+            Color.clear.frame(width: 44, height: 44)
         }
         .overlay(alignment: .trailing) {
             Button("Jump to Date", systemImage: "calendar.badge.checkmark") { showJumpToDate = true }
@@ -111,24 +101,6 @@ struct HistoryView: View {
                 .buttonStyle(.plain)
             }
         }
-    }
-
-    private var digestBanner: some View {
-        Button { router.showDigest(weekStart: model.math.addingDays(-6, to: model.selectedDate)) } label: {
-            HeroGradientCard {
-                HStack(spacing: 12) {
-                    Image(systemName: "chart.xyaxis.line").font(.title3)
-                        .frame(width: 44, height: 44).background(Color.white.opacity(0.15), in: Circle())
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Review 7-Day Digest Summary").font(TTFont.cardTitle)
-                        Text("Chart trends, symptom breakdown & doctor export").font(TTFont.body).opacity(0.85)
-                    }
-                    Spacer()
-                    Image(systemName: "arrow.right").foregroundStyle(TTColor.successTint)
-                }
-            }
-        }
-        .buttonStyle(.plain)
     }
 }
 

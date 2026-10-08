@@ -107,7 +107,7 @@ async def test_the_ledger_bundle_carries_everything_the_reports_render(client):
     assert [day["date"] for day in body["days"]] == ["2026-09-11", "2026-09-17"]
     assert body["days"][0]["flares"] == 1
     assert body["days"][0]["meals"][0]["suspiciousFor"] == ["Acid Reflux", "Bloating"]
-    assert body["settings"]["correlationWindowHours"] == 24
+    assert body["settings"]["correlationWindowHours"] == 6
     assert isinstance(body["triggers"], list)
     assert len(body["digestWeeks"]) >= 1
     assert body["digestWeeks"][0]["trends"]["days"][0]["date"]

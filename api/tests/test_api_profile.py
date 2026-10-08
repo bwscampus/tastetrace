@@ -55,7 +55,7 @@ async def test_settings_start_at_the_documented_defaults(client):
     auth = await register_and_login(client, "taylor@example.com")
 
     settings = (await client.get("/api/settings", headers=auth)).json()
-    assert settings["correlationWindowHours"] == 24
+    assert settings["correlationWindowHours"] == 6
     assert settings["minTriggerCount"] == 2
     assert settings["minConfidence"] == 50
     assert settings["streakMealsPerDay"] == 2

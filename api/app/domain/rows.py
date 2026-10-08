@@ -62,7 +62,7 @@ class CorrelationRow:
 @dataclass
 class SettingsRow:
     timezone: str = "UTC"
-    correlation_window_hours: int = 24
+    correlation_window_hours: int = 6
     min_trigger_count: int = 2
     min_confidence: int = 50
     streak_meals_per_day: int = 2

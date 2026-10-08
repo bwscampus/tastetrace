@@ -99,7 +99,7 @@ async def test_the_suspects_digest_ranks_ingredients_before_flares(client):
     )
     assert suspects.status_code == 200, suspects.text
     body = suspects.json()
-    assert body["windowHours"] == 24
+    assert body["windowHours"] == 6
     assert body["flares"] == 2
     assert body["symptomFilters"][0]["name"] == "All Symptoms"
     # Every ingredient of the toast preceded both flares, so they tie on share
@@ -130,7 +130,7 @@ async def test_trigger_insights_rank_by_confidence_and_respect_the_floor(client)
     body = insights.json()
     assert body["dimension"] == "ingredient"
     assert body["minConfidence"] == 0
-    assert body["windowHours"] == 24
+    assert body["windowHours"] == 6
     assert {s["name"] for s in body["symptoms"]} == {"Acid Reflux", "Bloating"}
     assert any(card["item"] == "sourdough bread" for card in body["cards"])
 
@@ -200,3 +200,22 @@ async def test_ticking_a_dietary_tag_on_a_meal_refreshes_the_triggers(client):
     [card] = [c for c in gluten_cards(after.json()) if c["symptomName"] == "Acid Reflux"]
     assert (card["exposures"], card["flareExposures"]) == (2, 2)
     assert card["evidence"], "the tagged meals should back the card"
+
+
+async def test_trigger_insights_rebuild_associations_from_an_older_window(client, engine):
+    from sqlalchemy import select, update
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.models import Correlation
+
+    auth = await register_and_login(client, "taylor@example.com")
+    await seed_week(client, auth)
+    # As if these rows were computed under the old 24-hour default
+    async with async_sessionmaker(engine)() as session:
+        await session.execute(update(Correlation).values(window_hours=24))
+        await session.commit()
+
+    body = (await client.get("/api/insights/triggers", headers=auth, params={"minConfidence": 0})).json()
+    assert body["windowHours"] == 6
+    async with async_sessionmaker(engine)() as session:
+        assert set(await session.scalars(select(Correlation.window_hours))) == {6}
