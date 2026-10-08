@@ -51,10 +51,17 @@ targets:
         UIUserInterfaceStyle: Light
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
-        NSAppTransportSecurity:
-          NSAllowsLocalNetworking: true
+        # No ATS exceptions in Release. Debug builds use Config/Info-Debug.plist,
+        # which adds NSAllowsLocalNetworking for a local API (keep the two in sync).
         API_BASE_URL: $(API_BASE_URL)
+        # Reading a meal or an ingredient label. The library picker needs no
+        # string of its own. Debug reads Config/Info-Debug.plist instead of this
+        # file, so the same key has to be in both or the camera traps there.
+        NSCameraUsageDescription: TasteTrace uses the camera only to photograph a meal or an ingredient label. The photo is read and then discarded; it is never saved.
     settings:
+      configs:
+        Debug:
+          INFOPLIST_FILE: Config/Info-Debug.plist
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.tastetrace.ios
         MARKETING_VERSION: "1.0"

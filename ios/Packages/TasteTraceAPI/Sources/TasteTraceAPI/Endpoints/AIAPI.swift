@@ -3,7 +3,9 @@ import Foundation
 /// `POST /api/ai/synthesis`
 public struct Synthesis: Codable, Equatable, Sendable {
     public let text: String
-    public let source: String // claude | rules
+    /// "model" when a model wrote it, "rules" when the template did.
+    /// Deliberately not a provider name: it has changed once already.
+    public let source: String
     public let model: String?
     public let cached: Bool
     public let generatedAt: Date?

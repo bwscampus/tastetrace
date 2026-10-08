@@ -584,8 +584,8 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   }
 
-  // Switch to https://app.tastetrace.app once DNS for the custom domains is set up
-  const WAITLIST_URL = 'https://tastetrace-app.up.railway.app/api/waitlist';
+  // The Python API. The Express service that used to answer this was retired.
+  const WAITLIST_URL = 'https://tastetrace-api-production.up.railway.app/api/waitlist';
 
   function wireForm(formId, inputId, btnId, errorId, confirmId, confirmEmailId, noteId){
     const form = document.getElementById(formId);
@@ -607,23 +607,28 @@
         return;
       }
 
+      const originalLabel = btn.textContent;
       btn.disabled = true;
       btn.textContent = 'Adding you…';
 
-      // Signups are stored by the app's API (app/server/routes.ts). Falls
-      // through to the success state either way so a slow network never
-      // blocks the user.
+      // Signups are stored by the API (api/app/routers/waitlist.py).
+      // Only confirm once the server says it saved the address: fetch
+      // resolves on 4xx/5xx, so check res.ok rather than trusting it.
       fetch(WAITLIST_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: value, company: form.elements.company.value })
-      }).catch(function(){ /* still show success below */ })
-        .finally(function(){
-          confirmEmailEl.textContent = value;
-          form.style.display = 'none';
-          if(noteEl) noteEl.style.display = 'none';
-          confirmEl.classList.add('show');
-        });
+      }).then(function(res){
+        if(!res.ok) throw new Error('waitlist ' + res.status);
+        confirmEmailEl.textContent = value;
+        form.style.display = 'none';
+        if(noteEl) noteEl.style.display = 'none';
+        confirmEl.classList.add('show');
+      }).catch(function(){
+        errorEl.textContent = 'We couldn\u2019t add you just now. Please try again in a moment.';
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      });
     });
   }
 

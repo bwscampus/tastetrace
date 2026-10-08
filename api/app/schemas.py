@@ -12,12 +12,15 @@ from pydantic import (
     BaseModel,
     BeforeValidator,
     ConfigDict,
+    EmailStr,
     Field,
     PlainSerializer,
     StringConstraints,
     model_validator,
 )
 from pydantic.alias_generators import to_camel
+
+from app.config import settings
 
 
 def _iso_millis_z(value: datetime) -> str:
@@ -44,6 +47,13 @@ MealTypeName = Literal["Breakfast", "Lunch", "Dinner", "Snack"]
 DataSharing = Literal["private", "practitioner", "research"]
 ClockTime = Annotated[str, StringConstraints(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
 Trimmed = Annotated[str, StringConstraints(strip_whitespace=True)]
+# Request-size caps (API-2): every free-text field and list a client can send
+# is bounded, so one request cannot store megabytes or stall correlation work.
+Notes = Annotated[str, StringConstraints(max_length=2000)]
+TzName = Annotated[str, StringConstraints(max_length=64)]
+SeverityName = Annotated[str, StringConstraints(max_length=20)]
+IngredientName = Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)]
+IngredientList = Annotated[list[IngredientName], Field(max_length=50)]
 
 
 class CamelModel(BaseModel):
@@ -150,11 +160,11 @@ class MealCreate(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
     meal_type: MealTypeName
     timestamp: UtcDatetime | None = None
-    tz: str | None = None
-    notes: str | None = None
+    tz: TzName | None = None
+    notes: Notes | None = None
     is_custom: bool | None = True
-    ingredients: list[str] | None = None
-    ingredient_details: list[IngredientDetail] | None = None
+    ingredients: IngredientList | None = None
+    ingredient_details: Annotated[list[IngredientDetail], Field(max_length=50)] | None = None
     dish_id: int | None = None
     contains_gluten: bool = False
     contains_dairy: bool = False
@@ -167,10 +177,10 @@ class MealPatch(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)] | None = None
     meal_type: MealTypeName | None = None
     timestamp: UtcDatetime | None = None
-    tz: str | None = None
-    notes: str | None = None
-    ingredients: list[str] | None = None
-    ingredient_details: list[IngredientDetail] | None = None
+    tz: TzName | None = None
+    notes: Notes | None = None
+    ingredients: IngredientList | None = None
+    ingredient_details: Annotated[list[IngredientDetail], Field(max_length=50)] | None = None
     contains_gluten: bool | None = None
     contains_dairy: bool | None = None
     contains_grains: bool | None = None
@@ -199,12 +209,12 @@ class SymptomRead(CamelModel):
 class SymptomCreate(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
     catalog_key: Annotated[str, StringConstraints(max_length=80)] | None = None
-    severity: str | None = None
+    severity: SeverityName | None = None
     intensity: Annotated[int, Field(ge=1, le=5)] | None = None
     duration_minutes: Annotated[int, Field(ge=0, le=60 * 24 * 7)] | None = None
     timestamp: UtcDatetime | None = None
-    tz: str | None = None
-    notes: str | None = None
+    tz: TzName | None = None
+    notes: Notes | None = None
 
     @model_validator(mode="after")
     def _needs_a_level(self) -> "SymptomCreate":
@@ -215,13 +225,13 @@ class SymptomCreate(CamelModel):
 
 class SymptomPatch(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)] | None = None
-    severity: str | None = None
+    severity: SeverityName | None = None
     intensity: Annotated[int, Field(ge=1, le=5)] | None = None
     duration_minutes: Annotated[int, Field(ge=0, le=60 * 24 * 7)] | None = None
     catalog_key: Annotated[str, StringConstraints(max_length=80)] | None = None
     timestamp: UtcDatetime | None = None
-    tz: str | None = None
-    notes: str | None = None
+    tz: TzName | None = None
+    notes: Notes | None = None
 
 
 class SymptomBatchItem(CamelModel):
@@ -232,7 +242,7 @@ class SymptomBatchItem(CamelModel):
 
 class SymptomBatch(CamelModel):
     timestamp: UtcDatetime | None = None
-    tz: str | None = None
+    tz: TzName | None = None
     duration_minutes: Annotated[int, Field(ge=0, le=60 * 24 * 7)] | None = None
     notes: Annotated[str, StringConstraints(max_length=2000)] | None = None
     items: Annotated[list[SymptomBatchItem], Field(min_length=1, max_length=20)]
@@ -287,7 +297,7 @@ class DishRead(CamelModel):
 class DishCreate(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
     emoji: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)] = "🍽️"
-    ingredients: list[IngredientDetail] = Field(default_factory=list)
+    ingredients: list[IngredientDetail] = Field(default_factory=list, max_length=50)
     contains_gluten: bool = False
     contains_dairy: bool = False
     contains_grains: bool = False
@@ -298,7 +308,7 @@ class DishCreate(CamelModel):
 class DishPatch(CamelModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)] | None = None
     emoji: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)] | None = None
-    ingredients: list[IngredientDetail] | None = None
+    ingredients: Annotated[list[IngredientDetail], Field(max_length=50)] | None = None
     contains_gluten: bool | None = None
     contains_dairy: bool | None = None
     contains_grains: bool | None = None
@@ -307,7 +317,7 @@ class DishPatch(CamelModel):
 
 
 class DishLogOverrides(CamelModel):
-    ingredient_details: list[IngredientDetail] | None = None
+    ingredient_details: Annotated[list[IngredientDetail], Field(max_length=50)] | None = None
 
 
 class DishLog(CamelModel):
@@ -356,15 +366,81 @@ class DayMarker(CamelModel):
 
 
 class SynthesisRequest(CamelModel):
-    week_start: str | None = None
+    week_start: Annotated[str, StringConstraints(max_length=10)] | None = None
     symptom: Annotated[str, StringConstraints(max_length=80)] | None = None
-    tz: str | None = None
+    tz: TzName | None = None
 
 
 class SynthesisRead(CamelModel):
     text: str
-    source: Literal["claude", "rules"]
+    # "model" rather than a provider name: the badge should not lie if the
+    # provider changes, and it has changed once already.
+    source: Literal["model", "rules"]
     model: str | None = None
     cached: bool
     generated_at: UtcDatetime
     suggested_watchlist: list[str] = Field(default_factory=list)
+
+
+# ── Meal photo ──────────────────────────────────────────────────────────────
+
+# base64 is 4 characters per 3 bytes, plus a little slack for padding. Pydantic
+# rejecting an over-long string is cheaper than decoding it to find out.
+MAX_PHOTO_B64_CHARS = 4 * ((settings.MAX_PHOTO_BYTES + 2) // 3) + 16
+
+
+class MealPhotoRequest(CamelModel):
+    # base64, no data-URI prefix. The ceiling here is a cheap first line of
+    # defence; the decoded length is checked again, and the real media type is
+    # read from the bytes rather than taken on trust.
+    image_base64: Annotated[str, StringConstraints(min_length=16, max_length=MAX_PHOTO_B64_CHARS)]
+    kind: Literal["meal", "label"] = "meal"
+    meal_type: MealTypeName | None = None
+    # Whatever the person already typed, so the model has a nudge.
+    hint: Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)] | None = None
+
+
+class MealPhotoRead(CamelModel):
+    """Deliberately the shape MealCreate accepts, so the client needs no mapping."""
+
+    recognized: bool
+    name: str = ""
+    ingredients: list[IngredientDetail] = Field(default_factory=list)
+    meal_category: MealTypeName | None = None
+    contains_gluten: bool = False
+    contains_dairy: bool = False
+    contains_grains: bool = False
+    contains_sugar: bool = False
+    contains_nuts: bool = False
+    confidence: Literal["high", "medium", "low"] = "low"
+    kind: Literal["meal", "label"] = "meal"
+    model: str | None = None
+    # Set whenever recognized is false, so the screen always has something to say.
+    message: str | None = None
+
+
+# ── Waitlist ────────────────────────────────────────────────────────────────
+
+
+# EmailStr lowercases the domain but leaves the local part alone, which would
+# let Reader@example.com and reader@example.com both be stored and make the
+# unique constraint meaningless. Every real provider treats the local part
+# case-insensitively, and the Express endpoint this replaces lowercased the
+# whole address, so match that.
+LowercaseEmail = Annotated[
+    EmailStr,
+    StringConstraints(max_length=254),
+    BeforeValidator(lambda v: v.strip().lower() if isinstance(v, str) else v),
+]
+
+
+class WaitlistRequest(CamelModel):
+    # 254 is the longest an address can be, so anything beyond it is not a
+    # near-miss worth accepting.
+    email: LowercaseEmail
+    # Honeypot. A real visitor never sees this field, so anything in it is a bot.
+    company: Annotated[str, StringConstraints(max_length=200)] | None = None
+
+
+class WaitlistRead(CamelModel):
+    message: str

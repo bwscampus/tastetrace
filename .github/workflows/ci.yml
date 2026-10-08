@@ -1,0 +1,72 @@
+# Tests, type checks and dependency audits for the Python API (Production
+# Standard OPS-1). iOS builds run in ios-testflight.yml.
+#
+# Railway waits for these checks before deploying (checkSuites: true in
+# .railway/railway.ts), and `main`'s ruleset requires `api` to pass before a PR
+# can merge, so a red build never ships. The `app` job went with the Express web
+# app; if the ruleset still lists `app` as required, every PR will block on a
+# check that no longer runs.
+#
+# Runs on every PR and push, with no path filter: a required check that never
+# runs (e.g. on an iOS- or landing-only PR) would block the merge forever.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Cancel superseded runs on PRs only. On main, Railway waits for every
+  # commit's checks; a cancelled run would leave that deploy waiting.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tastetrace
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      # --locked (not --frozen): fail if uv.lock is out of date with
+      # pyproject.toml, exactly as Railway's `uv sync --locked` build does.
+      - run: uv sync --locked
+      - name: Tests
+        env:
+          # Enables the Postgres-only tests: the app role's privileges
+          # (DB-6) and migration 0004's hash matching hash_token (DB-8).
+          TEST_POSTGRES_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/tastetrace
+        run: uv run pytest
+      - name: Migrations and app role apply to real Postgres
+        env:
+          ENVIRONMENT: test
+          SECRET_KEY: ci-only-secret-key-that-is-long-enough
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tastetrace
+          APP_DB_PASSWORD: ci-only-app-role-password
+        run: |
+          uv run alembic upgrade head
+          uv run python -m app.db_roles
+          uv run python -m app.db_roles   # idempotent
+      - name: Dependency audit
+        run: |
+          uv export --frozen --no-hashes --no-dev --no-emit-project > /tmp/requirements.txt
+          uvx pip-audit -r /tmp/requirements.txt

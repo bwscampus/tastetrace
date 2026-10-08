@@ -4,7 +4,7 @@ from fastapi import APIRouter, status
 from sqlalchemy import select
 
 from app.deps import CurrentUser, Session, TzQuery, owned_or_404, resolve_timezone
-from app.models import Meal
+from app.models import Dish, Meal
 from app.schemas import MealCreate, MealPatch, MealRead
 from app.services.correlations import recompute_correlations
 from app.services.entries import apply_meal_timing, detail_dicts, resolve_ingredients
@@ -23,6 +23,11 @@ async def list_meals(user: CurrentUser, session: Session) -> list[Meal]:
 
 @router.post("/meals", response_model=MealRead, status_code=status.HTTP_201_CREATED)
 async def create_meal(body: MealCreate, user: CurrentUser, session: Session) -> Meal:
+    # A meal may only point at the caller's own dish tile. Someone else's dish
+    # (or a missing one) is reported as 404, never confirmed to exist.
+    if body.dish_id is not None:
+        await owned_or_404(session, Dish, body.dish_id, user, "Dish")
+
     tz = await resolve_timezone(session, user, body.tz)
     ingredients, details = resolve_ingredients(body.ingredient_details, body.ingredients, body.notes)
 

@@ -17,6 +17,12 @@ public actor WatchlistStore {
         items = fresh
         try? cache.save(fresh)
     }
+
+    /// Forgets the watchlist in memory and on disk (sign-out, account deletion).
+    public func reset() {
+        items = []
+        cache.clear()
+    }
 }
 
 /// Watchlist entries that appear in the given ingredient names (substring, case-insensitive).

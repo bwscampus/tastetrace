@@ -64,3 +64,70 @@ final class WatchlistMatchTests: XCTestCase {
         XCTAssertEqual(watchlistMatches(watchlist: [], ingredients: ["salt"]), [])
     }
 }
+
+/// Answers every request with one canned status and body.
+final class CannedTransport: Transport, @unchecked Sendable {
+    let status: Int
+    let body: String
+    init(status: Int, body: String = "") { self.status = status; self.body = body }
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        (Data(body.utf8), HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!)
+    }
+}
+
+final class SignOutHygieneTests: XCTestCase {
+    private func cacheWithJournal() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try JSONFileStore<UserSettings>(name: "day-2026-09-11", directory: dir).save(UserSettings(timezone: "UTC"))
+        return dir
+    }
+
+    @MainActor
+    func testSignOutRemovesTokenAndCachedJournal() async throws {
+        let dir = try cacheWithJournal()
+        let tokens = InMemoryTokenStore("tt_old")
+        let session = AuthSession.make(baseURL: URL(string: "https://api.example")!, tokenStore: tokens, transport: CannedTransport(status: 204), cacheDirectory: dir)
+
+        await session.signOut()
+
+        XCTAssertNil(tokens.load())
+        XCTAssertEqual(session.state, .signedOut)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path), "cached entries must not survive sign-out")
+    }
+
+    @MainActor
+    func testEverySessionEndRunsTheCleanupHook() async throws {
+        // Sign-out, a 401 and account deletion must all let the app cancel reminders.
+        var ended = 0
+        for end in ["signOut", "unauthorized", "delete"] {
+            let session = AuthSession.make(baseURL: URL(string: "https://api.example")!, tokenStore: InMemoryTokenStore("tt_old"), transport: CannedTransport(status: 204), cacheDirectory: try cacheWithJournal())
+            session.onSessionEnded = { ended += 1 }
+            switch end {
+            case "signOut": await session.signOut()
+            case "unauthorized": await session.handleUnauthorized()
+            default: try await session.deleteAccount(password: "right")
+            }
+        }
+        XCTAssertEqual(ended, 3)
+    }
+
+    @MainActor
+    func testDeleteAccountClearsEverythingOnlyWhenTheServerAgrees() async throws {
+        let dir = try cacheWithJournal()
+        let tokens = InMemoryTokenStore("tt_old")
+        let refused = AuthSession.make(baseURL: URL(string: "https://api.example")!, tokenStore: tokens, transport: CannedTransport(status: 400, body: #"{"detail":"bad password"}"#), cacheDirectory: dir)
+
+        do {
+            try await refused.deleteAccount(password: "wrong")
+            XCTFail("a refused deletion must throw")
+        } catch {}
+        XCTAssertEqual(tokens.load(), "tt_old")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dir.path))
+
+        let accepted = AuthSession.make(baseURL: URL(string: "https://api.example")!, tokenStore: tokens, transport: CannedTransport(status: 204), cacheDirectory: dir)
+        try await accepted.deleteAccount(password: "right")
+        XCTAssertNil(tokens.load())
+        XCTAssertEqual(accepted.state, .signedOut)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path))
+    }
+}

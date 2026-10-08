@@ -35,6 +35,12 @@ struct MealItem: Identifiable, Equatable {
     var saveAsTile = false
     /// Already sent to the server, so a retry after a partial failure skips it.
     var logged = false
+    /// Where this food came from, so the editor can say how much to trust it.
+    var origin: Origin = .typed
+    /// high | medium | low, set only when origin is .photo.
+    var photoConfidence: String?
+
+    enum Origin: Equatable { case typed, tile, photo }
 
     init(name: String, emoji: String = "🍽️", ingredients: [IngredientDetail] = []) {
         self.name = name
@@ -47,6 +53,16 @@ struct MealItem: Identifiable, Equatable {
         dishId = dish.id
         savedName = dish.name
         savedIngredients = dish.ingredients
+        origin = .tile
+    }
+
+    /// A food the model read from a photo. A draft: the person confirms it in
+    /// the editor, and nothing is written until they do.
+    init(recognition: MealPhotoRecognition, emoji: String) {
+        self.init(name: recognition.name, emoji: emoji, ingredients: recognition.ingredients)
+        origin = .photo
+        photoConfidence = recognition.confidence
+        saveAsTile = true
     }
 
     var isFromTile: Bool { dishId != nil }
@@ -82,6 +98,27 @@ final class LogMealViewModel {
     var isBusy = false
     var error: String?
     var completed = false
+
+    // Reading a photo. Never blocks typing: the chooser's third option is
+    // always there, and every failure says to use it.
+    enum PhotoState: Equatable {
+        case idle
+        case analyzing
+        case failed(String)
+    }
+
+    var photoState: PhotoState = .idle
+    var showPhotoSheet = false
+    var photoKind: MealPhotoKind = .meal
+    /// True once the person has picked a category themselves, so a guess from a
+    /// photo does not overwrite a deliberate choice.
+    private(set) var mealTypeChosenByHand = false
+
+    var isAnalyzingPhoto: Bool { photoState == .analyzing }
+    var photoError: String? {
+        if case let .failed(message) = photoState { return message }
+        return nil
+    }
 
     private let env: AppEnvironment
 
@@ -145,6 +182,81 @@ final class LogMealViewModel {
 
     func remove(_ item: MealItem) {
         items.removeAll { $0.id == item.id }
+    }
+
+    /// Records that the category was a deliberate choice, not a default.
+    func chooseMealType(_ type: MealType) {
+        mealType = type
+        mealTypeChosenByHand = true
+    }
+
+    // MARK: - Reading a photo
+
+    /// Hands the photo to the server and pre-fills from what comes back.
+    ///
+    /// `jpeg` must already be downscaled and JPEG-encoded by the caller: the API
+    /// rejects HEIC, which is what the camera produces, and a full-resolution
+    /// photo costs about twice the tokens for no better reading.
+    func recognize(jpeg: Data, kind: MealPhotoKind) async {
+        photoState = .analyzing
+        do {
+            let read = try await env.run {
+                try await env.api.recognizeMealPhoto(
+                    jpeg: jpeg,
+                    kind: kind,
+                    mealType: mealTypeChosenByHand ? mealType : nil,
+                    hint: newFoodName
+                )
+            }
+            apply(read)
+        } catch let apiError as APIError {
+            photoState = .failed(apiError.message)
+        } catch {
+            photoState = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Turns a recognition into a food to check, or into a message to read.
+    ///
+    /// Nothing is logged here. A recognition is a draft, because a wrong
+    /// ingredient becomes a wrong suspect in the digest later, so it goes to the
+    /// editor where the person can fix it first.
+    func apply(_ read: MealPhotoRecognition) {
+        guard read.recognized, !read.name.trimmingCharacters(in: .whitespaces).isEmpty else {
+            // The typed path is deliberately untouched: whatever they had
+            // half-written is still there to finish.
+            photoState = .failed(read.message ?? "We couldn't read that photo. Type the meal in instead.")
+            return
+        }
+
+        let emoji = Self.stampOptions[newFoods.count % Self.stampOptions.count]
+        items.append(MealItem(recognition: read, emoji: emoji))
+        newFoodName = ""
+
+        // A guess never overrides a deliberate choice.
+        if let guessed = read.mealCategory, !mealTypeChosenByHand {
+            mealType = guessed
+        }
+        flags.formUnion(Self.sensitivityFlags(from: read))
+
+        photoState = .idle
+        showPhotoSheet = false
+        path = [.verify]
+    }
+
+    /// The five dietary booleans as the flags this screen carries.
+    static func sensitivityFlags(from read: MealPhotoRecognition) -> Set<SensitivityFlag> {
+        var found: Set<SensitivityFlag> = []
+        if read.containsGluten { found.insert(.gluten) }
+        if read.containsDairy { found.insert(.dairy) }
+        if read.containsGrains { found.insert(.grain) }
+        if read.containsSugar { found.insert(.sugar) }
+        if read.containsNuts { found.insert(.nuts) }
+        return found
+    }
+
+    func dismissPhotoError() {
+        photoState = .idle
     }
 
     func goToIngredients() {

@@ -104,7 +104,7 @@ struct SynthesisCard: View {
                 Image(systemName: "wand.and.stars").foregroundStyle(.white).frame(width: 36, height: 36).background(TTColor.primary, in: RoundedRectangle(cornerRadius: 10))
                 Text("AI Pattern Synthesis").font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
                 Spacer()
-                StatusBadge(model.synthesis?.source == "claude" ? "Claude" : "AI", tone: .primary)
+                StatusBadge(model.synthesis?.source == "model" ? "AI" : "Summary", tone: .primary)
             }
             if let synthesis = model.synthesis {
                 Text("“\(synthesis.text)”").font(TTFont.body).foregroundStyle(TTColor.navy)

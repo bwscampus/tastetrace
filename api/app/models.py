@@ -216,3 +216,19 @@ class AiSynthesis(Base):
     model: Mapped[str | None] = mapped_column(Text, nullable=True)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+
+
+class WaitlistSignup(Base):
+    """Emails from the landing page's signup form.
+
+    The only table here with no user_id: these are people who are not accounts
+    yet. Kept deliberately minimal — an address and when it arrived — because
+    there is nothing else worth holding about someone who just asked to hear
+    more.
+    """
+
+    __tablename__ = "waitlist_signups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)

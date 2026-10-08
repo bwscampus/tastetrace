@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     DATABASE_URL: str = (
         "postgresql+asyncpg://postgres:postgres@localhost:5432/app"
     )
+    # Owner credentials for migrations and app_db_roles. In production the
+    # app's DATABASE_URL is the restricted app_rw_login role (no DDL), so
+    # schema changes need a separate URL. Unset means "same as DATABASE_URL".
+    MIGRATION_DATABASE_URL: str | None = None
+    # Password for the app_rw_login role, created by `python -m app.db_roles`.
+    # Unset (dev, tests) skips creating the login role.
+    APP_DB_PASSWORD: str | None = None
     PUBLIC_BASE_URL: str = "http://localhost:8000"
 
     ALLOWED_ORIGINS: CsvList = Field(default_factory=list)
@@ -64,15 +71,59 @@ class Settings(BaseSettings):
     SESSION_LIFETIME_SECONDS: int = 60 * 60 * 24 * 14  # 14 days
     RESET_TOKEN_LIFETIME_SECONDS: int = 60 * 60  # 1 hour
 
-    # Optional: without it the AI summary falls back to a written template.
-    ANTHROPIC_API_KEY: str | None = None
-    SYNTHESIS_MODEL: str = "claude-opus-5"
+    # Optional. Without it the AI summary falls back to a written template and
+    # photo recognition reports itself unavailable. Deliberately not required in
+    # production: the product has to keep working without a model.
+    OPENAI_API_KEY: str | None = None
+    # A short paragraph off numbers that are already computed, so the cheap
+    # model is the right one. It also supports effort "none", which this uses.
+    SYNTHESIS_MODEL: str = "gpt-6-luna"
     SYNTHESIS_TIMEOUT_SECONDS: float = 8.0
     SYNTHESIS_RATE_LIMIT_SECONDS: int = 30
+
+    # Reading a meal photo. The model is named separately from the summary's
+    # because ai_syntheses records which model wrote each summary, and the two
+    # should be able to move apart.
+    # Off by default, deliberately. docs/SECURITY-GAPS.md carries PRIV-1 as an
+    # open High: no privacy policy, while this collects health data. A camera
+    # that sends meal photos to a third party widens that, so the route answers
+    # 503 until someone turns this on, and nothing can expose it by accident.
+    PHOTO_RECOGNITION_ENABLED: bool = False
+    # The flagship instead, deliberately. Misreading a plate puts a wrong
+    # ingredient into the correlation engine, where it becomes a wrong suspect
+    # weeks later — the one place here where accuracy is worth paying for.
+    PHOTO_MODEL: str = "gpt-6-astra"
+    # Vision plus a structured reply is slower than the summary's 8s, and still
+    # well inside URLSession's 60s default on the phone.
+    PHOTO_TIMEOUT_SECONDS: float = 20.0
+    PHOTO_RATE_LIMIT_SECONDS: int = 10
+    PHOTO_DAILY_LIMIT: int = 40
+    # 4 MiB of image. A 1568px JPEG from the app is a few hundred KB, so this is
+    # generous; it exists to bound what we are willing to decode.
+    MAX_PHOTO_BYTES: int = 4 * 1024 * 1024
+
+    # The landing page is a different origin, so the waitlist endpoint answers
+    # CORS for itself. Deliberately NOT ALLOWED_ORIGINS: that installs the shared
+    # CORS middleware with credentials across every route, auth included, for the
+    # sake of one public form. The iOS client is not a browser and needs none.
+    WAITLIST_ORIGINS: CsvList = Field(
+        default_factory=lambda: [
+            "https://tastetrace.app",
+            "https://www.tastetrace.app",
+            "https://tastetrace.up.railway.app",
+        ]
+    )
+
+    # Every request body, not just a field. The photo route sets its own larger
+    # ceiling; this is what stops any other route buffering whatever is sent.
+    MAX_REQUEST_BYTES: int = 1024 * 1024
 
     RATE_LIMIT_LOGIN: str = "10/minute"
     RATE_LIMIT_FORGOT_PASSWORD: str = "5/hour"
     RATE_LIMIT_REGISTER: str = "10/hour"
+    # Per IP, in middleware, so a flood never reaches the body decode.
+    RATE_LIMIT_MEAL_PHOTO: str = "20/hour"
+    RATE_LIMIT_WAITLIST: str = "20/hour"
 
     # Extra CSP sources a project needs on top of the strict 'self' baseline.
     CSP_ALLOW_INLINE_STYLES: bool = False
@@ -84,6 +135,7 @@ class Settings(BaseSettings):
     _csv_fields = field_validator(
         "ALLOWED_ORIGINS",
         "ALLOWED_HOSTS",
+        "WAITLIST_ORIGINS",
         "CSP_STYLE_SRC_EXTRA",
         "CSP_FONT_SRC_EXTRA",
         "CSP_IMG_SRC_EXTRA",
@@ -91,7 +143,7 @@ class Settings(BaseSettings):
         mode="before",
     )(_split_csv)
 
-    @field_validator("DATABASE_URL", mode="before")
+    @field_validator("DATABASE_URL", "MIGRATION_DATABASE_URL", mode="before")
     @classmethod
     def _coerce_async_driver(cls, value: str) -> str:
         """Railway hands out `postgresql://`; async SQLAlchemy needs asyncpg.
@@ -110,6 +162,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT == "production"
+
+    @property
+    def migration_database_url(self) -> str:
+        return self.MIGRATION_DATABASE_URL or self.DATABASE_URL
 
     @computed_field
     @property

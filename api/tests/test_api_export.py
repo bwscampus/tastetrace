@@ -6,7 +6,7 @@ from tests.test_api_analytics import seed_week
 TZ = "America/Los_Angeles"
 
 
-async def test_the_summary_is_written_without_a_model_and_then_cached(client):
+async def test_the_summary_falls_back_to_the_template_and_is_never_cached(client):
     auth = await register_and_login(client, "taylor@example.com")
     await seed_week(client, auth)
 
@@ -15,17 +15,20 @@ async def test_the_summary_is_written_without_a_model_and_then_cached(client):
     )
     assert first.status_code == 200, first.text
     body = first.json()
-    # No ANTHROPIC_API_KEY in the test environment, so the template writes it
+    # No OPENAI_API_KEY in the test environment, so the template writes it
     assert body["source"] == "rules"
     assert body["model"] is None
     assert body["cached"] is False
     assert len(body["text"]) > 20
     assert "flare windows" in body["text"]
 
+    # The template is deterministic, so the text repeats — but it is never
+    # stored, so it never reports itself as cached. That is what leaves the door
+    # open for the model to be asked once a key exists.
     again = await client.post(
         "/api/ai/synthesis", headers=auth, json={"weekStart": "2026-09-11", "tz": TZ}
     )
-    assert again.json()["cached"] is True
+    assert again.json()["cached"] is False
     assert again.json()["text"] == body["text"]
 
     quiet = await client.post(
