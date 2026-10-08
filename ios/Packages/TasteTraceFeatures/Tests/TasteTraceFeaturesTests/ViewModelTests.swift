@@ -75,7 +75,7 @@ final class MealPhotoRecognitionTests: XCTestCase {
             recognized: recognized, name: name, ingredients: ingredients,
             mealCategory: mealCategory, containsGluten: gluten, containsDairy: dairy,
             containsGrains: grains, containsSugar: false, containsNuts: false,
-            confidence: confidence, kind: "meal", model: "claude-opus-5-5", message: message
+            confidence: confidence, kind: "meal", model: "gpt-6-astra", message: message
         )
     }
 

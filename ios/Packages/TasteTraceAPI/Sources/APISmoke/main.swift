@@ -80,13 +80,13 @@ do {
     check("meal is flagged suspicious", flagged.meals.first?.suspiciousFor?.isEmpty == false)
 
     let synthesis = try await client.synthesis(weekStart: weekStart, symptom: nil, tz: tz)
-    check("synthesis returns text (\(synthesis.source))", synthesis.text.count > 20 && ["claude", "rules"].contains(synthesis.source))
+    check("synthesis returns text (\(synthesis.source))", synthesis.text.count > 20 && ["model", "rules"].contains(synthesis.source))
     let again = try await client.synthesis(weekStart: weekStart, symptom: nil, tz: tz)
     // Only the model's prose is cached. The template repeats because it is
     // deterministic, but it is never stored, which is what leaves the door open
     // for the model to be asked once a key exists.
-    if synthesis.source == "claude" {
-        check("claude synthesis is cached on repeat", again.cached && again.text == synthesis.text)
+    if synthesis.source == "model" {
+        check("model synthesis is cached on repeat", again.cached && again.text == synthesis.text)
     } else {
         check("template synthesis repeats but is not cached", !again.cached && again.text == synthesis.text)
     }

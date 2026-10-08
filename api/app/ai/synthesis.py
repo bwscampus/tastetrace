@@ -19,7 +19,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from uuid import UUID
 
-import anthropic
+import openai
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,16 +39,17 @@ Write one short paragraph (at most 90 words) in plain prose, in the second perso
 Only cite numbers that appear in the JSON. Say plainly that these are observed associations, not proof, and that few flare windows means uncertainty.
 Do not diagnose, do not tell the person to eliminate foods, and do not give medical advice."""
 
-# Thinking is on by default, so the budget has to cover it as well as ~90 words
+# Reasoning tokens are billed against this too, so it has to cover more than
+# the ~90 words of prose.
 MAX_TOKENS = 2000
 
 throttle = Throttle(lambda: settings.SYNTHESIS_RATE_LIMIT_SECONDS)
 
 
-def _client_factory() -> anthropic.AsyncAnthropic:
+def _client_factory() -> openai.AsyncOpenAI:
     """Seam for the tests: the only place the SDK client is constructed."""
-    return anthropic.AsyncAnthropic(
-        api_key=settings.ANTHROPIC_API_KEY,
+    return openai.AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
         timeout=settings.SYNTHESIS_TIMEOUT_SECONDS,
         max_retries=1,
     )
@@ -90,31 +91,29 @@ def _input_hash(suspects: SuspectsDigest) -> str:
     return hashlib.sha256(json.dumps(stable, separators=(",", ":")).encode()).hexdigest()
 
 
-async def _ask_claude(suspects: SuspectsDigest) -> str | None:
+async def _ask_model(suspects: SuspectsDigest) -> str | None:
     """Returns the model's paragraph, or None to fall back to the template."""
-    if not settings.ANTHROPIC_API_KEY:
+    if not settings.OPENAI_API_KEY:
         return None
 
     client = _client_factory()
     try:
-        response = await client.beta.messages.create(
+        response = await client.responses.create(
             model=settings.SYNTHESIS_MODEL,
-            max_tokens=MAX_TOKENS,
-            output_config={"effort": "low"},
-            # "default" routes by refusal category, so there is no model list to
-            # keep current. Paired header must be the 07-01 one.
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": json.dumps(_payload(suspects), separators=(",", ":"))}],
+            max_output_tokens=MAX_TOKENS,
+            # A 90-word paragraph off pre-computed numbers needs no deliberation,
+            # and reasoning tokens are billed.
+            reasoning={"effort": "none"},
+            instructions=SYSTEM_PROMPT,
+            input=json.dumps(_payload(suspects), separators=(",", ":")),
         )
-    except anthropic.APITimeoutError:
+    except openai.APITimeoutError:
         logger.warning("Synthesis timed out after %ss", settings.SYNTHESIS_TIMEOUT_SECONDS)
         return None
-    except anthropic.APIConnectionError as error:
+    except openai.APIConnectionError as error:
         logger.warning("Synthesis could not reach the API: %s", error)
         return None
-    except anthropic.APIStatusError as error:
+    except openai.APIStatusError as error:
         logger.warning("Synthesis API error %s: %s", error.status_code, error.message)
         return None
     except Exception:  # never let the screen fail because of the model
@@ -123,19 +122,32 @@ async def _ask_claude(suspects: SuspectsDigest) -> str | None:
     finally:
         await client.close()
 
-    # stop_reason is checked before content is touched: on a refusal there is no
-    # prose to read. stop_details is null for every other stop reason, so it has
-    # to be guarded rather than assumed.
-    if response.stop_reason == "refusal":
-        category = getattr(response.stop_details, "category", None)
-        logger.warning("Synthesis declined by the model (%s)", category or "no category")
+    # Checked before the text is read. A refusal is a content item, not a
+    # status, so it has to be looked for rather than waited on.
+    if refusal := _refusal_of(response):
+        logger.warning("Synthesis declined by the model (%s)", refusal)
         return None
-    if response.stop_reason == "max_tokens":
-        logger.warning("Synthesis hit the %s-token ceiling; discarding a half-written paragraph", MAX_TOKENS)
+    if response.status == "incomplete":
+        reason = getattr(response.incomplete_details, "reason", None)
+        logger.warning("Synthesis came back incomplete (%s); discarding it", reason or "no reason")
         return None
-    # Thinking blocks ride along with the text ones; keep the prose
-    text = "".join(block.text for block in response.content if block.type == "text").strip()
-    return text or None
+
+    return (response.output_text or "").strip() or None
+
+
+def _refusal_of(response) -> str | None:
+    """The refusal text, if the model declined.
+
+    Refusals arrive as a content item inside an output message rather than as a
+    top-level field, so every message's content has to be walked.
+    """
+    for item in getattr(response, "output", None) or []:
+        if getattr(item, "type", None) != "message":
+            continue
+        for part in getattr(item, "content", None) or []:
+            if getattr(part, "type", None) == "refusal":
+                return getattr(part, "refusal", None) or "no reason given"
+    return None
 
 
 async def synthesize(
@@ -158,7 +170,7 @@ async def synthesize(
     # keyless or throttled view of a week pins the template into the cache, and
     # because nothing here expires, the model is never asked again until the
     # numbers themselves change. Adding a key would then appear to do nothing.
-    if cached is not None and cached.input_hash == digest_hash and cached.source == "claude":
+    if cached is not None and cached.input_hash == digest_hash and cached.source == "model":
         return {
             "text": cached.text,
             "source": cached.source,
@@ -175,13 +187,13 @@ async def synthesize(
     now = time.monotonic()
     text = None
     if (
-        settings.ANTHROPIC_API_KEY
+        settings.OPENAI_API_KEY
         and suspects.flares > 0
         and suspects.ingredients
         and not throttle.is_throttled(user_id, now)
     ):
         throttle.record(user_id, now)
-        text = await _ask_claude(suspects)
+        text = await _ask_model(suspects)
 
     # Nothing is written unless the model wrote it. The template costs nothing
     # to regenerate, and storing it would be storing a cache miss.
@@ -199,7 +211,7 @@ async def synthesize(
         user_id=user_id, kind=KIND, week_start=suspects.week_start, symptom_filter=filter_key
     )
     row.input_hash = digest_hash
-    row.source = "claude"
+    row.source = "model"
     row.model = settings.SYNTHESIS_MODEL
     row.text = text
     row.created_at = datetime.now(UTC)
@@ -209,7 +221,7 @@ async def synthesize(
 
     return {
         "text": row.text,
-        "source": "claude",
+        "source": "model",
         "model": row.model,
         "cached": False,
         "generated_at": row.created_at,

@@ -15,7 +15,7 @@ async def test_the_summary_falls_back_to_the_template_and_is_never_cached(client
     )
     assert first.status_code == 200, first.text
     body = first.json()
-    # No ANTHROPIC_API_KEY in the test environment, so the template writes it
+    # No OPENAI_API_KEY in the test environment, so the template writes it
     assert body["source"] == "rules"
     assert body["model"] is None
     assert body["cached"] is False

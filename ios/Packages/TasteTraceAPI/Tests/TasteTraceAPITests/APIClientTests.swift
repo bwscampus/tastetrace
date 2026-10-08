@@ -132,7 +132,7 @@ final class MealPhotoTests: XCTestCase {
         ])
         XCTAssertEqual(read.mealCategory, .lunch)
         XCTAssertEqual(read.confidence, "high")
-        XCTAssertEqual(read.model, "claude-opus-5-5")
+        XCTAssertEqual(read.model, "gpt-6-astra")
         XCTAssertNil(read.message)
         XCTAssertTrue(read.containsDairy && read.containsGrains)
     }
@@ -166,7 +166,7 @@ final class MealPhotoTests: XCTestCase {
         {"recognized":false,"name":"","ingredients":[],"mealCategory":null,
          "containsGluten":false,"containsDairy":false,"containsGrains":false,
          "containsSugar":false,"containsNuts":false,"confidence":"low",
-         "kind":"meal","model":"claude-opus-5-5",
+         "kind":"meal","model":"gpt-6-astra",
          "message":"We couldn't read that photo. Type the meal in instead."}
         """#)
 
