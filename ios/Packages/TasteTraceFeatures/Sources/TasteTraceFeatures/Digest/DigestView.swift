@@ -7,13 +7,11 @@ import TasteTraceUI
 struct DigestView: View {
     @Environment(Router.self) private var router
     @State private var model: DigestViewModel
-    private let plus: PlusStore
 
     init(env: AppEnvironment, weekStart: Date? = nil, segment: DigestSegment = .trends) {
         let model = DigestViewModel(env: env, weekStart: weekStart)
         model.segment = segment
         _model = State(initialValue: model)
-        plus = env.plus
     }
 
     var body: some View {
@@ -27,19 +25,13 @@ struct DigestView: View {
             case .trends:
                 if let digest = model.digest { TrendsView(digest: digest, model: model) }
             case .symptoms:
-                if !plus.isPlus {
-                    PlusLockedCard(reason: .charts, title: "Symptom breakdown",
-                                   message: "Severity, duration and peak days for every symptom, week by week. Trends stay free; the full charts are part of Plus.")
-                } else if let digest = model.digest { SymptomsDigestView(digest: digest, model: model) }
+                if let digest = model.digest { SymptomsDigestView(digest: digest, model: model) }
             case .suspects:
-                if !plus.isPlus {
-                    PlusLockedCard(reason: .insights, title: "Food Suspect Digest",
-                                   message: "The ingredients that showed up before this week's flare-ups, ranked, with an AI summary of the pattern.")
-                } else if let suspects = model.suspects { SuspectsDigestView(suspects: suspects, model: model) }
+                if let suspects = model.suspects { SuspectsDigestView(suspects: suspects, model: model) }
             }
             if let error = model.error { InfoBanner(emoji: "⚠️", message: error, tone: .warning) }
         } bottom: {
-            if model.segment != .trends, model.digest != nil, plus.isPlus {
+            if model.segment != .trends, model.digest != nil {
                 PinnedBottomBar {
                     SecondaryButton("Export Weekly Digest Report (PDF)", systemImage: "square.and.arrow.up") {
                         router.sheet = .export(kind: ReportKind.weeklyDigest.rawValue, weekStart: model.weekStart)
@@ -50,18 +42,6 @@ struct DigestView: View {
         .navigationBarHidden()
         .task { await model.load() }
         .refreshable { await model.load() }
-        .onChange(of: plus.isPlus) { _, isPlus in
-            if isPlus { Task { await model.loadSynthesis() } }
-        }
-    }
-
-    /// Weeks before the free 14 days need Plus.
-    private func goBack() {
-        if plus.canOpen(day: model.math.addingDays(-7, to: model.weekStart), math: model.math) {
-            Task { await model.shift(weeks: -1) }
-        } else {
-            router.sheet = .paywall(.history)
-        }
     }
 
     private var header: some View {
@@ -74,18 +54,14 @@ struct DigestView: View {
             case .suspects: ScreenHeading("Food Suspect Digest", subtitle: model.suspects.map { "\($0.windowHours)h Window Roundup" } ?? "Pre-Flare Roundup", subtitleUppercased: true)
             }
             Spacer()
-            IconCircleButton(systemImage: plus.isPlus ? "doc.richtext" : "lock.doc") {
-                router.requirePlus(plus, .export) {
-                    router.sheet = .export(kind: ReportKind.weeklyDigest.rawValue, weekStart: model.weekStart)
-                }
-            }
+            IconCircleButton(systemImage: "doc.richtext") { router.sheet = .export(kind: ReportKind.weeklyDigest.rawValue, weekStart: model.weekStart) }
         }
     }
 
     private var weekPager: some View {
         TTCard(padding: 10) {
             HStack {
-                Button { goBack() } label: {
+                Button { Task { await model.shift(weeks: -1) } } label: {
                     Image(systemName: "chevron.left").font(.system(size: 16, weight: .semibold)).foregroundStyle(TTColor.primary)
                         .frame(width: 44, height: 44).background(TTColor.infoTint, in: Circle())
                 }

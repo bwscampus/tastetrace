@@ -107,38 +107,6 @@ creates a scheme per package plus `apismoke`, so package tests can run in the
 IDE; `swift test` inside each `Packages/*` directory does the same thing
 without opening Xcode.
 
-## TasteTrace Plus (subscriptions)
-
-Logging is free; insights are paid. The app uses StoreKit 2 (`Plus/PlusStore.swift`)
-and nothing works for real until these exist in App Store Connect:
-
-1. **Agreements**: the Paid Apps agreement, with banking and tax filled in.
-2. **Subscription group** "TasteTrace Plus" with two auto-renewable subscriptions:
-   | Product ID | Period | Price |
-   | --- | --- | --- |
-   | `app.tastetrace.ios.plus.monthly` | 1 month | $5.00 |
-   | `app.tastetrace.ios.plus.annual` | 1 year | $30.00 (the paywall shows it as about $2.50/month and selects it by default) |
-3. **Offer codes** on the annual subscription, as custom codes (an App Store
-   offer code belongs to one subscription, so both sit on the annual plan):
-   | Code | Who | Offer |
-   | --- | --- | --- |
-   | `TASTETRACE20` | friends, family, beta testers | pay up front, 1 year, $24.00 (20% off) |
-   | `TTWAITLIST` | waitlist | pay up front, 1 year, $27.00 (10% off) |
-   The paywall recognises these names (`PromoCode.all`) and shows the discounted
-   price; Apple applies the actual discount when the code is redeemed. To add a
-   code, create it in App Store Connect and add it to `PromoCode.all`.
-4. Set `APP_STORE_ID` in `Config/*.xcconfig` to the app's numeric Apple ID so
-   "Redeem" opens Apple's sheet with the code filled in. Until then the user
-   types the code into Apple's blank redeem sheet.
-
-What Plus unlocks (free in brackets): history older than 14 days (last 14
-days), every trigger insight (one preview after 7 days of logging), the
-Symptoms and Suspects digest pages and older weeks (Trends), PDF reports
-(CSV stays free), custom nudge time and meal check-ins (the default nudge).
-Free users see the paywall when they tap one of those, and once when their
-account turns 14 days old. The entitlement is checked on the device; the API
-does not know about Plus yet.
-
 ## Without Xcode
 
 The command-line toolchain can compile every package (`swift build` in each

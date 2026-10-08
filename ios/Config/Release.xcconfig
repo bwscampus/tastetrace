@@ -1,7 +1,3 @@
 // The Python API. The Express service at tastetrace-app.up.railway.app still
 // serves the web client, but its auth is not what this app speaks any more.
 API_BASE_URL = https:/$()/tastetrace-api-production.up.railway.app
-
-// Numeric Apple ID of the app (App Store Connect → App Information). Empty
-// until the app record exists; promo codes then use Apple's blank redeem sheet.
-APP_STORE_ID =

@@ -7,7 +7,3 @@
 //   phone     — http:/$()/<your Mac's LAN address>:8000, served with
 //               --host 0.0.0.0, and add an ATS exception for cleartext HTTP
 API_BASE_URL = https:/$()/tastetrace-api-production.up.railway.app
-
-// Numeric Apple ID of the app (App Store Connect → App Information). Empty
-// until the app record exists; promo codes then use Apple's blank redeem sheet.
-APP_STORE_ID =

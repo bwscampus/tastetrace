@@ -54,8 +54,6 @@ targets:
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         API_BASE_URL: $(API_BASE_URL)
-        # Numeric Apple ID from App Store Connect; lets promo codes open Apple's redeem sheet pre-filled
-        APP_STORE_ID: $(APP_STORE_ID)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.tastetrace.ios

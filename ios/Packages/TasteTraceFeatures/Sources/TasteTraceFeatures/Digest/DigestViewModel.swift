@@ -51,8 +51,7 @@ final class DigestViewModel {
             digest = try await digestTask
             suspects = try await suspectsTask
             error = nil
-            // The AI summary sits on the Plus-only Suspects page
-            if env.plus.isPlus { await loadSynthesis() }
+            await loadSynthesis()
         } catch let apiError as APIError { error = apiError.message } catch { self.error = error.localizedDescription }
     }
 
@@ -68,7 +67,7 @@ final class DigestViewModel {
         if let fresh = try? await env.run({ try await env.api.suspects(weekStart: weekStartString, symptom: symptom, tz: math.tzIdentifier) }) {
             suspects = fresh
         }
-        if env.plus.isPlus { await loadSynthesis() }
+        await loadSynthesis()
     }
 
     /// The AI summary is fetched after the suspects so the card never blocks the digest.

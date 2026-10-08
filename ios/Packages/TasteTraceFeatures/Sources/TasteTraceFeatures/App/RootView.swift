@@ -74,21 +74,6 @@ struct MainTabView: View {
         .sheet(item: $router.sheet) { sheet in
             SheetHost(sheet: sheet)
         }
-        .task {
-            await env.plus.start()
-            promptWhenFreeWindowEnds()
-        }
-    }
-
-    /// Once an account is 14 days old, free users see the paywall one time;
-    /// after that it only appears when they open something Plus unlocks.
-    private func promptWhenFreeWindowEnds() {
-        guard !env.plus.isPlus, router.sheet == nil, let user = env.session.user, let created = user.createdAt,
-              Date().timeIntervalSince(created) >= Double(PlusStore.freeHistoryDays) * 86_400 else { return }
-        let key = "plusPromptShown-\(user.id)"
-        guard !UserDefaults.standard.bool(forKey: key) else { return }
-        UserDefaults.standard.set(true, forKey: key)
-        router.sheet = .paywall(.freeWindowEnded)
     }
 
     @ViewBuilder
@@ -145,8 +130,6 @@ struct SheetHost: View {
             EditSymptomView(symptomId: id)
         case .export(let kind, let weekStart):
             ExportView(env: env, kind: kind.flatMap(ReportKind.init(rawValue:)), weekStart: weekStart)
-        case .paywall(let reason):
-            PaywallView(reason: reason)
         }
     }
 }

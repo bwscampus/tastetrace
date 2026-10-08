@@ -8,19 +8,16 @@ struct HistoryView: View {
     @State private var model: HistoryViewModel
     @State private var pendingDelete: TimelineItem?
     @State private var showJumpToDate = false
-    @State private var jumpTarget: Date?
-    private let plus: PlusStore
 
     init(env: AppEnvironment) {
         _model = State(initialValue: HistoryViewModel(env: env))
-        plus = env.plus
     }
 
     var body: some View {
         TTScreen {
             header
-            WeekStrip(model: model) { open($0) }
-            DayChips(model: model) { open($0) }
+            WeekStrip(model: model) { date in Task { await model.select(date) } }
+            DayChips(model: model) { date in Task { await model.select(date) } }
             daySummary
             if model.isLoading { ProgressView().frame(maxWidth: .infinity).padding() }
             ForEach(model.day?.groupedTimeline ?? []) { item in
@@ -48,19 +45,15 @@ struct HistoryView: View {
         .task { await model.load() }
         .refreshable { await model.load() }
         .onChange(of: router.historyDate) { _, date in
-            if let date { open(date); router.historyDate = nil }
+            if let date { Task { await model.select(date) }; router.historyDate = nil }
         }
         .onChange(of: router.sheet) { _, sheet in
             if sheet == nil { Task { await model.load() } }
         }
-        // Opens the day once the sheet is gone, so the paywall can present if it's locked
-        .sheet(isPresented: $showJumpToDate, onDismiss: {
-            if let date = jumpTarget { jumpTarget = nil; open(date) }
-        }) {
-            JumpToDateSheet(date: model.selectedDate, math: model.math,
-                            note: plus.isPlus ? nil : "Free accounts can open the last \(PlusStore.freeHistoryDays) days. Older days need TasteTrace Plus.") { date in
-                jumpTarget = date
+        .sheet(isPresented: $showJumpToDate) {
+            JumpToDateSheet(date: model.selectedDate, math: model.math) { date in
                 showJumpToDate = false
+                Task { await model.select(date) }
             }
         }
         .confirmationDialog("Delete this entry?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
@@ -68,15 +61,6 @@ struct HistoryView: View {
                 if let item = pendingDelete { Task { await model.delete(item) } }
                 pendingDelete = nil
             }
-        }
-    }
-
-    /// Free accounts open the last 14 days; anything older shows the paywall.
-    private func open(_ date: Date) {
-        if plus.canOpen(day: date, math: model.math) {
-            Task { await model.select(date) }
-        } else {
-            router.sheet = .paywall(.history)
         }
     }
 
@@ -184,7 +168,6 @@ struct DayChips: View {
 struct JumpToDateSheet: View {
     @State var date: Date
     let math: DateMath
-    var note: String? = nil
     let onPick: (Date) -> Void
 
     var body: some View {
@@ -194,9 +177,6 @@ struct JumpToDateSheet: View {
                 .datePickerStyle(.graphical)
                 .environment(\.calendar, math.calendar)
                 .environment(\.timeZone, math.timeZone)
-            if let note {
-                Text(note).font(TTFont.caption).foregroundStyle(TTColor.textSecondary).multilineTextAlignment(.center)
-            }
             PrimaryButton("Show Day") { onPick(date) }
         }
         .padding(TTSpacing.screen)
