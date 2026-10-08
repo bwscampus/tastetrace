@@ -51,6 +51,19 @@ the database, API routes, rendering, or deploy config. It re-checks these rules.
 | OPS-2 | Low | `.github/dependabot.yml` | Weekly update PRs for uv, npm and Actions. Patched pyjwt (PYSEC-2026-4141) and ran `npm audit fix`. |
 | | Low | `app/server/replitAuth.ts` (deleted) | Unused auth module, removed. Pre-existing type errors fixed so `npm run check` is a usable gate. |
 
+## Added: medical disclaimer, accepted at onboarding (2026-10-08)
+
+Wording supplied by the owner; implemented, not written here.
+
+| Rule | Where | What changed |
+|---|---|---|
+| PRIV-1 | `api/app/domain/disclaimer.py` | The disclaimer text and a dated version live server-side and are served at `GET /api/legal/disclaimer`. The app fetches it rather than bundling a copy: two copies could drift, and then a stored acceptance would point at wording the person never saw. |
+| PRIV-1 | migration `0007`, `api/app/routers/profile.py` | `users.disclaimer_version` and `disclaimer_accepted_at`. "They agreed on this date" is worth little without which text they agreed to. Existing accounts are left null rather than backfilled — inventing an acceptance for someone who was never shown the text would defeat the point. |
+| FE-3 | `api/app/routers/profile.py` | **The gate is server-side.** `onboardingCompleted: true` is refused with 400 unless the current version has been accepted, and an out-of-date version is refused with 409. A gate that lives only in the app is not a gate: an old build or a direct call walks past it. |
+| FE-6 | `ios/.../SeverityMapping.swift`, `QuickLog` | The disclaimer states that users with severe symptoms "are directed within the app to seek medical attention". **Nothing did that before**, so the claim would have been false. Logging a symptom at intensity 4 or 5 now shows that direction before the sheet closes, and a test pins the threshold to the severity scale so the two cannot drift. |
+
+**Still open:** this is the medical disclaimer, not the privacy policy. PRIV-1 also needs the privacy policy, which is a separate document and still the teacher's to approve.
+
 ## Changed: model provider is OpenAI, not Anthropic (2026-10-08)
 
 | Rule | Where | What changed |
@@ -116,7 +129,7 @@ Out of scope for round 1 (still open above): email verification, Drizzle migrati
 
 | Rule | Sev | Where | Problem | Suggested fix |
 |---|---|---|---|---|
-| PRIV-1 / PRIV-3 | **High** | `landing/index.html`, App Store listing | There's no privacy policy, though the product collects emails and **health data** (symptoms, sensitivities). App Store submission needs a privacy-policy URL. **Meal photo recognition is gated behind this:** `PHOTO_RECOGNITION_ENABLED` defaults to false and the route answers 503, so no photo leaves a device until the policy is live. | **Owner action (teacher):** approve wording. Then link it from the landing page, the web sign-up and the iOS sign-up, and only then set `PHOTO_RECOGNITION_ENABLED=true` on `tastetrace-api`. The wording needs to name the model provider (OpenAI) that photos are sent to, are never stored by us, state their retention and training terms — **re-check those against OpenAI's current policy, since this moved off Anthropic on 2026-10-08 and the old wording described Anthropic's terms** — and that the resulting text is an ordinary meal entry covered by account deletion. |
+| PRIV-1 / PRIV-3 | **High** | `landing/index.html`, App Store listing | There's no privacy policy, though the product collects emails and **health data** (symptoms, sensitivities). App Store submission needs a privacy-policy URL. A medical disclaimer is now shown and recorded at onboarding (see above), but the **privacy policy** is still missing. **Meal photo recognition is gated behind that:** `PHOTO_RECOGNITION_ENABLED` defaults to false and the route answers 503, so no photo leaves a device until the policy is live. | **Owner action (teacher):** approve wording. Then link it from the landing page, the web sign-up and the iOS sign-up, and only then set `PHOTO_RECOGNITION_ENABLED=true` on `tastetrace-api`. The wording needs to name the model provider (OpenAI) that photos are sent to, are never stored by us, state their retention and training terms — **re-check those against OpenAI's current policy, since this moved off Anthropic on 2026-10-08 and the old wording described Anthropic's terms** — and that the resulting text is an ordinary meal entry covered by account deletion. |
 | AUTH-2 | Med | `api/` | Emails are never verified. | fastapi-users has a verify router. Require verification before data sharing or export. |
 | OPS-5 | Med | `ios/Config/Debug.xcconfig:9` | Debug builds talk to the **production** API, so test data lands in prod. | Point Debug at a staging API (a Railway `staging` environment). |
 | DB-4 | Low | `api/app/db.py` | No explicit TLS. | Confirm `DATABASE_URL` uses `*.railway.internal`. |

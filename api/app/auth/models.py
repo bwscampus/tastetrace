@@ -41,6 +41,13 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     # "private", "practitioner" or "research"; chosen during onboarding
     data_sharing: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # Null until the first-run questions are answered; the app shows them until then
+    # Which disclaimer wording this account agreed to, and when. Both or
+    # neither: a timestamp without a version cannot be tied back to any text.
+    disclaimer_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    disclaimer_accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

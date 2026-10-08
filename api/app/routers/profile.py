@@ -6,9 +6,16 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
 from app.auth.models import User
+from app.domain.disclaimer import DISCLAIMER_TEXT, DISCLAIMER_VERSION
 from app.deps import CurrentUser, Session, get_settings_row, is_valid_timezone
 from app.models import Meal, Symptom, UserSettings
-from app.schemas import ProfilePatch, ProfileRead, SettingsPatch, SettingsRead
+from app.schemas import (
+    DisclaimerRead,
+    ProfilePatch,
+    ProfileRead,
+    SettingsPatch,
+    SettingsRead,
+)
 
 router = APIRouter(tags=["profile"])
 
@@ -44,6 +51,8 @@ async def profile_payload(session, user: User) -> ProfileRead:
         discovery_purpose=user.discovery_purpose,
         sensitivity_tags=user.sensitivity_tags or [],
         data_sharing=user.data_sharing,
+        disclaimer_version=user.disclaimer_version,
+        disclaimer_accepted_at=_aware(user.disclaimer_accepted_at),
         onboarding_completed_at=_aware(user.onboarding_completed_at),
         created_at=_aware(user.created_at),
         journaler_days=max(1, days),
@@ -56,14 +65,46 @@ async def read_profile(user: CurrentUser, session: Session) -> ProfileRead:
     return await profile_payload(session, user)
 
 
+@router.get("/legal/disclaimer", response_model=DisclaimerRead)
+async def read_disclaimer() -> dict:
+    """The wording the app must display before onboarding can complete.
+
+    Served rather than bundled so there is one source of the text: an app with
+    its own copy could drift, and then a stored acceptance would point at
+    wording the person never saw.
+    """
+    return {"version": DISCLAIMER_VERSION, "text": DISCLAIMER_TEXT}
+
+
 @router.patch("/profile", response_model=ProfileRead)
 async def update_profile(patch: ProfilePatch, user: CurrentUser, session: Session) -> ProfileRead:
     values = patch.model_dump(exclude_unset=True)
+
+    if version := values.pop("accept_disclaimer_version", None):
+        # Only the current wording counts. A stale build sending an old version
+        # would otherwise record agreement to text nobody is showing any more.
+        if version != DISCLAIMER_VERSION:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail="That disclaimer is out of date. Reopen the app and read the current one.",
+            )
+        user.disclaimer_version = version
+        user.disclaimer_accepted_at = datetime.now(UTC)
+
     if "onboarding_completed" in values:
         if not values.pop("onboarding_completed"):
             user.onboarding_completed_at = None
         elif user.onboarding_completed_at is None:
+            # Enforced here, not just in the app. A gate that only exists in the
+            # client is not a gate; an old build or a direct call would walk past
+            # it, and this one is the record that the disclaimer was agreed to.
+            if user.disclaimer_version != DISCLAIMER_VERSION:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail="The disclaimer has to be accepted before onboarding can finish.",
+                )
             user.onboarding_completed_at = datetime.now(UTC)
+
     for field, value in values.items():
         setattr(user, field, value)
     session.add(user)

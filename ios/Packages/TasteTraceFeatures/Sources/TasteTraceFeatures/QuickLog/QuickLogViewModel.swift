@@ -19,6 +19,9 @@ final class QuickLogViewModel {
     var isBusy = false
     var error: String?
     var completed = false
+    /// Set when any symptom just logged was severe, so the screen can direct
+    /// the person to medical care. The disclaimer promises this happens.
+    var severeGuidance: String?
 
     private let env: AppEnvironment
 
@@ -90,7 +93,19 @@ final class QuickLogViewModel {
                                                               notes: notes.isEmpty ? nil : notes, items: items))
             }
             await env.entries.invalidate(math.dayString(timestamp))
-            completed = true
+            // Shown before the screen closes, not after: this is the one moment
+            // the person is definitely looking.
+            if SevereSymptomGuidance.applies(toIntensities: items.map(\.intensity)) {
+                severeGuidance = SevereSymptomGuidance.message
+            } else {
+                completed = true
+            }
         } catch let apiError as APIError { error = apiError.message } catch { self.error = error.localizedDescription }
+    }
+
+    /// Dismissing the guidance is what finishes the flow.
+    func acknowledgeSevereGuidance() {
+        severeGuidance = nil
+        completed = true
     }
 }

@@ -182,3 +182,76 @@ final class MealPhotoEncodingTests: XCTestCase {
         XCTAssertEqual(MealPhotoEncoding.scale(for: .zero), 1)
     }
 }
+
+final class SevereSymptomGuidanceTests: XCTestCase {
+    func testSevereIntensitiesTriggerTheGuidance() {
+        XCTAssertTrue(SevereSymptomGuidance.applies(toIntensities: [4]))
+        XCTAssertTrue(SevereSymptomGuidance.applies(toIntensities: [5]))
+        // One severe symptom among mild ones still counts
+        XCTAssertTrue(SevereSymptomGuidance.applies(toIntensities: [1, 2, 5]))
+    }
+
+    func testMilderIntensitiesDoNot() {
+        XCTAssertFalse(SevereSymptomGuidance.applies(toIntensities: [1, 2, 3]))
+        XCTAssertFalse(SevereSymptomGuidance.applies(toIntensities: []))
+    }
+
+    func testTheThresholdAgreesWithTheSeverityScale() {
+        // If these drift, the guidance fires at the wrong point and the
+        // onboarding disclaimer's promise becomes wrong in one direction.
+        XCTAssertEqual(SeverityMapping.severity(forIntensity: SevereSymptomGuidance.threshold), "Severe")
+        XCTAssertNotEqual(SeverityMapping.severity(forIntensity: SevereSymptomGuidance.threshold - 1), "Severe")
+    }
+
+    func testTheMessageDirectsToMedicalCare() {
+        // The disclaimer says users are "directed within the app to seek medical
+        // attention"; this is the text that has to honour it.
+        XCTAssertTrue(SevereSymptomGuidance.message.contains("doctor"))
+        XCTAssertTrue(SevereSymptomGuidance.message.contains("medical attention"))
+    }
+}
+
+final class OnboardingDisclaimerTests: XCTestCase {
+    @MainActor
+    private func model(transport: StubTransport) -> OnboardingViewModel {
+        let session = AuthSession.make(
+            baseURL: URL(string: "https://api.example")!,
+            tokenStore: InMemoryTokenStore(),
+            transport: transport
+        )
+        return OnboardingViewModel(env: AppEnvironment(session: session))
+    }
+
+    @MainActor
+    func testTheDisclaimerStepIsLastAndBlocksUntilAgreed() async {
+        let transport = StubTransport(status: 200, body: #"{"version":"2026-10-08","text":"Not a diagnostic tool."}"#)
+        let model = model(transport: transport)
+
+        XCTAssertEqual(OnboardingViewModel.Step.allCases.last, .disclaimer)
+
+        model.step = .disclaimer
+        XCTAssertFalse(model.canContinue, "nothing loaded yet, so there is nothing to agree to")
+
+        await model.loadDisclaimer()
+        XCTAssertEqual(model.disclaimer?.version, "2026-10-08")
+        XCTAssertFalse(model.canContinue, "loaded, but not yet agreed")
+
+        model.disclaimerAgreed = true
+        XCTAssertTrue(model.canContinue)
+    }
+
+    @MainActor
+    func testAgreementCannotBeGivenWhenTheTextFailedToLoad() async {
+        let transport = StubTransport(status: 503, body: #"{"detail":"nope"}"#)
+        let model = model(transport: transport)
+        model.step = .disclaimer
+
+        await model.loadDisclaimer()
+
+        XCTAssertTrue(model.disclaimerLoadFailed)
+        XCTAssertNil(model.disclaimer)
+        // Even if the flag were somehow set, there is no text to agree to.
+        model.disclaimerAgreed = true
+        XCTAssertFalse(model.canContinue, "no bundled copy on purpose; the step cannot be skipped")
+    }
+}

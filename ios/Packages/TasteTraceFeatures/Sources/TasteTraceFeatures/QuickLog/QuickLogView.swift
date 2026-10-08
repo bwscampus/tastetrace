@@ -80,6 +80,20 @@ struct QuickLogView: View {
         }
         .task { await model.loadCatalog() }
         .onChange(of: model.completed) { _, done in if done { router.sheet = nil } }
+        // The symptom is already saved by this point. This is the direction to
+        // medical care that the onboarding disclaimer promises exists, so it
+        // must not be silently droppable: dismissing it is what closes the sheet.
+        .alert(
+            "Please get medical advice",
+            isPresented: Binding(
+                get: { model.severeGuidance != nil },
+                set: { if !$0 { model.acknowledgeSevereGuidance() } }
+            )
+        ) {
+            Button("I understand") { model.acknowledgeSevereGuidance() }
+        } message: {
+            Text(model.severeGuidance ?? "")
+        }
         .sheet(isPresented: $showTimeEditor) {
             SymptomTimeSheet(timestamp: $model.timestamp, edited: $model.timeEdited, math: model.math)
                 .presentationDetents([.medium])
