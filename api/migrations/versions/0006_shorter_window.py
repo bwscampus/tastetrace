@@ -1,7 +1,13 @@
 """Project: 6-hour default correlation window.
 
-Revision ID: 0004_shorter_window
-Revises: 0003_onboarding
+Revision ID: 0006_shorter_window
+Revises: 0005_waitlist_signups
+
+Renumbered from 0004 when this branch was synced with main: main had already
+taken 0004 for hashed access tokens and 0005 for the waitlist, so two
+migrations claimed 0003 as their parent and `alembic upgrade head` became
+ambiguous. This one only updates rows, so re-pointing it changes nothing about
+what it does.
 
 The default window was 24 hours, which ties a symptom to every meal of the
 previous day. New accounts now start at 6 hours. Accounts still on 24 never
@@ -14,8 +20,8 @@ from typing import Sequence, Union
 
 from alembic import op
 
-revision: str = "0004_shorter_window"
-down_revision: Union[str, None] = "0003_onboarding"
+revision: str = "0006_shorter_window"
+down_revision: Union[str, None] = "0005_waitlist_signups"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
