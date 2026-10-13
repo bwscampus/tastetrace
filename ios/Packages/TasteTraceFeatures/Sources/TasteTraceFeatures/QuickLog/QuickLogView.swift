@@ -60,9 +60,6 @@ struct QuickLogView: View {
                     .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
             }
 
-            InfoBanner(emoji: "💡", title: "Digestive First",
-                       message: "Tracking exact physical intensities helps TasteTrace run cross-checks with recent ingredients. Let us isolate your triggers!",
-                       tone: .warning)
             ErrorText(model.error)
         } bottom: {
             PinnedBottomBar {

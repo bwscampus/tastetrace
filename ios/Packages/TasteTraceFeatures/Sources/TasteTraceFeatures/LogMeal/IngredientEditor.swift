@@ -92,7 +92,7 @@ struct IngredientRow: View {
     }
 }
 
-/// 2×2 grid of Breakfast / Lunch / Dinner / Snack.
+/// Two-column grid of Breakfast / Lunch / Dinner / Snack / Drink.
 struct MealCategoryGrid: View {
     @Binding var selection: MealType
 
@@ -103,10 +103,7 @@ struct MealCategoryGrid: View {
                 Button { selection = type } label: {
                     HStack(spacing: 12) {
                         Text(type.emoji).font(.system(size: 28))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(type.rawValue).font(TTFont.cardTitle).foregroundStyle(selected ? TTColor.primary : TTColor.navy)
-                            Text(type.subtitle).font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
-                        }
+                        Text(type.rawValue).font(TTFont.cardTitle).foregroundStyle(selected ? TTColor.primary : TTColor.navy)
                         Spacer(minLength: 0)
                     }
                     .padding(14)
@@ -123,7 +120,7 @@ struct MealCategoryGrid: View {
 /// Date + time pickers in a card.
 struct DateTimeCard: View {
     let title: String
-    let subtitle: String
+    var subtitle: String? = nil
     @Binding var day: Date
     @Binding var time: Date
     let math: DateMath
@@ -136,7 +133,9 @@ struct DateTimeCard: View {
                         .frame(width: 44, height: 44).background(TTColor.infoTint, in: Circle())
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title).font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
-                        Text(subtitle).font(TTFont.body).foregroundStyle(TTColor.textSecondary)
+                        if let subtitle {
+                            Text(subtitle).font(TTFont.body).foregroundStyle(TTColor.textSecondary)
+                        }
                     }
                 }
                 HStack(spacing: 12) {

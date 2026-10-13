@@ -51,7 +51,7 @@ struct DigestView: View {
             switch model.segment {
             case .trends: ScreenHeading("Weekly Health Digest", subtitle: "7-Day Summary", subtitleUppercased: true)
             case .symptoms: ScreenHeading("Weekly Symptom Digest", subtitle: "Symptom Occurrences", subtitleUppercased: true)
-            case .suspects: ScreenHeading("Food Suspect Digest", subtitle: model.suspects.map { "\($0.windowHours)h Window Roundup" } ?? "Pre-Flare Roundup", subtitleUppercased: true)
+            case .suspects: ScreenHeading("Food Suspects", subtitle: "Foods Before Symptoms", subtitleUppercased: true)
             }
             Spacer()
             IconCircleButton(systemImage: "doc.richtext") { router.sheet = .export(kind: ReportKind.weeklyDigest.rawValue, weekStart: model.weekStart) }
@@ -139,15 +139,6 @@ struct TrendsView: View {
                 }
             }
         }
-
-        Button { withAnimation { model.segment = .suspects } } label: {
-            linkCard(icon: "fork.knife", tint: TTColor.warning, title: "View Food Suspect Digest", subtitle: "Ingredients logged in the hours before flare-ups", border: TTColor.warning)
-        }
-        .buttonStyle(.plain)
-        Button { withAnimation { model.segment = .symptoms } } label: {
-            linkCard(icon: "waveform.path.ecg", tint: TTColor.primary, title: "View Symptom Occurrence Cards", subtitle: "Severity, duration and peak days per symptom", border: TTColor.primary)
-        }
-        .buttonStyle(.plain)
     }
 
     private func stat(_ value: String, _ label: String, _ color: Color) -> some View {
@@ -163,22 +154,6 @@ struct TrendsView: View {
             Text(text).font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
         }
     }
-
-    private func linkCard(icon: String, tint: Color, title: String, subtitle: String, border: Color) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon).font(.title3).foregroundStyle(.white)
-                .frame(width: 48, height: 48).background(tint, in: RoundedRectangle(cornerRadius: 12))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
-                Text(subtitle).font(TTFont.body).foregroundStyle(TTColor.textSecondary)
-            }
-            Spacer()
-            Image(systemName: "chevron.right").foregroundStyle(tint)
-        }
-        .padding(TTSpacing.card)
-        .background(TTColor.card, in: RoundedRectangle(cornerRadius: TTRadius.card, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: TTRadius.card, style: .continuous).stroke(border, lineWidth: 1.5))
-    }
 }
 
 struct SymptomsDigestView: View {
@@ -189,26 +164,14 @@ struct SymptomsDigestView: View {
     var body: some View {
         TTCard {
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        SectionLabel("Total recorded events")
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text("\(digest.symptoms.total)").font(TTFont.heroNumber).foregroundStyle(TTColor.navy)
-                            Text("Occurrences").font(TTFont.screenTitle).foregroundStyle(TTColor.textSecondary)
-                        }
-                        Text("Across \(digest.symptoms.distinct) distinct symptom categor\(digest.symptoms.distinct == 1 ? "y" : "ies")").font(TTFont.body).foregroundStyle(TTColor.textSecondary)
-                    }
+                HStack(alignment: .center) {
+                    Text("Symptom Distribution").font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(baselineLabel(digest.symptoms.vsBaseline)).font(TTFont.bodySemibold).foregroundStyle(baselineColor(digest.symptoms.vsBaseline))
                         Text(String(format: "Baseline: %.1f / week", digest.symptoms.baselinePerWeek)).font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
                     }
                     .padding(10).background(TTColor.neutralTint, in: RoundedRectangle(cornerRadius: 12))
-                }
-                HStack {
-                    Text("Symptom Distribution").font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
-                    Spacer()
-                    Text("100% Categorized").font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
                 }
                 if digest.symptoms.total > 0 {
                     DistributionBar(segments: digest.symptoms.distribution.enumerated().map { .init(id: $1.name, share: $1.share, color: palette[$0 % palette.count]) })

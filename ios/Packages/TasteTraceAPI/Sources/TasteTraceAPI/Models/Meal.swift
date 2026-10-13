@@ -5,6 +5,7 @@ public enum MealType: String, Codable, CaseIterable, Sendable {
     case lunch = "Lunch"
     case dinner = "Dinner"
     case snack = "Snack"
+    case drink = "Drink"
 }
 
 public struct IngredientDetail: Codable, Equatable, Hashable, Sendable {

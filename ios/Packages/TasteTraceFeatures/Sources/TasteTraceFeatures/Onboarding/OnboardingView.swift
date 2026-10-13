@@ -104,12 +104,35 @@ struct OnboardingView: View {
                 Divider()
                 Toggle("Remind me to log each meal", isOn: $model.mealRemindersEnabled)
                     .font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
-                Text("Reminders arrive \(ReminderScheduler.checkInDelayMinutes) minutes after each meal time. iOS will ask to allow notifications when you finish.")
-                    .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                if model.mealRemindersEnabled {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("You'll be reminded at:").font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                        Text("🌅 \(model.reminderTime(after: model.breakfastTime))   🥪 \(model.reminderTime(after: model.lunchTime))   🍝 \(model.reminderTime(after: model.dinnerTime))")
+                            .font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
+                        Text("\(ReminderScheduler.checkInDelayMinutes) minutes after each meal, and only if you haven't logged it yet. iOS will ask to allow notifications when you finish.")
+                            .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                    }
+                    // A tap, so the times are a choice and not a default nobody looked at.
+                    Button { model.mealTimesConfirmed.toggle() } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Image(systemName: model.mealTimesConfirmed ? "checkmark.square.fill" : "square")
+                                .foregroundStyle(model.mealTimesConfirmed ? TTColor.primary : TTColor.textSecondary)
+                                .font(.title3)
+                            Text("These reminder times work for me")
+                                .font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(model.mealTimesConfirmed ? [.isSelected] : [])
+                }
             }
             .font(TTFont.bodySemibold)
             .foregroundStyle(TTColor.navy)
         }
+        .onChange(of: model.breakfastTime) { _, _ in model.mealTimesConfirmed = false }
+        .onChange(of: model.lunchTime) { _, _ in model.mealTimesConfirmed = false }
+        .onChange(of: model.dinnerTime) { _, _ in model.mealTimesConfirmed = false }
     }
 
     private var disclaimerStep: some View {

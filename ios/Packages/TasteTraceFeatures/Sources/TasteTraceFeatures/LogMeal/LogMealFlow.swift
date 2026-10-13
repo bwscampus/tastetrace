@@ -48,9 +48,7 @@ struct LogMealStep1View: View {
 
     var body: some View {
         TTScreen {
-            InfoBanner(emoji: "⚡️", title: "Build your meal",
-                       message: "Tap every saved tile you ate and add any new foods. Pasta and a salad? Add both, then list each one's ingredients.")
-            DateTimeCard(title: "Meal Date & Time", subtitle: "Helps map digestive correlation windows", day: $model.day, time: $model.time, math: model.math)
+            DateTimeCard(title: "Meal Date & Time", day: $model.day, time: $model.time, math: model.math)
 
             SectionLabel("1. Select meal category")
             // Routed through the model so a category picked here is known to be

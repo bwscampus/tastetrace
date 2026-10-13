@@ -35,15 +35,7 @@ public extension MealType {
         case .lunch: return "🥪"
         case .dinner: return "🍛"
         case .snack: return "🍎"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .breakfast: return "Morning log"
-        case .lunch: return "Mid-day log"
-        case .dinner: return "Evening log"
-        case .snack: return "Between meals"
+        case .drink: return "🥤"
         }
     }
 }

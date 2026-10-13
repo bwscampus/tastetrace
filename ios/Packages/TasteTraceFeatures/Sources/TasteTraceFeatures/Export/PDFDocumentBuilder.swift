@@ -6,7 +6,7 @@ import TasteTraceCore
 enum ReportKind: String, CaseIterable, Identifiable {
     case practitioner = "Practitioner Report"
     case weeklyDigest = "Weekly Digest Report"
-    case evidenceLedger = "Doctor Evidence Ledger"
+    case evidenceLedger = "Food & Symptom Log"
     var id: String { rawValue }
 }
 
@@ -71,7 +71,20 @@ final class PDFDocumentBuilder {
 
     func spacer(_ height: CGFloat = 8) { cursorY += height }
 
-    private func text(_ string: String, size: CGFloat, weight: UIFont.Weight, color: UIColor = .black, indent: CGFloat = 0) {
+    /// A thin grey line between sections.
+    func divider() {
+        ensure(14)
+        cursorY += 6
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: margin, y: cursorY))
+        path.addLine(to: CGPoint(x: pageSize.width - margin, y: cursorY))
+        UIColor.lightGray.setStroke()
+        path.lineWidth = 0.5
+        path.stroke()
+        cursorY += 8
+    }
+
+    func text(_ string: String, size: CGFloat, weight: UIFont.Weight, color: UIColor = .black, indent: CGFloat = 0) {
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byWordWrapping
         let attributes: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color, .paragraphStyle: paragraph]
@@ -87,6 +100,7 @@ final class PDFDocumentBuilder {
 enum ReportRenderer {
     static func render(_ kind: ReportKind, bundle: LedgerBundle, math: DateMath) -> Data {
         let builder = PDFDocumentBuilder(title: "TasteTrace • \(kind.rawValue) • \(bundle.range.from) to \(bundle.range.to)")
+        if kind == .evidenceLedger { return builder.render { doctorReport($0, bundle, math: math) } }
         return builder.render { b in
             b.heading(kind.rawValue)
             b.paragraph("Prepared for \(bundle.shownName) (\(bundle.profile?.email ?? "")). Generated \(Formatting.longDay(bundle.generatedAt, math: math)). Times shown in \(bundle.range.tz).")
@@ -100,9 +114,46 @@ enum ReportRenderer {
                 for week in bundle.digestWeeks.prefix(1) { digest(b, week, math: math) }
                 triggers(b, bundle)
             case .evidenceLedger:
-                triggers(b, bundle)
-                dailyLedger(b, bundle, math: math)
+                break
             }
+        }
+    }
+
+    /// The report a patient hands their doctor: who, when, which foods were
+    /// followed by symptoms, then each day with entries. No scores or percentages.
+    private static func doctorReport(_ b: PDFDocumentBuilder, _ bundle: LedgerBundle, math: DateMath) {
+        b.heading("Food & Symptom Log")
+        b.keyValue("Patient", bundle.shownName)
+        b.keyValue("Period", "\(bundle.range.from) to \(bundle.range.to)")
+        b.keyValue("Logged", "\(bundle.totals.meals) meal(s) and \(bundle.totals.symptoms) symptom(s) over \(bundle.totals.days) day(s)")
+        if let tags = bundle.profile?.sensitivityTags, !tags.isEmpty { b.keyValue("Self-reported sensitivities", tags.joined(separator: ", ")) }
+        b.spacer(4)
+        b.paragraph("Self-logged by the patient in TasteTrace. Times are in \(bundle.range.tz). Foods listed below were followed by a symptom; this is not a diagnosis.")
+        b.divider()
+
+        b.subheading("Foods followed by symptoms")
+        if bundle.triggers.isEmpty {
+            b.paragraph("No food has been followed by a symptom yet.")
+        } else {
+            for t in bundle.triggers.prefix(25) {
+                let onset = t.avgOnsetHours.map { String(format: ", about %.1f h later", $0) } ?? ""
+                b.bullet("\(t.foodName.capitalizedFirst) → \(t.symptomName): \(t.flareExposures) of \(t.exposures) time(s) eaten\(onset)")
+            }
+        }
+        b.divider()
+
+        b.subheading("Day by day")
+        for day in bundle.days where !day.meals.isEmpty || !day.symptoms.isEmpty {
+            b.spacer(6)
+            b.text(math.date(fromDay: day.date).map { Formatting.longDay($0, math: math) } ?? day.date, size: 12, weight: .semibold)
+            let items: [(Date, String)] = day.meals.map { m in
+                let names = (m.ingredientDetails?.map(\.name) ?? m.ingredientNames)
+                let followed = (m.suspiciousFor ?? []).isEmpty ? "" : "  → followed by \((m.suspiciousFor ?? []).joined(separator: ", "))"
+                return (m.timestamp, "\(Formatting.time(m.timestamp, math: math))  \(m.mealType): \(m.name)\(names.isEmpty ? "" : " (" + names.joined(separator: ", ") + ")")\(followed)")
+            } + day.symptoms.map { s in
+                (s.timestamp, "\(Formatting.time(s.timestamp, math: math))  Symptom: \(s.name), \(s.severity.lowercased())\(s.durationMinutes.map { ", \($0) min" } ?? "")\(s.notes.map { $0.isEmpty ? "" : " — \($0)" } ?? "")")
+            }
+            for (_, line) in items.sorted(by: { $0.0 < $1.0 }) { b.bullet(line) }
         }
     }
 
