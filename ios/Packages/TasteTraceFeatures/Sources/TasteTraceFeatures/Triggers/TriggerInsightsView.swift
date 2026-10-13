@@ -100,12 +100,6 @@ struct TriggerInsightsView: View {
                 }
             }
             if let error = model.error { InfoBanner(emoji: "⚠️", message: error, tone: .warning) }
-        } bottom: {
-            PinnedBottomBar {
-                PrimaryButton("Export Doctor Evidence Ledger (PDF)", systemImage: "doc.richtext") {
-                    router.sheet = .export(kind: ReportKind.evidenceLedger.rawValue, weekStart: nil)
-                }
-            }
         }
         .navigationBarHidden()
         .task { await model.load() }

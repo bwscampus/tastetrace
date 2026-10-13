@@ -69,6 +69,14 @@ public final class AppEnvironment {
     /// Refreshes the cached watchlist and re-schedules reminders from saved settings.
     public func syncPreferences() async {
         if let items = try? await api.watchlist() { await watchlist.replace(items) }
-        if let settings = try? await api.settings() { await reminders.sync(settings: settings, math: dateMath) }
+        if let settings = try? await api.settings() { await syncReminders(settings: settings) }
+    }
+
+    /// Re-schedules reminders, skipping today's check-in for meals already logged.
+    @discardableResult
+    public func syncReminders(settings: UserSettings) async -> Bool {
+        let coverage = try? await api.coverage(on: dateMath.dayString(Date()), tz: dateMath.tzIdentifier)
+        let logged = Set((coverage?.slots ?? [:]).filter { $0.value.logged }.map { $0.key.lowercased() })
+        return await reminders.sync(settings: settings, math: dateMath, loggedToday: logged)
     }
 }

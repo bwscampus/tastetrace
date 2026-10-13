@@ -31,7 +31,7 @@ struct MealItem: Identifiable, Equatable {
     /// The tile's name and ingredients as saved, to tell whether they were edited for this meal.
     var savedName: String?
     var savedIngredients: [IngredientDetail]?
-    /// New foods only: also save as a one-tap tile.
+    /// New foods only: also save as a one-tap tile. Off until the person opts in.
     var saveAsTile = false
     /// Already sent to the server, so a retry after a partial failure skips it.
     var logged = false
@@ -62,7 +62,6 @@ struct MealItem: Identifiable, Equatable {
         self.init(name: recognition.name, emoji: emoji, ingredients: recognition.ingredients)
         origin = .photo
         photoConfidence = recognition.confidence
-        saveAsTile = true
     }
 
     var isFromTile: Bool { dishId != nil }
@@ -174,9 +173,7 @@ final class LogMealViewModel {
     func addNewFood() {
         let name = newFoodName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
-        var item = MealItem(name: name, emoji: Self.stampOptions[newFoods.count % Self.stampOptions.count])
-        item.saveAsTile = true
-        items.append(item)
+        items.append(MealItem(name: name, emoji: Self.stampOptions[newFoods.count % Self.stampOptions.count]))
         newFoodName = ""
     }
 
@@ -299,7 +296,11 @@ final class LogMealViewModel {
         } catch {
             self.error = error.localizedDescription
         }
-        if items.contains(where: \.logged) { await env.entries.invalidate(math.dayString(stamp)) }
+        if items.contains(where: \.logged) {
+            await env.entries.invalidate(math.dayString(stamp))
+            // That meal is in, so its reminder for the day is not needed
+            env.reminders.cancelCheckIn(mealType: mealType.rawValue, on: math.dayString(stamp))
+        }
     }
 
     private func log(itemAt index: Int, at stamp: Date, notes: String?) async throws {

@@ -43,7 +43,7 @@ UtcDatetime = Annotated[
 # The client reads ids as strings; SQLAlchemy hands back UUID objects.
 UuidStr = Annotated[str, BeforeValidator(lambda v: str(v) if v is not None else v)]
 
-MealTypeName = Literal["Breakfast", "Lunch", "Dinner", "Snack"]
+MealTypeName = Literal["Breakfast", "Lunch", "Dinner", "Snack", "Drink"]
 DataSharing = Literal["private", "practitioner", "research"]
 ClockTime = Annotated[str, StringConstraints(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
 Trimmed = Annotated[str, StringConstraints(strip_whitespace=True)]

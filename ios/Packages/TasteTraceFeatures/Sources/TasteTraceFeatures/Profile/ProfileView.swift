@@ -387,7 +387,7 @@ struct RemindersView: View {
                             dinnerTime: ReminderScheduler.hhmm(from: dinnerTime, math: math)
                         ))
                         if let settings = model.settings {
-                            let granted = await env.reminders.sync(settings: settings, math: env.dateMath)
+                            let granted = await env.syncReminders(settings: settings)
                             permissionDenied = !granted && (nudgesEnabled || checkIns)
                         }
                     }

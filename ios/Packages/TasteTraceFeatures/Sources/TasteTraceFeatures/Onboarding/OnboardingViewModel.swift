@@ -84,6 +84,8 @@ final class OnboardingViewModel {
     var lunchTime: Date
     var dinnerTime: Date
     var mealRemindersEnabled = true
+    /// The person has checked the reminder times; changing a time clears it.
+    var mealTimesConfirmed = false
     var minTriggerCount = UserSettings().minTriggerCount
     var isSaving = false
     var error: String?
@@ -134,7 +136,8 @@ final class OnboardingViewModel {
         case .about: return !firstName.trimmingCharacters(in: .whitespaces).isEmpty
         case .purpose: return !resolvedPurpose.isEmpty
         case .sharing: return sharing != nil
-        case .meals, .triggers: return true
+        case .meals: return mealTimesConfirmed || !mealRemindersEnabled
+        case .triggers: return true
         // Both conditions matter: the text has to have loaded, so nobody can
         // agree to something the app could not display.
         case .disclaimer: return disclaimer != nil && disclaimerAgreed
@@ -152,6 +155,14 @@ final class OnboardingViewModel {
             // agree to until this arrives.
             disclaimerLoadFailed = true
         }
+    }
+
+    /// When each check-in will arrive, e.g. "9:15 AM", for the confirmation on the meals step.
+    func reminderTime(after meal: Date) -> String {
+        let f = DateFormatter()
+        f.calendar = env.dateMath.calendar; f.timeZone = env.dateMath.timeZone
+        f.timeStyle = .short; f.dateStyle = .none
+        return f.string(from: meal.addingTimeInterval(TimeInterval(ReminderScheduler.checkInDelayMinutes * 60)))
     }
 
     func back() {

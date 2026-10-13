@@ -37,9 +37,17 @@ final class ReminderSchedulerTests: XCTestCase {
     func testCheckInsFollowTheSavedMealTimes() {
         let settings = UserSettings(breakfastTime: "07:45", lunchTime: "12:00", dinnerTime: "23:40")
         let times = ReminderScheduler.checkInTimes(for: settings)
-        XCTAssertEqual(times.map { "\($0.slot) \($0.hour):\($0.minute)" }, ["breakfast 8:15", "lunch 12:30", "dinner 0:10"])
-        // The defaults keep the check-in times the app used before meal times existed
-        XCTAssertEqual(ReminderScheduler.checkInSummary(for: UserSettings()), "9:30 • 13:30 • 19:30")
+        XCTAssertEqual(times.map { "\($0.slot) \($0.hour):\($0.minute)" }, ["breakfast 8:0", "lunch 12:15", "dinner 23:55"])
+        XCTAssertEqual(ReminderScheduler.checkInSummary(for: UserSettings()), "9:15 • 13:15 • 19:15")
+    }
+
+    func testCheckInsSkipPastTimesAndMealsAlreadyLogged() {
+        let math = DateMath(timeZone: TimeZone(identifier: "UTC")!)
+        let now = math.calendar.date(from: DateComponents(year: 2026, month: 10, day: 13, hour: 10))!
+        let schedule = ReminderScheduler.checkInSchedule(for: UserSettings(), from: now, math: math, loggedToday: ["lunch"])
+        // Breakfast's 9:15 has passed and lunch is logged, so today only dinner is left
+        XCTAssertEqual(schedule.prefix(2).map { $0.id }, ["tastetrace.checkin.dinner.2026-10-13", "tastetrace.checkin.breakfast.2026-10-14"])
+        XCTAssertEqual(schedule.count, 1 + 3 * (ReminderScheduler.checkInDays - 1))
     }
 
     func testSettingsSavedBeforeMealTimesStillDecode() throws {

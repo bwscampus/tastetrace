@@ -16,19 +16,14 @@ struct TodayView: View {
     var body: some View {
         TTScreen {
             header
-            DigestHeroCard(index: model.digest?.trends.index,
-                           occurrences: model.digest?.trends.occurrences, days: model.digest?.trends.days ?? [],
-                           onViewReport: { router.showDigest(weekStart: model.math.addingDays(-6, to: model.today)) })
-            CoverageCard(logged: model.loggedSlots, fraction: model.coverageFraction,
-                         streakDays: model.coverage?.streak.days,
-                         nudge: model.coverage.map { $0.nudge.enabled ? Formatting.clock($0.nudge.time) : nil } ?? nil) {
-                router.todayPath.append(.coverage(date: model.today))
-            }
             HStack(spacing: 12) {
                 PrimaryButton("Log Meal", systemImage: "plus.circle.fill") { router.sheet = .logMeal(date: model.today) }
                 SecondaryButton("Log Symptom", emoji: "💛") { router.sheet = .quickLog(date: model.today) }
             }
-            TimelineSection(model: model, onDelete: { pendingDelete = $0 })
+            // Nothing to show until the first entry of the day.
+            if model.hasEntries {
+                TimelineSection(model: model, onDelete: { pendingDelete = $0 })
+            }
             if let error = model.error {
                 InfoBanner(emoji: "⚠️", message: error, tone: .warning)
             }
@@ -71,84 +66,6 @@ struct TodayView: View {
             }
         }
         .padding(.top, 4)
-    }
-}
-
-/// 7-day digest hero. Shows a placeholder until the digest endpoint lands (M4).
-struct DigestHeroCard: View {
-    var index: Double? = nil
-    var occurrences: Int? = nil
-    var days: [WeeklyDigest.DayTrend] = []
-    let onViewReport: () -> Void
-
-    var body: some View {
-        HeroGradientCard {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    StatusBadge("7-Day Digest", tone: .primary, uppercased: true)
-                        .background(Color.white.opacity(0.15), in: Capsule())
-                    Spacer()
-                    Button(action: onViewReport) {
-                        HStack(spacing: 2) { Text("View Report"); Image(systemName: "chevron.right") }
-                            .font(TTFont.bodySemibold)
-                    }
-                    .buttonStyle(.plain)
-                }
-                if let index {
-                    HStack(alignment: .bottom) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text(String(format: "%.1f", Formatting.outOfFive(index))).font(TTFont.heroNumber)
-                                Text("/ 5").font(TTFont.cardTitle).opacity(0.8)
-                            }
-                            Text("Weekly Discomfort Index • \(occurrences ?? 0) Occurrences").font(TTFont.body).opacity(0.9)
-                        }
-                        Spacer()
-                        SparklineView(values: days.map { Formatting.outOfFive($0.index) }, levels: days.map(\.level), maxValue: Formatting.discomfortScale)
-                    }
-                } else {
-                    Text("—").font(TTFont.heroNumber)
-                    Text("Log meals and symptoms this week to see your discomfort index.").font(TTFont.body).opacity(0.9)
-                }
-            }
-        }
-    }
-}
-
-/// Daily coverage summary row (ring + slot ticks).
-struct CoverageCard: View {
-    let logged: Set<MealSlot>
-    let fraction: Double
-    var streakDays: Int? = nil
-    var nudge: String? = nil
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            TTCard(padding: 14) {
-                HStack(spacing: 14) {
-                    RingProgress(progress: fraction, lineWidth: 7) {
-                        Text("\(logged.count)/\(MealSlot.allCases.count)").font(TTFont.captionSemibold).foregroundStyle(TTColor.primary)
-                    }
-                    .frame(width: 56, height: 56)
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 8) {
-                            Text("Daily Coverage: \(Int((fraction * 100).rounded()))%")
-                                .font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
-                            if let streakDays, streakDays > 0 {
-                                StatusBadge("🔥 \(streakDays)-Day Streak", tone: .success)
-                            }
-                        }
-                        Text(MealSlot.allCases.map { "\($0.rawValue) \($0.emoji)\(logged.contains($0) ? " ✓" : "")" }.joined(separator: " • ") + (nudge.map { " • Nudge \($0)" } ?? ""))
-                            .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
-                            .lineLimit(1).minimumScaleFactor(0.85)
-                    }
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right").foregroundStyle(TTColor.primary).font(.system(size: 16, weight: .semibold))
-                }
-            }
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -195,21 +112,25 @@ struct TimelineSection: View {
                     }
                 }
 
-                if let pending = model.pendingSlot {
+                // Always offers the next meal, so a second lunch or a late snack is one tap away.
+                Button { router.sheet = .logMeal(date: model.today) } label: {
                     HStack(alignment: .top, spacing: 10) {
                         TimelineRail(color: TTColor.primary)
                         DashedPlaceholderCard {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("+ \(pending.rawValue) Tracker (Ready)").font(TTFont.cardTitle).foregroundStyle(TTColor.primary)
-                                    Text("Keep pattern continuity active").font(TTFont.body).foregroundStyle(TTColor.textSecondary)
+                                    Text(model.pendingSlot.map { "+ Log \($0.rawValue)" } ?? "+ Log another meal")
+                                        .font(TTFont.cardTitle).foregroundStyle(TTColor.primary)
+                                    Text("Tap to add a meal").font(TTFont.body).foregroundStyle(TTColor.textSecondary)
                                 }
                                 Spacer()
-                                StatusBadge("Pending", tone: .info)
+                                Image(systemName: "plus.circle.fill").font(.title2).foregroundStyle(TTColor.primary)
                             }
                         }
                     }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
         }
     }

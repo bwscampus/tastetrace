@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from app.domain.coverage import compute_coverage
+from app.domain.coverage import COVERAGE_SLOTS, compute_coverage
 from app.domain.rows import MealRow, SettingsRow
 
 TZ = "America/Los_Angeles"
@@ -88,3 +88,10 @@ def test_foods_logged_together_count_as_one_meal_toward_the_streak():
     coverage = compute_coverage(meals, "2026-09-17", TZ, SETTINGS)
     assert coverage.week[6].meals == 2
     assert coverage.streak.today_counts is True
+
+
+def test_drinks_are_accepted_but_never_count_toward_coverage():
+    from app.schemas import MealCreate
+
+    assert MealCreate(name="Oat latte", meal_type="Drink").meal_type == "Drink"
+    assert "Drink" not in COVERAGE_SLOTS
