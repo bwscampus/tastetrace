@@ -263,3 +263,16 @@ final class OnboardingDisclaimerTests: XCTestCase {
         XCTAssertFalse(model.canContinue, "no bundled copy on purpose; the step cannot be skipped")
     }
 }
+
+final class GreetingTests: XCTestCase {
+    func testGreetingFollowsTheTimeOfDay() {
+        let math = DateMath(timeZone: TimeZone(identifier: "UTC")!)
+        func at(_ hour: Int) -> Date { Date(timeIntervalSince1970: TimeInterval(hour * 3600)) }
+
+        XCTAssertEqual(Formatting.greeting(at: at(8), name: "Taylor", math: math), "Good morning, Taylor")
+        XCTAssertEqual(Formatting.greeting(at: at(14), name: "Taylor", math: math), "Good afternoon, Taylor")
+        XCTAssertEqual(Formatting.greeting(at: at(21), name: "Taylor", math: math), "Good night, Taylor")
+        XCTAssertEqual(Formatting.greeting(at: at(2), name: nil, math: math), "Good night")
+        XCTAssertEqual(Formatting.greeting(at: at(8), name: "  ", math: math), "Good morning")
+    }
+}

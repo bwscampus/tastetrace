@@ -33,6 +33,14 @@ enum Formatting {
         return formatter.string(from: date)
     }
 
+    /// "Good morning, Taylor" — morning until noon, afternoon until 6 PM, night after that.
+    static func greeting(at date: Date, name: String?, math: DateMath) -> String {
+        let hour = math.calendar.component(.hour, from: date)
+        let part = (4..<12).contains(hour) ? "morning" : (12..<18).contains(hour) ? "afternoon" : "night"
+        let trimmed = name?.trimmingCharacters(in: .whitespaces) ?? ""
+        return trimmed.isEmpty ? "Good \(part)" : "Good \(part), \(trimmed)"
+    }
+
     /// "TODAY • SEP 17"
     static func todayHeader(_ date: Date, math: DateMath) -> String {
         let formatter = DateFormatter()

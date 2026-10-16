@@ -7,9 +7,11 @@ from typing import Literal
 from app.domain.catalog import catalog_by_key, catalog_by_name
 from app.domain.coverage import COVERAGE_SLOTS
 from app.domain.flares import cluster_flares, intensity_of, onset_hours
+from app.domain.foods import normalize_item
 from app.domain.rounding import js_round, round1, round2
 from app.domain.rows import CorrelationRow, MealRow, SettingsRow, SymptomRow
 from app.domain.severity import discomfort_score
+from app.domain.suspects import MIN_PATTERN_DAYS, pattern_days
 from app.domain.time import add_days, days_between, local_date, week_dates, weekday_label
 
 Level = Literal["zero", "moderate", "high"]
@@ -195,6 +197,27 @@ def compute_weekly_digest(
     for symptom in symptoms:
         history_counts[symptom.name] = history_counts.get(symptom.name, 0) + 1
 
+    pattern_floor = max(settings.min_trigger_count, MIN_PATTERN_DAYS)
+
+    def top_triggers(name: str) -> list[str]:
+        """Foods that came before this symptom on separate days, not just once."""
+        flares = cluster_flares(
+            [s for s in symptoms if s.name == name and local_date(s.timestamp, tz) <= week_end]
+        )
+        days = pattern_days(meals, flares, settings.correlation_window_hours, tz)
+        return [
+            row.food_name
+            for row in sorted(
+                (
+                    r for r in correlations
+                    if r.symptom_name == name
+                    and r.dimension == "ingredient"
+                    and len(days.get(normalize_item(r.food_name), ())) >= pattern_floor
+                ),
+                key=lambda r: -r.confidence,
+            )
+        ][:3]
+
     cards: list[SymptomCard] = []
     for name, entries in by_name.items():
         catalog = catalog_by_key(entries[0].catalog_key) or catalog_by_name(name)
@@ -219,16 +242,7 @@ def compute_weekly_digest(
                 avg_duration_minutes=js_round(sum(durations) / len(durations)) if durations else None,
                 peak_day=peak_day,
                 vs_baseline=compare(len(entries), history_counts.get(name, 0) / history_weeks),
-                top_triggers=[
-                    row.food_name
-                    for row in sorted(
-                        (
-                            r for r in correlations
-                            if r.symptom_name == name and r.dimension == "ingredient"
-                        ),
-                        key=lambda r: -r.confidence,
-                    )
-                ][:3],
+                top_triggers=top_triggers(name),
             )
         )
     cards.sort(key=lambda c: (-c.occurrences, c.name.casefold(), c.name))

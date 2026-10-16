@@ -144,3 +144,51 @@ def test_suspects_can_be_filtered_by_symptom():
 
     empty_week = compute_suspects(MEALS, SYMPTOMS, CORRELATIONS, [], "2026-09-18", TZ, 24, None)
     assert empty_week.flares == 0
+
+
+def test_one_meal_before_one_symptom_is_not_a_suspect():
+    meals = [meal("2026-10-08T20:00:00", "Salad", ["beets", "cucumber"])]
+    symptoms = [symptom("2026-10-08T21:00:00", "Bloating", 3)]
+    rows = [CorrelationRow(food_name="beets", symptom_name="Bloating", dimension="ingredient", confidence=40)]
+
+    suspects = compute_suspects(meals, symptoms, rows, [], "2026-10-05", TZ, 2, None)
+    assert suspects.flares == 1
+    assert suspects.ingredients == []
+
+    week = compute_weekly_digest(meals, symptoms, rows, "2026-10-05", TZ, SETTINGS, "2026-10-11")
+    assert week.symptoms.cards[0].top_triggers == []
+
+
+def test_a_food_before_symptoms_on_an_earlier_day_becomes_a_suspect():
+    meals = [
+        meal("2026-09-30T20:00:00", "Beet Soup", ["beets"]),
+        meal("2026-10-08T20:00:00", "Salad", ["beets", "cucumber"]),
+    ]
+    symptoms = [
+        symptom("2026-09-30T21:00:00", "Bloating", 3),
+        symptom("2026-10-08T21:00:00", "Bloating", 3),
+    ]
+    rows = [CorrelationRow(food_name="beets", symptom_name="Bloating", dimension="ingredient", confidence=60)]
+
+    suspects = compute_suspects(meals, symptoms, rows, [], "2026-10-05", TZ, 2, None)
+    assert [s.name for s in suspects.ingredients] == ["beets"]
+    beets = suspects.ingredients[0]
+    # This week's numbers stay this week's; the earlier day shows as evidence
+    assert (beets.flares_with_ingredient, beets.flares_total, beets.days_with_symptoms) == (1, 1, 2)
+    assert [p.meal_name for p in beets.recent_pairs] == ["Salad", "Beet Soup"]
+
+    week = compute_weekly_digest(meals, symptoms, rows, "2026-10-05", TZ, SETTINGS, "2026-10-11")
+    assert week.symptoms.cards[0].top_triggers == ["beets"]
+
+
+def test_a_later_week_does_not_count_toward_an_earlier_one():
+    meals = [
+        meal("2026-10-08T20:00:00", "Salad", ["beets"]),
+        meal("2026-10-15T20:00:00", "Salad", ["beets"]),
+    ]
+    symptoms = [
+        symptom("2026-10-08T21:00:00", "Bloating", 3),
+        symptom("2026-10-15T21:00:00", "Bloating", 3),
+    ]
+    assert compute_suspects(meals, symptoms, [], [], "2026-10-05", TZ, 2, None).ingredients == []
+    assert len(compute_suspects(meals, symptoms, [], [], "2026-10-12", TZ, 2, None).ingredients) == 1

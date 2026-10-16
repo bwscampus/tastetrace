@@ -23,17 +23,24 @@ struct SuspectsDigestView: View {
 
         if suspects.ingredients.isEmpty {
             TTCard {
-                Text(suspects.flares == 0 ? "No symptoms this week." : "No meals were logged in the hours before this week's symptoms.")
+                Text(emptyMessage)
                     .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .center)
             }
         } else {
-            Text("Foods eaten in the \(suspects.windowHours) hours before a symptom")
+            Text("Foods eaten in the \(suspects.windowHours) hours before a symptom on more than one day")
                 .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
         }
         ForEach(suspects.ingredients) { suspect in
             SuspectCard(suspect: suspect, math: model.math) { Task { await model.toggleWatchlist(suspect) } }
         }
+    }
+
+    private var emptyMessage: String {
+        if suspects.flares == 0 { return "No symptoms this week." }
+        if suspects.mealsEvaluated == 0 { return "No meals were logged in the hours before this week's symptoms." }
+        // One meal before one symptom is a coincidence; a food shows here once it repeats on another day.
+        return "No food has come before a symptom on more than one day yet. Keep logging and patterns will show up here."
     }
 }
 
