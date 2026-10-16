@@ -119,7 +119,7 @@ async def suspects_digest(
     chosen = symptom if symptom and symptom != ALL_SYMPTOMS else None
     digest = compute_suspects(
         meals, symptoms, correlations, watchlist, start, zone,
-        settings.correlation_window_hours, chosen,
+        settings.correlation_window_hours, chosen, settings.min_trigger_count,
     )
     payload = camel(digest)
     # These window keys are data, not field names, so they keep their shape

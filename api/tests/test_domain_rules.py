@@ -37,6 +37,7 @@ def test_it_describes_the_lead_suspect_with_its_own_numbers():
                     exposures_all_time=6,
                     confidence=38,
                     on_watchlist=False,
+                    days_with_symptoms=2,
                     recent_pairs=[],
                 )
             ]
