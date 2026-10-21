@@ -87,6 +87,10 @@ struct MainTabView: View {
             DigestView(env: env, weekStart: weekStart, segment: .suspects)
         case .symptomDigest(let weekStart):
             DigestView(env: env, weekStart: weekStart, segment: .symptoms)
+        case .food(let name):
+            HistorySearchView(env: env, query: name, scope: .foods)
+        case .search(let query):
+            HistorySearchView(env: env, query: query, scope: .foodsAndSymptoms)
         }
     }
 }

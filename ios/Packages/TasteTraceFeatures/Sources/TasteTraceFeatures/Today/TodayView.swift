@@ -23,14 +23,14 @@ struct TodayView: View {
             }
             HStack(spacing: 12) {
                 PrimaryButton("Log Meal", systemImage: "plus.circle.fill") { router.sheet = .logMeal(date: model.today) }
-                SecondaryButton("Log Symptom", emoji: "💛") { router.sheet = .quickLog(date: model.today) }
+                SecondaryButton("Log Symptom", systemImage: "waveform.path.ecg") { router.sheet = .quickLog(date: model.today) }
             }
             // Nothing to show until the first entry of the day.
             if model.hasEntries {
                 TimelineSection(model: model, onDelete: { pendingDelete = $0 })
             }
             if let error = model.error {
-                InfoBanner(emoji: "⚠️", message: error, tone: .warning)
+                InfoBanner(systemImage: "exclamationmark.triangle.fill", message: error, tone: .warning)
             }
         } bottom: {
             if let toast = model.toast {
@@ -57,7 +57,7 @@ struct TodayView: View {
                 Text(Formatting.todayHeader(model.today, math: model.math))
                     .font(TTFont.captionSemibold).tracking(1.2).foregroundStyle(TTColor.primary)
                 HStack(spacing: 8) {
-                    Text("🍽️").font(.system(size: 26))
+                    Image(systemName: "fork.knife").font(.system(size: 22, weight: .semibold)).foregroundStyle(TTColor.primary)
                     Text("TasteTrace").font(.system(size: 30, weight: .bold)).foregroundStyle(TTColor.navy)
                 }
                 Text(Formatting.greeting(at: model.today, name: greetingName, math: model.math))
@@ -90,7 +90,7 @@ struct StreakCard: View {
         Button(action: onTap) {
             TTCard(padding: 14) {
                 HStack(spacing: 14) {
-                    Text("🔥").font(.system(size: 28))
+                    Image(systemName: "flame.fill").font(.system(size: 24)).foregroundStyle(TTColor.success)
                         .frame(width: 52, height: 52)
                         .background(TTColor.successTint, in: RoundedRectangle(cornerRadius: 14))
                     VStack(alignment: .leading, spacing: 4) {

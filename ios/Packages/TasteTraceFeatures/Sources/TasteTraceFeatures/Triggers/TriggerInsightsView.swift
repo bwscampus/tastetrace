@@ -6,7 +6,6 @@ import TasteTraceUI
 
 enum TriggerDimension: String, CaseIterable { case ingredient, cookMethod = "cook_method"
     var label: String { self == .ingredient ? "Ingredients" : "Cooking Styles" }
-    var emoji: String { self == .ingredient ? "🌾" : "🍳" }
 }
 
 @Observable
@@ -55,7 +54,7 @@ struct TriggerInsightsView: View {
 
             Button { withAnimation { model.symptom = nil }; Task { await model.load() } } label: {
                 HStack(spacing: 12) {
-                    Text("📊").font(.title2)
+                    Image(systemName: "chart.bar.fill").font(.title2)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Symptom Rankings & Tiers").font(TTFont.cardTitle)
                         Text("Tap here to view symptom-specific confidence tiers, co-log evidence cards, and selective plate stamps.")
@@ -70,14 +69,14 @@ struct TriggerInsightsView: View {
             }
             .buttonStyle(.plain)
 
-            TTSegmentedControl(options: TriggerDimension.allCases, selection: $model.dimension) { "\($0.emoji) \($0.label)" }
+            TTSegmentedControl(options: TriggerDimension.allCases, selection: $model.dimension) { $0.label }
                 .onChange(of: model.dimension) { _, _ in Task { await model.load() } }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     TTChip("All Triggers", selected: model.symptom == nil) { model.symptom = nil; Task { await model.load() } }
                     ForEach(model.insights?.symptoms ?? []) { s in
-                        TTChip("\(s.emoji) \(s.name)", selected: model.symptom == s.name) { model.symptom = s.name; Task { await model.load() } }
+                        TTChip(s.name, selected: model.symptom == s.name) { model.symptom = s.name; Task { await model.load() } }
                     }
                 }
             }
@@ -86,7 +85,7 @@ struct TriggerInsightsView: View {
 
             if let insights = model.insights {
                 if insights.cards.isEmpty {
-                    EmptyStateView(emoji: "🔍", title: "Not Enough Discomfort Patterns Yet",
+                    EmptyStateView(systemImage: "magnifyingglass", title: "Not Enough Discomfort Patterns Yet",
                                    message: "Keep logging your meals and symptoms! Cards below \(insights.minConfidence)% confidence are currently filtered by your settings\(insights.hiddenBelowThreshold > 0 ? " (\(insights.hiddenBelowThreshold) hidden)" : "").",
                                    actionTitle: "Go to History") { router.showHistory(on: Date()) }
                         .frame(minHeight: 360)
@@ -99,7 +98,7 @@ struct TriggerInsightsView: View {
                         .font(TTFont.caption).foregroundStyle(TTColor.textSecondary).frame(maxWidth: .infinity)
                 }
             }
-            if let error = model.error { InfoBanner(emoji: "⚠️", message: error, tone: .warning) }
+            if let error = model.error { InfoBanner(systemImage: "exclamationmark.triangle.fill", message: error, tone: .warning) }
         }
         .navigationBarHidden()
         .task { await model.load() }

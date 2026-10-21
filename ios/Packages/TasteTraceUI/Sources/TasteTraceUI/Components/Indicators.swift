@@ -65,13 +65,23 @@ public enum DayDot {
 
 /// Soft tinted banner with an emoji/icon and text (tips, info).
 public struct InfoBanner: View {
-    let emoji: String
+    let emoji: String?
+    let systemImage: String?
     let title: String?
     let message: String
     let tone: BadgeTone
 
     public init(emoji: String, title: String? = nil, message: String, tone: BadgeTone = .info) {
         self.emoji = emoji
+        self.systemImage = nil
+        self.title = title
+        self.message = message
+        self.tone = tone
+    }
+
+    public init(systemImage: String, title: String? = nil, message: String, tone: BadgeTone = .info) {
+        self.emoji = nil
+        self.systemImage = systemImage
         self.title = title
         self.message = message
         self.tone = tone
@@ -79,7 +89,11 @@ public struct InfoBanner: View {
 
     public var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Text(emoji).font(.title3)
+            if let systemImage {
+                Image(systemName: systemImage).font(.title3).foregroundStyle(tone.foreground)
+            } else if let emoji {
+                Text(emoji).font(.title3)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 if let title { Text(title).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy) }
                 Text(message).font(TTFont.body).foregroundStyle(TTColor.textSecondary)
@@ -122,7 +136,8 @@ public struct ToastView: View {
 
 /// Full-screen friendly empty state.
 public struct EmptyStateView: View {
-    let emoji: String
+    let emoji: String?
+    let systemImage: String?
     let title: String
     let message: String
     let actionTitle: String?
@@ -130,6 +145,16 @@ public struct EmptyStateView: View {
 
     public init(emoji: String, title: String, message: String, actionTitle: String? = nil, action: (() -> Void)? = nil) {
         self.emoji = emoji
+        self.systemImage = nil
+        self.title = title
+        self.message = message
+        self.actionTitle = actionTitle
+        self.action = action
+    }
+
+    public init(systemImage: String, title: String, message: String, actionTitle: String? = nil, action: (() -> Void)? = nil) {
+        self.emoji = nil
+        self.systemImage = systemImage
         self.title = title
         self.message = message
         self.actionTitle = actionTitle
@@ -138,7 +163,11 @@ public struct EmptyStateView: View {
 
     public var body: some View {
         VStack(spacing: 14) {
-            Text(emoji).font(.system(size: 56))
+            if let systemImage {
+                Image(systemName: systemImage).font(.system(size: 48)).foregroundStyle(TTColor.primary)
+            } else if let emoji {
+                Text(emoji).font(.system(size: 56))
+            }
             Text(title).font(TTFont.screenTitle).foregroundStyle(TTColor.navy).multilineTextAlignment(.center)
             Text(message).font(TTFont.body).foregroundStyle(TTColor.textSecondary).multilineTextAlignment(.center)
             if let actionTitle, let action {

@@ -47,7 +47,7 @@ struct QuickLogView: View {
             .background(TTColor.card, in: Capsule())
             .overlay(Capsule().stroke(TTColor.primary, lineWidth: 1.5))
 
-            SectionLabel("🥣 Digestive discomfort grid")
+            SectionLabel("Digestive discomfort grid")
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 ForEach(model.gridItems) { item in
                     SymptomGridCard(item: item, intensity: model.selections[item.key],

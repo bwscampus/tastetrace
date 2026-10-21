@@ -75,7 +75,7 @@ struct ExportView: View {
     var body: some View {
         @Bindable var model = model
         TTScreen {
-            InfoBanner(emoji: "📄", title: kind?.rawValue ?? "Raw Data (CSV)",
+            InfoBanner(systemImage: "doc.text", title: kind?.rawValue ?? "Raw Data (CSV)",
                        message: kind == nil ? "Every meal and symptom in the range, one row each, with ingredients and cook methods."
                                             : "A shareable summary of your logs and the associations TasteTrace observed, formatted for a dietitian or gastroenterologist.")
             if weekStart == nil {

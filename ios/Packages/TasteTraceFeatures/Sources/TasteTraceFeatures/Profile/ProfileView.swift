@@ -113,8 +113,8 @@ struct ProfileView: View {
                                 Image(systemName: "checkmark.seal").foregroundStyle(TTColor.primary)
                             }
                             Text(profile.email).font(TTFont.body).foregroundStyle(TTColor.textSecondary)
-                            StatusBadge("📖 Journaler for \(profile.journalerDays) Day\(profile.journalerDays == 1 ? "" : "s")", tone: .info)
-                            StatusBadge("✉️ Email Account Active", tone: .success)
+                            StatusBadge("Journaler for \(profile.journalerDays) Day\(profile.journalerDays == 1 ? "" : "s")", tone: .info)
+                            StatusBadge("Email Account Active", tone: .success)
                         }
                     }
                 }
@@ -158,7 +158,7 @@ struct ProfileView: View {
                         Picker("Data sharing", selection: $model.dataSharing) {
                             if model.dataSharing == nil { Text("Not chosen").tag(DataSharingChoice?.none) }
                             ForEach(DataSharingChoice.allCases) { choice in
-                                Text("\(choice.emoji) \(choice.title)").tag(Optional(choice))
+                                Text(choice.title).tag(Optional(choice))
                             }
                         }
                         .font(TTFont.bodySemibold)
@@ -182,25 +182,26 @@ struct ProfileView: View {
                         }
                     }
                 }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Account Actions").font(TTFont.cardTitle).foregroundStyle(TTColor.danger)
-                    Button { confirmClear = true } label: { dangerRow("Clear Local Journal History", icon: "trash") }
-                    Button { Task { await model.signOut(); router.sheet = nil } } label: { dangerRow("Sign Out of Account", icon: "rectangle.portrait.and.arrow.right") }
-                    Button { model.error = nil; confirmDelete = true } label: { dangerRow("Delete Account", icon: "person.crop.circle.badge.xmark") }
-                        .disabled(model.isDeleting)
-                }
-                .padding(TTSpacing.card)
-                .background(TTColor.card, in: RoundedRectangle(cornerRadius: TTRadius.card, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: TTRadius.card, style: .continuous).stroke(TTColor.danger.opacity(0.4), lineWidth: 1.5))
             } else if model.error == nil {
                 ProgressView().frame(maxWidth: .infinity).padding()
             }
+            // Outside the profile check: signing out or deleting the account
+            // must work even when the profile fails to load.
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Account Actions").font(TTFont.cardTitle).foregroundStyle(TTColor.danger)
+                Button { confirmClear = true } label: { dangerRow("Clear Local Journal History", icon: "trash") }
+                Button { Task { await model.signOut(); router.sheet = nil } } label: { dangerRow("Sign Out of Account", icon: "rectangle.portrait.and.arrow.right") }
+                Button { model.error = nil; confirmDelete = true } label: { dangerRow("Delete Account", icon: "person.crop.circle.badge.xmark") }
+                    .disabled(model.isDeleting)
+            }
+            .padding(TTSpacing.card)
+            .background(TTColor.card, in: RoundedRectangle(cornerRadius: TTRadius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: TTRadius.card, style: .continuous).stroke(TTColor.danger.opacity(0.4), lineWidth: 1.5))
             ErrorText(model.error)
         } bottom: {
             if model.profile != nil {
                 PinnedBottomBar {
-                    PrimaryButton(model.saved && !model.isDirty ? "Saved ✓" : "Save Profile Changes", systemImage: model.saved && !model.isDirty ? nil : "checkmark", isLoading: model.isSaving) {
+                    PrimaryButton(model.saved && !model.isDirty ? "Saved" : "Save Profile Changes", systemImage: model.saved && !model.isDirty ? nil : "checkmark", isLoading: model.isSaving) {
                         Task { await model.save() }
                     }
                     .opacity(model.isDirty ? 1 : 0.6)
@@ -305,7 +306,7 @@ struct TrackingRulesView: View {
 
     var body: some View {
         TTScreen {
-            InfoBanner(emoji: "🧭", message: "These thresholds drive the digest, suspects and trigger insights. Changing the window recomputes your correlations.")
+            InfoBanner(systemImage: "slider.horizontal.3", message: "These thresholds drive the digest, suspects and trigger insights. Changing the window recomputes your correlations.")
             TTCard {
                 VStack(alignment: .leading, spacing: 16) {
                     stepper("Correlation window", value: $window, range: 1...72, unit: "h", help: "How long after a meal a symptom still counts. \(UserSettings.defaultCorrelationWindowHours)h unless you pick another.")
@@ -360,7 +361,7 @@ struct RemindersView: View {
 
     var body: some View {
         TTScreen {
-            InfoBanner(emoji: "🔔", message: "Reminders are scheduled on this device from your saved preferences.")
+            InfoBanner(systemImage: "bell", message: "Reminders are scheduled on this device from your saved preferences.")
             TTCard {
                 VStack(alignment: .leading, spacing: 14) {
                     Toggle("Post-dinner nudge", isOn: $nudgesEnabled).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)

@@ -11,7 +11,7 @@ struct AuthView: View {
     var body: some View {
         TTScreen {
             VStack(spacing: 6) {
-                Text("🍽️").font(.system(size: 48))
+                Image(systemName: "fork.knife.circle.fill").font(.system(size: 48)).foregroundStyle(TTColor.primary)
                 Text("TasteTrace").font(TTFont.screenTitle).foregroundStyle(TTColor.navy)
                 Text("Connect what you eat to how you feel.")
                     .font(TTFont.body).foregroundStyle(TTColor.textSecondary)

@@ -9,14 +9,6 @@ enum DataSharingChoice: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var emoji: String {
-        switch self {
-        case .private: return "🔒"
-        case .practitioner: return "🩺"
-        case .research: return "🔬"
-        }
-    }
-
     var title: String {
         switch self {
         case .private: return "Keep it private"
@@ -65,13 +57,13 @@ final class OnboardingViewModel {
     }
 
     static let purposeOptions = [
-        "🔍 Find foods that trigger my symptoms",
-        "🩺 Manage a diagnosed condition (IBS, celiac, reflux…)",
-        "🥗 Run an elimination diet",
-        "📋 Keep a log for my doctor or dietitian",
-        "💡 Understand my eating habits",
+        "Find foods that trigger my symptoms",
+        "Manage a diagnosed condition (IBS, celiac, reflux…)",
+        "Run an elimination diet",
+        "Keep a log for my doctor or dietitian",
+        "Understand my eating habits",
     ]
-    static let otherPurpose = "✏️ Something else"
+    static let otherPurpose = "Something else"
 
     var step: Step = .about
     var firstName: String
@@ -120,9 +112,9 @@ final class OnboardingViewModel {
     }
 
     /// The purposes saved to the profile, in list order and joined with "; ": each chosen
-    /// option without its emoji, plus the typed answer for "Something else".
+    /// option, plus the typed answer for "Something else".
     var resolvedPurpose: String {
-        var answers = Self.purposeOptions.filter(purposes.contains).map { String($0.drop(while: { !$0.isLetter })) }
+        var answers = Self.purposeOptions.filter(purposes.contains)
         if purposes.contains(Self.otherPurpose) {
             let custom = customPurpose.trimmingCharacters(in: .whitespacesAndNewlines)
             if !custom.isEmpty { answers.append(custom) }
