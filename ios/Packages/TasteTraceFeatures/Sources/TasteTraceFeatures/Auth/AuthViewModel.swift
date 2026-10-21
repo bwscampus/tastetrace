@@ -8,7 +8,8 @@ import TasteTraceCore
 final class AuthViewModel {
     enum Mode: String, CaseIterable { case signIn = "Sign In", signUp = "Sign Up" }
 
-    var mode: Mode = .signIn
+    // Most people reaching this screen are new, so it opens on Sign Up
+    var mode: Mode = .signUp
     var email = ""
     var password = ""
     var firstName = ""

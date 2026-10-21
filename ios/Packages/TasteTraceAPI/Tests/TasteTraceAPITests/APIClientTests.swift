@@ -69,6 +69,16 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(coverage.weekSlots.bySlot["Lunch"]?.logged, 3)
     }
 
+    func testFoodOccurrencesSendsTheSearchAndDecodes() async throws {
+        try transport.stub("GET", "/api/foods/occurrences", fixture: "foodOccurrences")
+        let found = try await client.foodOccurrences("avocado", tz: "America/Los_Angeles")
+        XCTAssertEqual(found.total, 2)
+        XCTAssertEqual(found.occurrences.map(\.mealName), ["Avocado Sourdough Toast", "Guacamole"])
+        XCTAssertEqual(found.occurrences[0].symptomsAfter.first?.name, "Acid Reflux")
+        XCTAssertTrue(found.occurrences[1].symptomsAfter.isEmpty)
+        XCTAssertTrue(transport.requests[0].url!.query!.contains("q=avocado"))
+    }
+
     func testErrorsMapToAPIError() async throws {
         transport.stub("GET", "/api/users/me", status: 401, json: "Unauthorized")
         do { _ = try await client.currentUser(); XCTFail("expected throw") }

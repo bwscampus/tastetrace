@@ -13,6 +13,7 @@ from app.domain.coverage import compute_coverage
 from app.domain.digest import compute_weekly_digest
 from app.domain.flares import hours_between
 from app.domain.foods import meal_items, normalize_item
+from app.domain.occurrences import find_occurrences
 from app.domain.rounding import round1, round2
 from app.domain.suspects import ALL_SYMPTOMS, compute_suspects
 from app.domain.time import add_days, is_iso_day, local_date
@@ -127,6 +128,22 @@ async def suspects_digest(
         key: camel(window) for key, window in digest.timing_windows.items()
     }
     return payload
+
+
+@router.get("/foods/occurrences")
+async def food_occurrences(
+    user: CurrentUser,
+    session: Session,
+    q: str = Query(..., min_length=1, max_length=100, description="Food or ingredient to find"),
+    tz: TzQuery = None,
+) -> dict:
+    """Every logged meal containing the food, newest first, with the symptoms that followed."""
+    if not normalize_item(q):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Search for a food name")
+    zone = await resolve_timezone(session, user, tz)
+    settings = settings_row(await get_settings_row(session, user))
+    meals, symptoms = await load_history(session, user.id)
+    return camel(find_occurrences(meals, symptoms, q, zone, settings.correlation_window_hours))
 
 
 @router.get("/insights/triggers")

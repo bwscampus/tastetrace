@@ -39,7 +39,7 @@ struct WatchlistView: View {
     var body: some View {
         @Bindable var model = model
         TTScreen {
-            InfoBanner(emoji: "👀", title: "Sensitivity watchlist", message: "Ingredients here are flagged on the Verify Ingredients step whenever they show up in a meal you're logging.")
+            InfoBanner(systemImage: "eye", title: "Sensitivity watchlist", message: "Ingredients here are flagged on the Verify Ingredients step whenever they show up in a meal you're logging.")
             HStack(spacing: 10) {
                 TextField("Add an ingredient…", text: $model.newIngredient).font(TTFont.body).foregroundStyle(TTColor.inputText).onSubmit { Task { await model.add() } }
                 Button("Add") { Task { await model.add() } }.font(TTFont.bodySemibold).foregroundStyle(TTColor.primary).buttonStyle(.plain)
@@ -53,7 +53,7 @@ struct WatchlistView: View {
             ForEach(model.items) { item in
                 TTCard(padding: 12) {
                     HStack(spacing: 12) {
-                        EmojiCircle("🌾", size: 40, tint: TTColor.warningTint)
+                        Image(systemName: "eye.fill").foregroundStyle(TTColor.warning).frame(width: 40, height: 40).background(TTColor.warningTint, in: Circle())
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.ingredient.capitalizedFirst).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
                             Text("Added from \(item.source)\(item.confidenceMax.map { $0 > 0 ? " • up to \($0)% confidence" : "" } ?? "")").font(TTFont.caption).foregroundStyle(TTColor.textSecondary)

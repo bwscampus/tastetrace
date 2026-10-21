@@ -9,6 +9,8 @@ final class AuthViewModelTests: XCTestCase {
         let transport = StubTransport(status: 401, body: "Unauthorized")
         let session = AuthSession.make(baseURL: URL(string: "https://api.example")!, tokenStore: InMemoryTokenStore(), transport: transport)
         let model = AuthViewModel(session: session)
+        XCTAssertEqual(model.mode, .signUp)
+        model.mode = .signIn
 
         XCTAssertFalse(model.canSubmit)
         model.email = "a@b.co"; model.password = "short"

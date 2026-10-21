@@ -5,6 +5,7 @@ import TasteTraceUI
 
 /// Foods eaten before this week's symptoms: each food, when it was eaten and
 /// the symptom that followed. No scores or percentages, on purpose.
+/// Tapping a food lists every time it was eaten.
 struct SuspectsDigestView: View {
     let suspects: SuspectsDigest
     let model: DigestViewModel
@@ -52,11 +53,19 @@ struct SuspectCard: View {
     var body: some View {
         TTCard {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    Image(systemName: "fork.knife").foregroundStyle(TTColor.danger).frame(width: 44, height: 44).background(TTColor.dangerTint, in: RoundedRectangle(cornerRadius: 12))
-                    Text(suspect.name.capitalizedFirst).font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
-                    Spacer()
+                NavigationLink(value: Route.food(name: suspect.name)) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "fork.knife").foregroundStyle(TTColor.danger).frame(width: 44, height: 44).background(TTColor.dangerTint, in: RoundedRectangle(cornerRadius: 12))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(suspect.name.capitalizedFirst).font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
+                            Text("See every time you ate it").font(TTFont.caption).foregroundStyle(TTColor.primary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").foregroundStyle(TTColor.textSecondary)
+                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(suspect.recentPairs) { pair in
                         VStack(alignment: .leading, spacing: 2) {
@@ -70,7 +79,7 @@ struct SuspectCard: View {
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                 .background(TTColor.background, in: RoundedRectangle(cornerRadius: TTRadius.tile))
                 Button(action: onWatchlist) {
-                    Text(suspect.onWatchlist ? "Tracking ✓" : "Track in Watchlist")
+                    Text(suspect.onWatchlist ? "Tracking" : "Track in Watchlist")
                         .font(TTFont.bodySemibold).frame(maxWidth: .infinity).padding(.vertical, 12)
                         .foregroundStyle(.white).background(suspect.onWatchlist ? TTColor.success : TTColor.primary, in: RoundedRectangle(cornerRadius: TTRadius.tile))
                 }

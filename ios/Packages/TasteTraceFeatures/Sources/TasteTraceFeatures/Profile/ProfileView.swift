@@ -113,8 +113,8 @@ struct ProfileView: View {
                                 Image(systemName: "checkmark.seal").foregroundStyle(TTColor.primary)
                             }
                             Text(profile.email).font(TTFont.body).foregroundStyle(TTColor.textSecondary)
-                            StatusBadge("📖 Journaler for \(profile.journalerDays) Day\(profile.journalerDays == 1 ? "" : "s")", tone: .info)
-                            StatusBadge("✉️ Email Account Active", tone: .success)
+                            StatusBadge("Journaler for \(profile.journalerDays) Day\(profile.journalerDays == 1 ? "" : "s")", tone: .info)
+                            StatusBadge("Email Account Active", tone: .success)
                         }
                     }
                 }
@@ -158,7 +158,7 @@ struct ProfileView: View {
                         Picker("Data sharing", selection: $model.dataSharing) {
                             if model.dataSharing == nil { Text("Not chosen").tag(DataSharingChoice?.none) }
                             ForEach(DataSharingChoice.allCases) { choice in
-                                Text("\(choice.emoji) \(choice.title)").tag(Optional(choice))
+                                Text(choice.title).tag(Optional(choice))
                             }
                         }
                         .font(TTFont.bodySemibold)
@@ -305,7 +305,7 @@ struct TrackingRulesView: View {
 
     var body: some View {
         TTScreen {
-            InfoBanner(emoji: "🧭", message: "These thresholds drive the digest, suspects and trigger insights. Changing the window recomputes your correlations.")
+            InfoBanner(systemImage: "slider.horizontal.3", message: "These thresholds drive the digest, suspects and trigger insights. Changing the window recomputes your correlations.")
             TTCard {
                 VStack(alignment: .leading, spacing: 16) {
                     stepper("Correlation window", value: $window, range: 1...72, unit: "h", help: "How long after a meal a symptom still counts. \(UserSettings.defaultCorrelationWindowHours)h unless you pick another.")
@@ -360,7 +360,7 @@ struct RemindersView: View {
 
     var body: some View {
         TTScreen {
-            InfoBanner(emoji: "🔔", message: "Reminders are scheduled on this device from your saved preferences.")
+            InfoBanner(systemImage: "bell", message: "Reminders are scheduled on this device from your saved preferences.")
             TTCard {
                 VStack(alignment: .leading, spacing: 14) {
                     Toggle("Post-dinner nudge", isOn: $nudgesEnabled).font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)

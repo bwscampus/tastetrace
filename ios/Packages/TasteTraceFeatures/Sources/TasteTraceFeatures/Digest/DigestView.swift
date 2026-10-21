@@ -29,7 +29,7 @@ struct DigestView: View {
             case .suspects:
                 if let suspects = model.suspects { SuspectsDigestView(suspects: suspects, model: model) }
             }
-            if let error = model.error { InfoBanner(emoji: "⚠️", message: error, tone: .warning) }
+            if let error = model.error { InfoBanner(systemImage: "exclamationmark.triangle.fill", message: error, tone: .warning) }
         } bottom: {
             if model.segment != .trends, model.digest != nil {
                 PinnedBottomBar {

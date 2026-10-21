@@ -52,6 +52,8 @@ public enum Route: Hashable {
     case digest(weekStart: Date)
     case suspects(weekStart: Date)
     case symptomDigest(weekStart: Date)
+    /// Every meal containing this food
+    case food(name: String)
 }
 
 @Observable

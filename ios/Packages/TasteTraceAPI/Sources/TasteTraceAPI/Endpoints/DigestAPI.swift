@@ -11,6 +11,11 @@ public extension APIClient {
         try await request(.get, "/api/digest/suspects", query: ["weekStart": weekStart, "symptom": symptom, "tz": tz])
     }
 
+    /// `GET /api/foods/occurrences?q&tz`
+    func foodOccurrences(_ query: String, tz: String) async throws -> FoodOccurrences {
+        try await request(.get, "/api/foods/occurrences", query: ["q": query, "tz": tz])
+    }
+
     /// `GET /api/insights/triggers?dimension&symptom&minConfidence`
     func triggerInsights(dimension: String, symptom: String?, minConfidence: Int?) async throws -> TriggerInsights {
         try await request(.get, "/api/insights/triggers", query: [

@@ -88,7 +88,7 @@ struct OnboardingView: View {
     private var sharingStep: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(DataSharingChoice.allCases) { choice in
-                OptionRow(title: "\(choice.emoji) \(choice.title)", detail: choice.detail, selected: model.sharing == choice) {
+                OptionRow(title: choice.title, detail: choice.detail, selected: model.sharing == choice) {
                     model.sharing = choice
                 }
             }
@@ -98,16 +98,16 @@ struct OnboardingView: View {
     private var mealsStep: some View {
         TTCard {
             VStack(alignment: .leading, spacing: 14) {
-                DatePicker("🌅 Breakfast", selection: $model.breakfastTime, displayedComponents: .hourAndMinute)
-                DatePicker("🥪 Lunch", selection: $model.lunchTime, displayedComponents: .hourAndMinute)
-                DatePicker("🍝 Dinner", selection: $model.dinnerTime, displayedComponents: .hourAndMinute)
+                DatePicker("Breakfast", selection: $model.breakfastTime, displayedComponents: .hourAndMinute)
+                DatePicker("Lunch", selection: $model.lunchTime, displayedComponents: .hourAndMinute)
+                DatePicker("Dinner", selection: $model.dinnerTime, displayedComponents: .hourAndMinute)
                 Divider()
                 Toggle("Remind me to log each meal", isOn: $model.mealRemindersEnabled)
                     .font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
                 if model.mealRemindersEnabled {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("You'll be reminded at:").font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
-                        Text("🌅 \(model.reminderTime(after: model.breakfastTime))   🥪 \(model.reminderTime(after: model.lunchTime))   🍝 \(model.reminderTime(after: model.dinnerTime))")
+                        Text("Breakfast \(model.reminderTime(after: model.breakfastTime)) · Lunch \(model.reminderTime(after: model.lunchTime)) · Dinner \(model.reminderTime(after: model.dinnerTime))")
                             .font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
                         Text("\(ReminderScheduler.checkInDelayMinutes) minutes after each meal, and only if you haven't logged it yet. iOS will ask to allow notifications when you finish.")
                             .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)

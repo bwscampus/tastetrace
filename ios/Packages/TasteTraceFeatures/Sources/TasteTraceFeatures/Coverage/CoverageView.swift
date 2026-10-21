@@ -24,7 +24,7 @@ struct CoverageView: View {
             } else if error == nil {
                 ProgressView().frame(maxWidth: .infinity).padding()
             }
-            if let error { InfoBanner(emoji: "⚠️", message: error, tone: .warning) }
+            if let error { InfoBanner(systemImage: "exclamationmark.triangle.fill", message: error, tone: .warning) }
         }
         .navigationTitle("Daily Logging Coverage")
         .task { await load() }
@@ -45,7 +45,7 @@ struct StreakHero: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Text("🔥").font(.system(size: 120)).opacity(0.18).offset(x: 10, y: -10)
+            Image(systemName: "flame.fill").font(.system(size: 110)).opacity(0.12).offset(x: 10, y: -10)
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
                     StatusBadge("Active Ledger", tone: .primary, uppercased: true).background(Color.white.opacity(0.15), in: Capsule())
@@ -55,7 +55,7 @@ struct StreakHero: View {
                         Text(coverage.streak.rule).font(TTFont.bodySemibold).foregroundStyle(TTColor.successTint)
                     }
                 }
-                Text("\(coverage.streak.days) Day Streak 🔥").font(.system(size: 32, weight: .bold))
+                Text("\(coverage.streak.days) Day Streak").font(.system(size: 32, weight: .bold))
                 Text(coverage.streak.days == 0
                      ? "Start logging at least \(coverage.streak.threshold) meals today to begin your active daily streak."
                      : coverage.streak.todayCounts ? "Today counts. Keep the ledger going tomorrow."
@@ -103,7 +103,7 @@ struct CoverageWheelCard: View {
                 }
                 RingProgress(progress: coverage.fraction, lineWidth: 16, color: TTColor.primary) {
                     VStack(spacing: 2) {
-                        Text("🍽️").font(.title2)
+                        Image(systemName: "fork.knife").font(.title2).foregroundStyle(TTColor.primary)
                         Text("\(coverage.loggedCount) / \(coverage.slotTotal)").font(.system(size: 30, weight: .bold)).foregroundStyle(TTColor.navy)
                         Text("MEALS RECORDED").font(TTFont.captionSemibold).tracking(1).foregroundStyle(TTColor.textSecondary)
                     }
@@ -184,7 +184,7 @@ struct WeekBreakdownCard: View {
                     let total = tally?.total ?? 7
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("\(slot.emoji) \(slot.rawValue) Coverage").font(TTFont.body).foregroundStyle(TTColor.navy)
+                            Text("\(slot.rawValue) Coverage").font(TTFont.body).foregroundStyle(TTColor.navy)
                             Spacer()
                             Text("\(Int((Double(logged) / Double(max(total, 1)) * 100).rounded()))% (\(logged)/\(total) days)")
                                 .font(TTFont.captionSemibold).foregroundStyle(TTColor.primary)
