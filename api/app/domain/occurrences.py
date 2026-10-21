@@ -1,4 +1,5 @@
-"""Every time a food was eaten, and what (if anything) followed it."""
+"""History search: every time a food was eaten, or a symptom was logged,
+and what came either side of it within the correlation window."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -94,5 +95,83 @@ def find_occurrences(
         window_hours=window_hours,
         total=len(found),
         with_symptoms=sum(1 for o in found if o.symptoms_after),
+        occurrences=found[:MAX_OCCURRENCES],
+    )
+
+
+@dataclass
+class MealBefore:
+    meal_id: int
+    meal_name: str
+    at: datetime
+    onset_hours: float
+
+
+@dataclass
+class SymptomOccurrence:
+    symptom_id: int
+    name: str
+    severity: str
+    intensity: int | None
+    at: datetime
+    date: str
+    # Meals eaten in the window before it, most recent first
+    meals_before: list[MealBefore] = field(default_factory=list)
+
+
+@dataclass
+class SymptomOccurrences:
+    query: str
+    window_hours: int
+    total: int
+    with_meals: int
+    occurrences: list[SymptomOccurrence]
+
+
+def find_symptom_occurrences(
+    meals: list[MealRow],
+    symptoms: list[SymptomRow],
+    query: str,
+    tz: str,
+    window_hours: int,
+) -> SymptomOccurrences:
+    key = normalize_item(query)
+    found: list[SymptomOccurrence] = []
+    for symptom in sorted(symptoms, key=lambda s: as_utc(s.timestamp), reverse=True):
+        if key not in normalize_item(symptom.name):
+            continue
+        before = sorted(
+            (
+                MealBefore(
+                    meal_id=m.id,
+                    meal_name=m.name,
+                    at=m.timestamp,
+                    onset_hours=round1(onset),
+                )
+                for m in meals
+                if 0
+                < (onset := hours_between(m.timestamp, symptom.timestamp))
+                <= window_hours
+            ),
+            key=lambda m: as_utc(m.at),
+            reverse=True,
+        )
+        found.append(
+            SymptomOccurrence(
+                symptom_id=symptom.id,
+                name=symptom.name,
+                severity=symptom.severity,
+                intensity=symptom.intensity,
+                at=symptom.timestamp,
+                date=local_date(symptom.timestamp, tz),
+                meals_before=before,
+            )
+        )
+
+    return SymptomOccurrences(
+        query=query.strip(),
+        window_hours=window_hours,
+        total=len(found),
+        with_meals=sum(1 for o in found if o.meals_before),
         occurrences=found[:MAX_OCCURRENCES],
     )

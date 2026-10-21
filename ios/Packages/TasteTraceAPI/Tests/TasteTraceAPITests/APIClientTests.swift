@@ -79,6 +79,17 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(transport.requests[0].url!.query!.contains("q=avocado"))
     }
 
+    func testSymptomOccurrencesDecodes() async throws {
+        transport.stub("GET", "/api/symptoms/occurrences", json: """
+        {"query":"reflux","windowHours":24,"total":1,"withMeals":1,"occurrences":[{"symptomId":9,"name":"Acid Reflux",
+         "severity":"Moderate","intensity":3,"at":"2026-09-17T21:29:00Z","date":"2026-09-17",
+         "mealsBefore":[{"mealId":14,"mealName":"Avocado Sourdough Toast","at":"2026-09-17T19:45:00Z","onsetHours":1.7}]}]}
+        """)
+        let found = try await client.symptomOccurrences("reflux", tz: "America/Los_Angeles")
+        XCTAssertEqual(found.occurrences.first?.intensity, 3)
+        XCTAssertEqual(found.occurrences.first?.mealsBefore.first?.mealName, "Avocado Sourdough Toast")
+    }
+
     func testErrorsMapToAPIError() async throws {
         transport.stub("GET", "/api/users/me", status: 401, json: "Unauthorized")
         do { _ = try await client.currentUser(); XCTFail("expected throw") }

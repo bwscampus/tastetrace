@@ -8,7 +8,7 @@ struct HistoryView: View {
     @State private var model: HistoryViewModel
     @State private var pendingDelete: TimelineItem?
     @State private var showJumpToDate = false
-    @State private var foodSearch = ""
+    @State private var search = ""
 
     init(env: AppEnvironment) {
         _model = State(initialValue: HistoryViewModel(env: env))
@@ -16,8 +16,8 @@ struct HistoryView: View {
 
     var body: some View {
         TTScreen {
+            FoodSearchField(text: $search, prompt: "Search foods or symptoms") { runSearch() }
             header
-            FoodSearchField(text: $foodSearch, prompt: "Search foods you've eaten") { searchFood() }
             WeekStrip(model: model) { date in Task { await model.select(date) } }
             DayChips(model: model) { date in Task { await model.select(date) } }
             daySummary
@@ -72,11 +72,11 @@ struct HistoryView: View {
         }
     }
 
-    private func searchFood() {
-        let text = foodSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func runSearch() {
+        let text = search.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        router.historyPath.append(.food(name: text))
-        foodSearch = ""
+        router.historyPath.append(.search(query: text))
+        search = ""
     }
 
     private var header: some View {
