@@ -45,7 +45,7 @@ struct StreakHero: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Image(systemName: "flame.fill").font(.system(size: 110)).opacity(0.12).offset(x: 10, y: -10)
+            Text("🔥").font(.system(size: 120)).opacity(0.18).offset(x: 10, y: -10)
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
                     StatusBadge("Active Ledger", tone: .primary, uppercased: true).background(Color.white.opacity(0.15), in: Capsule())
