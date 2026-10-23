@@ -90,7 +90,7 @@ struct StreakCard: View {
         Button(action: onTap) {
             TTCard(padding: 14) {
                 HStack(spacing: 14) {
-                    Image(systemName: "flame.fill").font(.system(size: 24)).foregroundStyle(TTColor.success)
+                    Text("🔥").font(.system(size: 28))
                         .frame(width: 52, height: 52)
                         .background(TTColor.successTint, in: RoundedRectangle(cornerRadius: 14))
                     VStack(alignment: .leading, spacing: 4) {

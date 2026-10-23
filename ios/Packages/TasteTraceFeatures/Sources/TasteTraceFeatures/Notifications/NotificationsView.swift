@@ -30,7 +30,7 @@ struct NotificationsView: View {
                     .onTapGesture { if !logged { router.sheet = .logMeal(date: Date()) } }
                 }
                 if coverage.streak.days > 0 {
-                    InfoBanner(systemImage: "flame.fill", title: "\(coverage.streak.days)-day streak", message: coverage.streak.todayCounts ? "Today already counts." : "Log \(coverage.streak.threshold) meals today to keep it going.", tone: .success)
+                    InfoBanner(emoji: "🔥", title: "\(coverage.streak.days)-day streak", message: coverage.streak.todayCounts ? "Today already counts." : "Log \(coverage.streak.threshold) meals today to keep it going.", tone: .success)
                 }
             }
             if let settings {
