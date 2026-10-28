@@ -3,7 +3,7 @@ import TasteTraceAPI
 import TasteTraceCore
 import TasteTraceUI
 
-/// Edits a logged meal from History: name, category, time, ingredients, notes.
+/// Edits a logged meal from History: name, category, time, sensitivity tags, ingredients, notes.
 struct EditMealView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(Router.self) private var router
@@ -16,6 +16,7 @@ struct EditMealView: View {
     @State private var input = ""
     @State private var ingredients: [IngredientDetail] = []
     @State private var notes = ""
+    @State private var flags: Set<SensitivityFlag> = []
     @State private var isBusy = false
     @State private var error: String?
 
@@ -34,6 +35,8 @@ struct EditMealView: View {
                 DateTimeCard(title: "When did you eat?", subtitle: "Adjusting time re-maps correlation windows", day: $day, time: $time, math: env.dateMath)
                 SectionLabel("Meal category")
                 MealCategoryGrid(selection: $mealType)
+                SectionLabel("Contains")
+                SensitivityFlagPicker(flags: $flags)
                 IngredientEditor(input: $input, ingredients: $ingredients)
                 TTCard {
                     VStack(alignment: .leading, spacing: 8) {
@@ -62,6 +65,7 @@ struct EditMealView: View {
             time = loaded.timestamp
             ingredients = loaded.ingredientDetails ?? loaded.ingredientNames.map { IngredientDetail(name: $0) }
             notes = loaded.notes ?? ""
+            flags = Self.flags(of: loaded)
         } catch let apiError as APIError { error = apiError.message } catch { self.error = error.localizedDescription }
     }
 
@@ -73,11 +77,25 @@ struct EditMealView: View {
             let timestamp = env.dateMath.combine(day: day, time: time)
             _ = try await env.run {
                 try await env.api.updateMeal(id: meal.id, MealPatch(name: name, mealType: mealType, timestamp: timestamp, tz: env.dateMath.tzIdentifier,
-                                                                    notes: notes, ingredientDetails: ingredients))
+                                                                    notes: notes, ingredientDetails: ingredients,
+                                                                    containsGluten: flags.contains(.gluten), containsDairy: flags.contains(.dairy),
+                                                                    containsGrains: flags.contains(.grain), containsSugar: flags.contains(.sugar),
+                                                                    containsNuts: flags.contains(.nuts)))
             }
             await env.entries.invalidate(meal.date)
             await env.entries.invalidate(env.dateMath.dayString(timestamp))
             router.sheet = nil
         } catch let apiError as APIError { error = apiError.message } catch { self.error = error.localizedDescription }
+    }
+
+    /// The tags the meal was logged with, as the tiles show them.
+    static func flags(of meal: Meal) -> Set<SensitivityFlag> {
+        var found: Set<SensitivityFlag> = []
+        if meal.containsGluten == true { found.insert(.gluten) }
+        if meal.containsDairy == true { found.insert(.dairy) }
+        if meal.containsGrains == true { found.insert(.grain) }
+        if meal.containsSugar == true { found.insert(.sugar) }
+        if meal.containsNuts == true { found.insert(.nuts) }
+        return found
     }
 }

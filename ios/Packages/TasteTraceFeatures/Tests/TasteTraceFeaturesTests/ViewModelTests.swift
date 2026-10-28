@@ -106,6 +106,20 @@ final class MealPhotoRecognitionTests: XCTestCase {
     }
 
     @MainActor
+    func testATypedFoodStartsWithTheIngredientsItsNameMentions() {
+        let model = model()
+        model.newFoodName = "Chicken salad"
+        model.addNewFood()
+        XCTAssertEqual(model.items[0].ingredients, [IngredientDetail(name: "chicken")])
+        XCTAssertTrue(model.items[0].ingredientsFromName)
+
+        model.newFoodName = "Pad thai"
+        model.addNewFood()
+        XCTAssertEqual(model.items[1].ingredients, [])
+        XCTAssertFalse(model.items[1].ingredientsFromName)
+    }
+
+    @MainActor
     func testTheGuessedCategoryIsAdoptedOnlyWhenNobodyChoseOne() {
         let auto = model()
         auto.apply(read(mealCategory: .dinner))

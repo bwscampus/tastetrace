@@ -39,6 +39,8 @@ struct MealItem: Identifiable, Equatable {
     var origin: Origin = .typed
     /// high | medium | low, set only when origin is .photo.
     var photoConfidence: String?
+    /// The ingredients started out as the ones its name mentions ("Chicken salad" → chicken).
+    var ingredientsFromName = false
 
     enum Origin: Equatable { case typed, tile, photo }
 
@@ -169,11 +171,15 @@ final class LogMealViewModel {
         }
     }
 
-    /// "Add a food" → a new food whose ingredients are entered on step 2.
+    /// "Add a food" → a new food whose ingredients are entered on step 2,
+    /// starting with the ones its name already mentions.
     func addNewFood() {
         let name = newFoodName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
-        items.append(MealItem(name: name, emoji: Self.stampOptions[newFoods.count % Self.stampOptions.count]))
+        var item = MealItem(name: name, emoji: Self.stampOptions[newFoods.count % Self.stampOptions.count],
+                            ingredients: suggestedIngredients(forFood: name).map { IngredientDetail(name: $0) })
+        item.ingredientsFromName = !item.ingredients.isEmpty
+        items.append(item)
         newFoodName = ""
     }
 

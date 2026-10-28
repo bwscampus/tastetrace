@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 
+from app.domain.correlations import compute_correlations
 from app.domain.digest import compute_weekly_digest
 from app.domain.rows import CorrelationRow, IngredientRow, MealRow, SettingsRow, SymptomRow
 from app.domain.suspects import compute_suspects
@@ -192,3 +193,22 @@ def test_a_later_week_does_not_count_toward_an_earlier_one():
     ]
     assert compute_suspects(meals, symptoms, [], [], "2026-10-05", TZ, 2, None).ingredients == []
     assert len(compute_suspects(meals, symptoms, [], [], "2026-10-12", TZ, 2, None).ingredients) == 1
+
+
+def test_a_food_eaten_daily_without_trouble_is_not_a_suspect():
+    # Rice most days and fine; the two bloating days it came with dairy.
+    meals = [meal(f"2026-10-0{day}T12:00:00", "Rice bowl", ["rice", "chicken"]) for day in range(1, 6)]
+    meals += [
+        meal("2026-10-06T12:00:00", "Rice bowl", ["rice", "chicken", "cheese"]),
+        meal("2026-10-08T12:00:00", "Rice bowl", ["rice", "chicken", "cheese"]),
+    ]
+    symptoms = [symptom("2026-10-06T13:00:00", "Bloating", 3), symptom("2026-10-08T13:00:00", "Bloating", 3)]
+
+    suspects = compute_suspects(meals, symptoms, [], [], "2026-10-05", TZ, 2, None)
+    assert [s.name for s in suspects.ingredients] == ["cheese"]
+    assert suspects.lead_suspect == "cheese"
+
+    settings = SettingsRow(correlation_window_hours=2, min_trigger_count=2)
+    rows = compute_correlations(meals, symptoms, settings)
+    week = compute_weekly_digest(meals, symptoms, rows, "2026-10-05", TZ, settings, "2026-10-11")
+    assert week.symptoms.cards[0].top_triggers == ["cheese"]

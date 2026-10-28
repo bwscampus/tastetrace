@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from app.domain.catalog import catalog_by_key, catalog_by_name
+from app.domain.correlations import usually_fine_items
 from app.domain.coverage import COVERAGE_SLOTS
 from app.domain.flares import cluster_flares, intensity_of, onset_hours
 from app.domain.foods import normalize_item
@@ -198,6 +199,12 @@ def compute_weekly_digest(
         history_counts[symptom.name] = history_counts.get(symptom.name, 0) + 1
 
     pattern_floor = max(settings.min_trigger_count, MIN_PATTERN_DAYS)
+    # Foods eaten regularly without trouble are never named as a symptom's trigger
+    fine = usually_fine_items(
+        [m for m in meals if local_date(m.timestamp, tz) <= week_end],
+        [s for s in symptoms if local_date(s.timestamp, tz) <= week_end],
+        settings.correlation_window_hours,
+    )
 
     def top_triggers(name: str) -> list[str]:
         """Foods that came before this symptom on separate days, not just once."""
@@ -213,6 +220,7 @@ def compute_weekly_digest(
                     if r.symptom_name == name
                     and r.dimension == "ingredient"
                     and len(days.get(normalize_item(r.food_name), ())) >= pattern_floor
+                    and (f"ingredient:{normalize_item(r.food_name)}", name) not in fine
                 ),
                 key=lambda r: -r.confidence,
             )
