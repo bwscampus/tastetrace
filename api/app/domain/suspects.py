@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from app.domain.correlations import usually_fine_items
 from app.domain.flares import Flare, cluster_flares, hours_between, meals_before
 from app.domain.foods import meal_items, normalize_item
 from app.domain.rounding import round1, round2
@@ -131,10 +132,30 @@ def compute_suspects(
 
     # One meal before one symptom is a coincidence, not a pattern: a food is
     # only a suspect once it has come before symptoms on separate days
+    # A food eaten regularly without trouble, that only came before a
+    # symptom alongside a likelier cause, is not a suspect for that symptom.
+    # Only history up to the end of this week counts, as above.
+    fine = usually_fine_items(
+        [m for m in meals if local_date(m.timestamp, tz) <= week_end],
+        [s for s in symptoms if local_date(s.timestamp, tz) <= week_end],
+        window_hours,
+    )
+
+    def usually_fine(key: str, entry: _Entry) -> bool:
+        names = {
+            name
+            for flare, _, _ in week_hits(entry)
+            for name in flare.names
+            if not symptom_filter or name == symptom_filter
+        }
+        return all((f"ingredient:{key}", name) in fine for name in names)
+
     entries = {
         key: entry
         for key, entry in entries.items()
-        if week_hits(entry) and len(entry.days) >= max(min_days, MIN_PATTERN_DAYS)
+        if week_hits(entry)
+        and len(entry.days) >= max(min_days, MIN_PATTERN_DAYS)
+        and not usually_fine(key, entry)
     }
 
     week_meals = [m for m in meals if local_date(m.timestamp, tz) in dates]

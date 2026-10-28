@@ -2,7 +2,14 @@
 
 from datetime import UTC, datetime
 
-from app.domain.correlations import compute_correlations, confidence_score, suspicion_for, tier_for
+from app.domain.correlations import (
+    USUALLY_FINE_CAP,
+    compute_correlations,
+    confidence_score,
+    suspicion_for,
+    tier_for,
+    usually_fine_items,
+)
 from app.domain.flares import cluster_flares, onset_hours
 from app.domain.rows import CorrelationRow, IngredientRow, MealRow, SettingsRow, SymptomRow
 
@@ -163,3 +170,46 @@ def test_dietary_tags_count_as_ingredients():
     assert gluten.confidence == rows[0].confidence
     dairy = next(r for r in rows if r.food_name == "Dairy")
     assert dairy.confidence < gluten.confidence
+
+
+def test_a_regular_food_eaten_alongside_the_real_trigger_is_usually_fine():
+    # Rice every day for a week and fine; on the two days cheese came with it, reflux followed.
+    meals = [meal(f"2026-09-0{day}T12:00:00", "Rice bowl", [("rice", None)]) for day in range(1, 6)]
+    meals += [
+        meal("2026-09-06T12:00:00", "Rice bowl", [("rice", None), ("cheese", None)]),
+        meal("2026-09-07T12:00:00", "Rice bowl", [("rice", None), ("cheese", None)]),
+    ]
+    symptoms = [symptom("2026-09-06T14:00:00", "Acid Reflux"), symptom("2026-09-07T14:00:00", "Acid Reflux")]
+
+    rows = compute_correlations(meals, symptoms, SETTINGS)
+    rice = next(r for r in rows if r.dimension == "ingredient" and r.food_name == "rice")
+    cheese = next(r for r in rows if r.dimension == "ingredient" and r.food_name == "cheese")
+
+    assert (rice.exposures, rice.flare_exposures) == (7, 2)
+    assert rice.confidence <= USUALLY_FINE_CAP
+    assert cheese.confidence > rice.confidence
+    assert usually_fine_items(meals, symptoms, 24) == {("ingredient:rice", "Acid Reflux")}
+
+
+def test_a_regular_food_with_symptoms_of_its_own_stays_a_candidate():
+    # Rice is fine on most days, but one reflux followed rice eaten on its own.
+    meals = [meal(f"2026-09-0{day}T12:00:00", "Rice bowl", [("rice", None)]) for day in range(1, 6)]
+    meals += [
+        meal("2026-09-06T12:00:00", "Rice bowl", [("rice", None), ("cheese", None)]),
+        meal("2026-09-07T12:00:00", "Rice bowl", [("rice", None), ("cheese", None)]),
+    ]
+    symptoms = [
+        symptom("2026-09-05T14:00:00", "Acid Reflux"),
+        symptom("2026-09-06T14:00:00", "Acid Reflux"),
+        symptom("2026-09-07T14:00:00", "Acid Reflux"),
+    ]
+    assert usually_fine_items(meals, symptoms, 24) == set()
+
+
+def test_foods_always_eaten_together_do_not_explain_each_other_away():
+    meals = [
+        meal(f"2026-09-0{day}T12:00:00", "Toast", [("sourdough bread", None), ("butter", None)])
+        for day in range(1, 9)
+    ]
+    symptoms = [symptom("2026-09-01T14:00:00", "Acid Reflux"), symptom("2026-09-02T14:00:00", "Acid Reflux")]
+    assert usually_fine_items(meals, symptoms, 24) == set()
