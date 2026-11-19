@@ -69,6 +69,27 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(coverage.weekSlots.bySlot["Lunch"]?.logged, 3)
     }
 
+    func testFoodOccurrencesSendsTheSearchAndDecodes() async throws {
+        try transport.stub("GET", "/api/foods/occurrences", fixture: "foodOccurrences")
+        let found = try await client.foodOccurrences("avocado", tz: "America/Los_Angeles")
+        XCTAssertEqual(found.total, 2)
+        XCTAssertEqual(found.occurrences.map(\.mealName), ["Avocado Sourdough Toast", "Guacamole"])
+        XCTAssertEqual(found.occurrences[0].symptomsAfter.first?.name, "Acid Reflux")
+        XCTAssertTrue(found.occurrences[1].symptomsAfter.isEmpty)
+        XCTAssertTrue(transport.requests[0].url!.query!.contains("q=avocado"))
+    }
+
+    func testSymptomOccurrencesDecodes() async throws {
+        transport.stub("GET", "/api/symptoms/occurrences", json: """
+        {"query":"reflux","windowHours":24,"total":1,"withMeals":1,"occurrences":[{"symptomId":9,"name":"Acid Reflux",
+         "severity":"Moderate","intensity":3,"at":"2026-09-17T21:29:00Z","date":"2026-09-17",
+         "mealsBefore":[{"mealId":14,"mealName":"Avocado Sourdough Toast","at":"2026-09-17T19:45:00Z","onsetHours":1.7}]}]}
+        """)
+        let found = try await client.symptomOccurrences("reflux", tz: "America/Los_Angeles")
+        XCTAssertEqual(found.occurrences.first?.intensity, 3)
+        XCTAssertEqual(found.occurrences.first?.mealsBefore.first?.mealName, "Avocado Sourdough Toast")
+    }
+
     func testErrorsMapToAPIError() async throws {
         transport.stub("GET", "/api/users/me", status: 401, json: "Unauthorized")
         do { _ = try await client.currentUser(); XCTFail("expected throw") }

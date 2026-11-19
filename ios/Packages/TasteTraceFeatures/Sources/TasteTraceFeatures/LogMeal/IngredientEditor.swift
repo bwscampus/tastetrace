@@ -117,6 +117,34 @@ struct MealCategoryGrid: View {
     }
 }
 
+/// The Gluten / Sugar / Dairy / Grain tiles. Shared by Log a Meal and Edit Meal.
+struct SensitivityFlagPicker: View {
+    @Binding var flags: Set<SensitivityFlag>
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(SensitivityFlag.allCases.prefix(4)) { flag in
+                let on = flags.contains(flag)
+                Button {
+                    if on { flags.remove(flag) } else { flags.insert(flag) }
+                } label: {
+                    VStack(spacing: 6) {
+                        Text(flag.emoji).font(.title3)
+                        Text(flag.rawValue.uppercased()).font(TTFont.captionSemibold).tracking(0.8)
+                    }
+                    .frame(maxWidth: .infinity).padding(.vertical, 12)
+                    .foregroundStyle(on ? TTColor.primary : TTColor.textSecondary)
+                    .background(on ? TTColor.infoTint : TTColor.card, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(on ? TTColor.primary : TTColor.cardBorder, lineWidth: on ? 2 : 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(flag.rawValue)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+    }
+}
+
 /// Date + time pickers in a card.
 struct DateTimeCard: View {
     let title: String

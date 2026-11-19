@@ -9,6 +9,8 @@ final class AuthViewModelTests: XCTestCase {
         let transport = StubTransport(status: 401, body: "Unauthorized")
         let session = AuthSession.make(baseURL: URL(string: "https://api.example")!, tokenStore: InMemoryTokenStore(), transport: transport)
         let model = AuthViewModel(session: session)
+        XCTAssertEqual(model.mode, .signUp)
+        model.mode = .signIn
 
         XCTAssertFalse(model.canSubmit)
         model.email = "a@b.co"; model.password = "short"
@@ -101,6 +103,20 @@ final class MealPhotoRecognitionTests: XCTestCase {
         XCTAssertEqual(model.path, [.verify])
         XCTAssertFalse(model.completed, "a recognition must never log by itself")
         XCTAssertEqual(model.photoState, .idle)
+    }
+
+    @MainActor
+    func testATypedFoodStartsWithTheIngredientsItsNameMentions() {
+        let model = model()
+        model.newFoodName = "Chicken salad"
+        model.addNewFood()
+        XCTAssertEqual(model.items[0].ingredients, [IngredientDetail(name: "chicken")])
+        XCTAssertTrue(model.items[0].ingredientsFromName)
+
+        model.newFoodName = "Pad thai"
+        model.addNewFood()
+        XCTAssertEqual(model.items[1].ingredients, [])
+        XCTAssertFalse(model.items[1].ingredientsFromName)
     }
 
     @MainActor
@@ -261,5 +277,18 @@ final class OnboardingDisclaimerTests: XCTestCase {
         // Even if the flag were somehow set, there is no text to agree to.
         model.disclaimerAgreed = true
         XCTAssertFalse(model.canContinue, "no bundled copy on purpose; the step cannot be skipped")
+    }
+}
+
+final class GreetingTests: XCTestCase {
+    func testGreetingFollowsTheTimeOfDay() {
+        let math = DateMath(timeZone: TimeZone(identifier: "UTC")!)
+        func at(_ hour: Int) -> Date { Date(timeIntervalSince1970: TimeInterval(hour * 3600)) }
+
+        XCTAssertEqual(Formatting.greeting(at: at(8), name: "Taylor", math: math), "Good morning, Taylor")
+        XCTAssertEqual(Formatting.greeting(at: at(14), name: "Taylor", math: math), "Good afternoon, Taylor")
+        XCTAssertEqual(Formatting.greeting(at: at(21), name: "Taylor", math: math), "Good night, Taylor")
+        XCTAssertEqual(Formatting.greeting(at: at(2), name: nil, math: math), "Good night")
+        XCTAssertEqual(Formatting.greeting(at: at(8), name: "  ", math: math), "Good morning")
     }
 }

@@ -57,6 +57,27 @@ final class IngredientParsingTests: XCTestCase {
     }
 }
 
+final class IngredientSuggestionTests: XCTestCase {
+    func testTheNameFillsInTheIngredientsItMentions() {
+        XCTAssertEqual(suggestedIngredients(forFood: "Chicken salad"), ["chicken"])
+        XCTAssertEqual(suggestedIngredients(forFood: "Turkey sandwich"), ["turkey", "bread"])
+        XCTAssertEqual(suggestedIngredients(forFood: "Scrambled eggs with spinach"), ["egg", "spinach"])
+        XCTAssertEqual(suggestedIngredients(forFood: "Jalapeño poppers"), ["jalapeno"])
+    }
+
+    func testCompoundNamesStayWhole() {
+        XCTAssertEqual(suggestedIngredients(forFood: "Peanut butter toast"), ["peanut butter", "bread"])
+        XCTAssertEqual(suggestedIngredients(forFood: "Ice cream"), ["ice cream"])
+        XCTAssertEqual(suggestedIngredients(forFood: "Mac and cheese"), ["pasta", "cheese"])
+        XCTAssertEqual(suggestedIngredients(forFood: "Strawberries & cream"), ["strawberry", "cream"])
+    }
+
+    func testAnUnknownDishSuggestsNothing() {
+        XCTAssertEqual(suggestedIngredients(forFood: "Pad thai"), [])
+        XCTAssertEqual(suggestedIngredients(forFood: ""), [])
+    }
+}
+
 final class WatchlistMatchTests: XCTestCase {
     func testSubstringCaseInsensitiveMatch() {
         XCTAssertEqual(watchlistMatches(watchlist: ["sourdough bread", "dairy"], ingredients: ["Sourdough Bread", "avocado"]), ["sourdough bread"])

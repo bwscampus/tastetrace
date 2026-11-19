@@ -16,16 +16,21 @@ struct TodayView: View {
     var body: some View {
         TTScreen {
             header
+            if let coverage = model.coverage {
+                StreakCard(streak: coverage.streak, mealsToday: coverage.week.last?.meals ?? 0) {
+                    router.todayPath.append(.coverage(date: model.today))
+                }
+            }
             HStack(spacing: 12) {
                 PrimaryButton("Log Meal", systemImage: "plus.circle.fill") { router.sheet = .logMeal(date: model.today) }
-                SecondaryButton("Log Symptom", emoji: "💛") { router.sheet = .quickLog(date: model.today) }
+                SecondaryButton("Log Symptom", systemImage: "waveform.path.ecg") { router.sheet = .quickLog(date: model.today) }
             }
             // Nothing to show until the first entry of the day.
             if model.hasEntries {
                 TimelineSection(model: model, onDelete: { pendingDelete = $0 })
             }
             if let error = model.error {
-                InfoBanner(emoji: "⚠️", message: error, tone: .warning)
+                InfoBanner(systemImage: "exclamationmark.triangle.fill", message: error, tone: .warning)
             }
         } bottom: {
             if let toast = model.toast {
@@ -52,12 +57,11 @@ struct TodayView: View {
                 Text(Formatting.todayHeader(model.today, math: model.math))
                     .font(TTFont.captionSemibold).tracking(1.2).foregroundStyle(TTColor.primary)
                 HStack(spacing: 8) {
-                    Text("🍽️").font(.system(size: 26))
+                    Image(systemName: "fork.knife").font(.system(size: 22, weight: .semibold)).foregroundStyle(TTColor.primary)
                     Text("TasteTrace").font(.system(size: 30, weight: .bold)).foregroundStyle(TTColor.navy)
                 }
-                if let user = env.session.user {
-                    Text("Signed in as \(user.email)").font(TTFont.body).foregroundStyle(TTColor.textSecondary)
-                }
+                Text(Formatting.greeting(at: model.today, name: greetingName, math: model.math))
+                    .font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
             }
             Spacer()
             HStack(spacing: 10) {
@@ -66,6 +70,47 @@ struct TodayView: View {
             }
         }
         .padding(.top, 4)
+    }
+
+    /// First name from onboarding, else the profile's display name.
+    private var greetingName: String? {
+        guard let user = env.session.user else { return nil }
+        if let first = user.firstName, !first.trimmingCharacters(in: .whitespaces).isEmpty { return first }
+        return user.displayName
+    }
+}
+
+/// Daily logging streak, tapping through to the coverage detail.
+struct StreakCard: View {
+    let streak: Coverage.Streak
+    let mealsToday: Int
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            TTCard(padding: 14) {
+                HStack(spacing: 14) {
+                    Text("🔥").font(.system(size: 28))
+                        .frame(width: 52, height: 52)
+                        .background(TTColor.successTint, in: RoundedRectangle(cornerRadius: 14))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(streak.days)-Day Streak").font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
+                        Text(message).font(TTFont.body).foregroundStyle(TTColor.textSecondary)
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").foregroundStyle(TTColor.primary).font(.system(size: 16, weight: .semibold))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var message: String {
+        if streak.todayCounts { return "Today counts. Keep it going tomorrow." }
+        let left = max(streak.threshold - mealsToday, 1)
+        let meals = "\(left) more meal\(left == 1 ? "" : "s")"
+        return streak.days == 0 ? "Log \(meals) today to start a streak." : "Log \(meals) today to keep it going."
     }
 }
 

@@ -29,7 +29,7 @@ struct DigestView: View {
             case .suspects:
                 if let suspects = model.suspects { SuspectsDigestView(suspects: suspects, model: model) }
             }
-            if let error = model.error { InfoBanner(emoji: "⚠️", message: error, tone: .warning) }
+            if let error = model.error { InfoBanner(systemImage: "exclamationmark.triangle.fill", message: error, tone: .warning) }
         } bottom: {
             if model.segment != .trends, model.digest != nil {
                 PinnedBottomBar {
@@ -232,7 +232,7 @@ struct SymptomDigestCard: View {
                 Text(card.emoji ?? "⚡️").font(.title2).frame(width: 48, height: 48).background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(card.name).font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
-                    Text("\(card.occurrences) Occurrence\(card.occurrences == 1 ? "" : "s") (\(Int((card.shareOfWeek * 100).rounded()))% of week)").font(TTFont.body).foregroundStyle(TTColor.textSecondary)
+                    Text("\(card.occurrences) Occurrence\(card.occurrences == 1 ? "" : "s")").font(TTFont.body).foregroundStyle(TTColor.textSecondary)
                 }
                 Spacer()
                 StatusBadge(card.vsBaseline == "up" ? "Above Baseline" : card.vsBaseline == "down" ? "Below Baseline" : "Same as Baseline", tone: card.vsBaseline == "up" ? .danger : .success)

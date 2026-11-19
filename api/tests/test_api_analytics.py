@@ -219,3 +219,74 @@ async def test_trigger_insights_rebuild_associations_from_an_older_window(client
     assert body["windowHours"] == 6
     async with async_sessionmaker(engine)() as session:
         assert set(await session.scalars(select(Correlation.window_hours))) == {6}
+
+
+async def test_food_occurrences_lists_every_meal_with_what_followed(client):
+    auth = await register_and_login(client, "taylor@example.com")
+    await seed_week(client, auth)
+    await client.post(
+        "/api/meals",
+        headers=auth,
+        json={"name": "Guacamole", "mealType": "Snack", "timestamp": "2026-09-14T22:00:00Z",
+              "tz": TZ, "ingredients": ["Avocado", "lime"]},
+    )
+    await client.post(
+        "/api/meals",
+        headers=auth,
+        json={"name": "Oats", "mealType": "Breakfast", "timestamp": "2026-09-15T15:00:00Z", "tz": TZ},
+    )
+
+    found = await client.get("/api/foods/occurrences", headers=auth, params={"q": " AVOCADO ", "tz": TZ})
+    assert found.status_code == 200, found.text
+    body = found.json()
+    assert body["query"] == "AVOCADO"
+    assert body["total"] == 3
+    assert body["withSymptoms"] == 2
+    assert [o["date"] for o in body["occurrences"]] == ["2026-09-17", "2026-09-14", "2026-09-11"]
+    latest = body["occurrences"][0]
+    assert latest["mealName"] == "Avocado Sourdough Toast"
+    assert "avocado" in latest["matched"]
+    assert {s["name"] for s in latest["symptomsAfter"]} == {"Acid Reflux", "Bloating"}
+    assert latest["symptomsAfter"][0]["onsetHours"] == 1.7
+    assert body["occurrences"][1]["matched"] == ["Avocado"]
+    assert body["occurrences"][1]["symptomsAfter"] == []
+
+    # Partial words match too, and a meal name with no ingredient list still counts
+    assert (await client.get("/api/foods/occurrences", headers=auth, params={"q": "oat"})).json()["total"] == 1
+    assert (await client.get("/api/foods/occurrences", headers=auth, params={"q": "pizza"})).json()["total"] == 0
+
+
+async def test_food_occurrences_rejects_blank_and_stays_private(client):
+    auth = await register_and_login(client, "taylor@example.com")
+    await seed_week(client, auth)
+    assert (await client.get("/api/foods/occurrences", headers=auth, params={"q": "   "})).status_code == 400
+    assert (await client.get("/api/foods/occurrences", headers=auth, params={"q": ""})).status_code == 422
+    assert (await client.get("/api/foods/occurrences", headers=auth, params={"q": "x" * 101})).status_code == 422
+    assert (await client.get("/api/foods/occurrences", params={"q": "avocado"})).status_code == 401
+
+    other = await register_and_login(client, "someone@example.com")
+    assert (await client.get("/api/foods/occurrences", headers=other, params={"q": "avocado"})).json()["total"] == 0
+
+
+async def test_symptom_occurrences_lists_each_symptom_with_the_meals_before(client):
+    auth = await register_and_login(client, "taylor@example.com")
+    await seed_week(client, auth)
+
+    found = await client.get("/api/symptoms/occurrences", headers=auth, params={"q": "reflux", "tz": TZ})
+    assert found.status_code == 200, found.text
+    body = found.json()
+    assert body["total"] == 2
+    assert body["withMeals"] == 2
+    assert [o["date"] for o in body["occurrences"]] == ["2026-09-17", "2026-09-11"]
+    latest = body["occurrences"][0]
+    assert latest["name"] == "Acid Reflux"
+    assert latest["intensity"] == 3
+    assert [m["mealName"] for m in latest["mealsBefore"]] == ["Avocado Sourdough Toast"]
+    assert latest["mealsBefore"][0]["onsetHours"] == 1.7
+
+    assert (await client.get("/api/symptoms/occurrences", headers=auth, params={"q": "BLOAT"})).json()["total"] == 2
+    assert (await client.get("/api/symptoms/occurrences", headers=auth, params={"q": "headache"})).json()["total"] == 0
+    assert (await client.get("/api/symptoms/occurrences", headers=auth, params={"q": "  "})).status_code == 400
+    assert (await client.get("/api/symptoms/occurrences", params={"q": "reflux"})).status_code == 401
+    other = await register_and_login(client, "someone@example.com")
+    assert (await client.get("/api/symptoms/occurrences", headers=other, params={"q": "reflux"})).json()["total"] == 0

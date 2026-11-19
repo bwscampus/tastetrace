@@ -39,7 +39,7 @@ async def synthesis(body: SynthesisRequest, user: CurrentUser, session: Session)
 
     suspects = compute_suspects(
         meals, symptoms, correlations, watchlist, week_start, zone,
-        settings.correlation_window_hours, chosen,
+        settings.correlation_window_hours, chosen, settings.min_trigger_count,
     )
     return await synthesize(session, user.id, suspects, chosen)
 

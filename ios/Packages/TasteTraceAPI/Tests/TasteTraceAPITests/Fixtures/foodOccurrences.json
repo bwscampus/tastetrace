@@ -1,0 +1,28 @@
+{
+  "query": "avocado",
+  "windowHours": 24,
+  "total": 2,
+  "withSymptoms": 1,
+  "occurrences": [
+    {
+      "mealId": 14,
+      "mealName": "Avocado Sourdough Toast",
+      "mealType": "Lunch",
+      "mealAt": "2026-09-17T19:45:00Z",
+      "date": "2026-09-17",
+      "matched": ["avocado", "Avocado Sourdough Toast"],
+      "symptomsAfter": [
+        {"name": "Acid Reflux", "at": "2026-09-17T21:29:00Z", "onsetHours": 1.7}
+      ]
+    },
+    {
+      "mealId": 13,
+      "mealName": "Guacamole",
+      "mealType": "Snack",
+      "mealAt": "2026-09-14T22:00:00.123456Z",
+      "date": "2026-09-14",
+      "matched": ["Avocado"],
+      "symptomsAfter": []
+    }
+  ]
+}

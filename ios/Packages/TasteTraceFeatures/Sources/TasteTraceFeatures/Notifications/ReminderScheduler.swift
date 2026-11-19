@@ -49,7 +49,7 @@ public final class ReminderScheduler: @unchecked Sendable {
 
         if settings.nudgesEnabled, let (hour, minute) = Self.parse(settings.nudgeTime) {
             let content = UNMutableNotificationContent()
-            content.title = "Evening check-in 🍽️"
+            content.title = "Evening check-in"
             content.body = "Anything from today still unlogged? A quick entry keeps your ledger complete."
             content.sound = .default
             try? await center.add(UNNotificationRequest(identifier: Self.nudgeId, content: content, trigger: Self.dailyTrigger(hour: hour, minute: minute, math: math)))

@@ -8,6 +8,7 @@ struct HistoryView: View {
     @State private var model: HistoryViewModel
     @State private var pendingDelete: TimelineItem?
     @State private var showJumpToDate = false
+    @State private var search = ""
 
     init(env: AppEnvironment) {
         _model = State(initialValue: HistoryViewModel(env: env))
@@ -15,6 +16,7 @@ struct HistoryView: View {
 
     var body: some View {
         TTScreen {
+            FoodSearchField(text: $search, prompt: "Search foods or symptoms") { runSearch() }
             header
             WeekStrip(model: model) { date in Task { await model.select(date) } }
             DayChips(model: model) { date in Task { await model.select(date) } }
@@ -39,7 +41,7 @@ struct HistoryView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
-            if let error = model.error { InfoBanner(emoji: "⚠️", message: error, tone: .warning) }
+            if let error = model.error { InfoBanner(systemImage: "exclamationmark.triangle.fill", message: error, tone: .warning) }
         } bottom: {
             PinnedBottomBar {
                 PrimaryButton("Export for Your Doctor (PDF)", systemImage: "doc.richtext") {
@@ -70,11 +72,18 @@ struct HistoryView: View {
         }
     }
 
+    private func runSearch() {
+        let text = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        router.historyPath.append(.search(query: text))
+        search = ""
+    }
+
     private var header: some View {
         HStack {
             IconCircleButton(systemImage: "chevron.left") { router.tab = .today }
             Spacer()
-            ScreenHeading("Symptom & Food History", subtitle: Formatting.monthYear(model.selectedDate, math: model.math) + " 📅")
+            ScreenHeading("Symptom & Food History", subtitle: Formatting.monthYear(model.selectedDate, math: model.math))
             Spacer()
             // Balances the back button so the heading stays centred
             Color.clear.frame(width: 44, height: 44)

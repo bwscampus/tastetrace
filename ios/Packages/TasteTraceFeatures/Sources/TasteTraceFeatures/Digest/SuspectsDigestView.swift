@@ -5,6 +5,7 @@ import TasteTraceUI
 
 /// Foods eaten before this week's symptoms: each food, when it was eaten and
 /// the symptom that followed. No scores or percentages, on purpose.
+/// Tapping a food lists every time it was eaten.
 struct SuspectsDigestView: View {
     let suspects: SuspectsDigest
     let model: DigestViewModel
@@ -23,17 +24,24 @@ struct SuspectsDigestView: View {
 
         if suspects.ingredients.isEmpty {
             TTCard {
-                Text(suspects.flares == 0 ? "No symptoms this week." : "No meals were logged in the hours before this week's symptoms.")
+                Text(emptyMessage)
                     .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .center)
             }
         } else {
-            Text("Foods eaten in the \(suspects.windowHours) hours before a symptom")
+            Text("Foods eaten in the \(suspects.windowHours) hours before a symptom on more than one day")
                 .font(TTFont.body).foregroundStyle(TTColor.textSecondary)
         }
         ForEach(suspects.ingredients) { suspect in
             SuspectCard(suspect: suspect, math: model.math) { Task { await model.toggleWatchlist(suspect) } }
         }
+    }
+
+    private var emptyMessage: String {
+        if suspects.flares == 0 { return "No symptoms this week." }
+        if suspects.mealsEvaluated == 0 { return "No meals were logged in the hours before this week's symptoms." }
+        // One meal before one symptom is a coincidence; a food shows here once it repeats on another day.
+        return "No food has come before a symptom on more than one day yet. Keep logging and patterns will show up here."
     }
 }
 
@@ -45,11 +53,19 @@ struct SuspectCard: View {
     var body: some View {
         TTCard {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    Image(systemName: "fork.knife").foregroundStyle(TTColor.danger).frame(width: 44, height: 44).background(TTColor.dangerTint, in: RoundedRectangle(cornerRadius: 12))
-                    Text(suspect.name.capitalizedFirst).font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
-                    Spacer()
+                NavigationLink(value: Route.food(name: suspect.name)) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "fork.knife").foregroundStyle(TTColor.danger).frame(width: 44, height: 44).background(TTColor.dangerTint, in: RoundedRectangle(cornerRadius: 12))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(suspect.name.capitalizedFirst).font(TTFont.cardTitle).foregroundStyle(TTColor.navy)
+                            Text("See every time you ate it").font(TTFont.caption).foregroundStyle(TTColor.primary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").foregroundStyle(TTColor.textSecondary)
+                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(suspect.recentPairs) { pair in
                         VStack(alignment: .leading, spacing: 2) {
@@ -63,7 +79,7 @@ struct SuspectCard: View {
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                 .background(TTColor.background, in: RoundedRectangle(cornerRadius: TTRadius.tile))
                 Button(action: onWatchlist) {
-                    Text(suspect.onWatchlist ? "Tracking ✓" : "Track in Watchlist")
+                    Text(suspect.onWatchlist ? "Tracking" : "Track in Watchlist")
                         .font(TTFont.bodySemibold).frame(maxWidth: .infinity).padding(.vertical, 12)
                         .foregroundStyle(.white).background(suspect.onWatchlist ? TTColor.success : TTColor.primary, in: RoundedRectangle(cornerRadius: TTRadius.tile))
                 }

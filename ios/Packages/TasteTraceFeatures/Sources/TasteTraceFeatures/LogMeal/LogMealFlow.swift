@@ -59,24 +59,7 @@ struct LogMealStep1View: View {
             ))
 
             SectionLabel("Quick sensitivity filter (optional)")
-            HStack(spacing: 8) {
-                ForEach(SensitivityFlag.allCases.prefix(4)) { flag in
-                    let on = model.flags.contains(flag)
-                    Button {
-                        if on { model.flags.remove(flag) } else { model.flags.insert(flag) }
-                    } label: {
-                        VStack(spacing: 6) {
-                            Text(flag.emoji).font(.title3)
-                            Text(flag.rawValue.uppercased()).font(TTFont.captionSemibold).tracking(0.8)
-                        }
-                        .frame(maxWidth: .infinity).padding(.vertical, 12)
-                        .foregroundStyle(on ? TTColor.primary : TTColor.textSecondary)
-                        .background(on ? TTColor.infoTint : TTColor.card, in: RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: TTRadius.tile, style: .continuous).stroke(on ? TTColor.primary : TTColor.cardBorder, lineWidth: on ? 2 : 1))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+            SensitivityFlagPicker(flags: $model.flags)
 
             SectionLabel("2. Saved shortcuts & custom entry")
             TTCard {
@@ -224,7 +207,7 @@ struct DishLibraryView: View {
         NavigationStack {
             TTScreen {
                 if model.dishes.isEmpty {
-                    EmptyStateView(emoji: "🍽️", title: "No saved dishes yet", message: "Save a new food when you log a meal and it will appear here.")
+                    EmptyStateView(systemImage: "fork.knife", title: "No saved dishes yet", message: "Save a new food when you log a meal and it will appear here.")
                 }
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                     ForEach(model.dishes) { dish in
@@ -366,6 +349,10 @@ struct MealItemIngredientsCard: View {
                     Text("Edited for this meal only; the saved tile keeps its ingredients.")
                         .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
                 }
+                if item.origin == .typed && item.ingredientsFromName {
+                    Text("Started from the name. Add what else is in it, and remove anything that isn't.")
+                        .font(TTFont.caption).foregroundStyle(TTColor.textSecondary)
+                }
                 if let note = photoNote {
                     // A recognition is a draft. These ingredients become the
                     // evidence behind the digest's suspects, so a wrong one is
@@ -388,15 +375,15 @@ struct TriggerTracesCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("⚠️ Sensitivity Trigger Traces").font(TTFont.captionSemibold).tracking(0.8).textCase(.uppercase).foregroundStyle(TTColor.warning)
+                Text("Sensitivity Trigger Traces").font(TTFont.captionSemibold).tracking(0.8).textCase(.uppercase).foregroundStyle(TTColor.warning)
                 Spacer()
                 StatusBadge("Watchlist Alert", tone: .warning)
             }
             Group {
                 if hits.isEmpty {
-                    Text("✨ No active digestive warning flags detected for this meal.")
+                    Text("No active digestive warning flags detected for this meal.")
                 } else {
-                    Text("👀 On your watchlist: " + hits.map { $0.capitalizedFirst }.joined(separator: ", "))
+                    Text("On your watchlist: " + hits.map { $0.capitalizedFirst }.joined(separator: ", "))
                 }
             }
             .font(TTFont.bodySemibold).foregroundStyle(TTColor.navy)
@@ -418,7 +405,7 @@ struct SaveDishSheet: View {
     var body: some View {
         TTScreen {
             VStack(spacing: 8) {
-                Text("⭐").font(.system(size: 40))
+                Image(systemName: "star.fill").font(.system(size: 36)).foregroundStyle(TTColor.primary)
                     .frame(width: 84, height: 84)
                     .background(TTColor.infoTint, in: Circle())
                     .overlay(Circle().stroke(TTColor.primary, style: StrokeStyle(lineWidth: 2, dash: [8, 6])))
